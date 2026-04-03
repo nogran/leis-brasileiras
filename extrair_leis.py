@@ -762,6 +762,27 @@ def extrair_lei(session, sigla: str, hashes: dict, force: bool = False) -> bool:
 
     blocos = extrair_estrutura(clean_text, sigla, versao, url, data_ext)
 
+    # ── Aplica overrides manuais de known_issues.json ──
+    ki_path = os.path.join(os.path.dirname(__file__), "data", "known_issues.json")
+    if os.path.exists(ki_path):
+        with open(ki_path, encoding="utf-8") as f:
+            ki = json.load(f)
+        overrides = ki.get("overrides_pos_extracao", {})
+        cap_nomes = overrides.get("capitulo_nome", {}).get(sigla, {})
+        if cap_nomes:
+            for bloco in blocos:
+                cap = bloco.get("capitulo", "")
+                if cap in cap_nomes and not bloco.get("capitulo_nome"):
+                    bloco["capitulo_nome"] = cap_nomes[cap]
+                    # Atualiza path_hierarquico
+                    path_partes = []
+                    for num, nome_field in [("titulo","titulo_nome"),("capitulo","capitulo_nome"),("secao","secao_nome")]:
+                        val = bloco.get(num, "")
+                        nome = bloco.get(nome_field, "")
+                        if val:
+                            path_partes.append(f"{val} — {nome}" if nome else val)
+                    bloco["path_hierarquico"] = " > ".join(path_partes)
+
     json_path = f"data/{nome_base}_{data_ext}.json"
     with open(json_path, "w", encoding="utf-8") as f:
         json.dump(blocos, f, ensure_ascii=False, indent=2)

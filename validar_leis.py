@@ -708,6 +708,69 @@ def export_json_report(reports: list[FileReport], filepath: str):
 # Entry point
 # ═══════════════════════════════════════════════════════════════════════════════
 
+def load_known_issues(path: str) -> dict:
+    """Carrega known_issues.json para suprimir INFOs verificados."""
+    if not os.path.exists(path):
+        return {}
+    with open(path, encoding="utf-8") as f:
+        return json.load(f)
+
+
+def suppress_known_issues(report: FileReport, ki: dict):
+    """Remove INFOs que constam no registro de known_issues."""
+    if not ki:
+        return
+    
+    lei = report.lei
+    suppressed = 0
+    filtered = []
+    
+    # Artigos faltantes verificados
+    known_missing = set(ki.get("artigos_faltantes_verificados", {}).get(lei, {}).keys())
+    
+    # Artigos sem titulo verificados
+    known_no_titulo = set(
+        ki.get("artigos_sem_titulo_verificados", {}).get(lei, {}).get("artigos", [])
+    )
+    
+    # Capítulos sem nome verificados
+    known_cap_no_nome = ki.get("capitulo_sem_nome_verificados", {}).get(lei, {})
+    
+    for issue in report.issues:
+        suppress = False
+        
+        # Suprimir artigos_faltantes que são revogados conhecidos
+        if issue.rule == "artigos_faltantes" and known_missing:
+            # Extrai números do message "N faltantes: [x, y, z]"
+            m = re.search(r'\[([^\]]+)\]', issue.message)
+            if m:
+                nums = [n.strip() for n in m.group(1).split(',')]
+                remaining = [n for n in nums if n not in known_missing]
+                if not remaining:
+                    suppress = True
+                elif len(remaining) < len(nums):
+                    issue.message = f"{len(remaining)} faltantes: [{', '.join(remaining)}]"
+        
+        # Suprimir artigo_sem_titulo conhecidos
+        if issue.rule == "artigo_sem_titulo" and known_no_titulo:
+            suppress = True
+        
+        # Suprimir capitulo_sem_nome conhecidos
+        if issue.rule == "capitulo_sem_nome" and known_cap_no_nome:
+            for cap_key in known_cap_no_nome:
+                if cap_key in issue.message:
+                    suppress = True
+                    break
+        
+        if suppress:
+            suppressed += 1
+        else:
+            filtered.append(issue)
+    
+    report.issues = filtered
+    return suppressed
+
+
 def main():
     parser = argparse.ArgumentParser(description="Validação de JSONs jurídicos")
     parser.add_argument("path", help="Arquivo .json ou diretório")
@@ -715,12 +778,31 @@ def main():
     parser.add_argument("--cross", action="store_true", help="Validação cross-file")
     parser.add_argument("--json-report", metavar="FILE", help="Exporta JSON")
     parser.add_argument("--no-color", action="store_true")
+    parser.add_argument("--known-issues", metavar="FILE",
+                        help="JSON de issues verificados (default: data/known_issues.json)")
     args = parser.parse_args()
+
+    # Carrega known_issues
+    ki_path = args.known_issues
+    if not ki_path:
+        # Auto-detect: mesmo diretório do path, ou data/
+        for candidate in [
+            os.path.join(args.path, "known_issues.json"),
+            os.path.join("data", "known_issues.json"),
+            "known_issues.json",
+        ]:
+            if os.path.exists(candidate):
+                ki_path = candidate
+                break
+    ki = load_known_issues(ki_path) if ki_path else {}
+    if ki:
+        print(f"📋 Known issues: {ki_path}")
 
     if os.path.isdir(args.path):
         files = sorted(os.path.join(args.path, f)
                        for f in os.listdir(args.path)
-                       if f.endswith(".json") and not f.startswith("hashes"))
+                       if f.endswith(".json") and not f.startswith("hashes")
+                       and f != "known_issues.json")
     elif os.path.isfile(args.path):
         files = [args.path]
     else:
@@ -732,6 +814,7 @@ def main():
         sys.exit(1)
 
     reports, all_data = [], {}
+    total_suppressed = 0
     for fp in files:
         result = validate_file(fp)
         if isinstance(result, tuple):
@@ -739,6 +822,10 @@ def main():
             all_data[os.path.basename(fp)] = data
         else:
             report = result
+        if ki:
+            s = suppress_known_issues(report, ki)
+            if s:
+                total_suppressed += s
         reports.append(report)
         print_report(report, color=not args.no_color)
 
@@ -760,6 +847,8 @@ def main():
     print(f"SUMÁRIO: {len(files)} arquivos · {tc:,} chunks")
     print(f"  ✅ {tp} passaram  ❌ {tf} falharam")
     print(f"  {tfc} FAILs · {twc} WARNs · {ti} issues total")
+    if total_suppressed:
+        print(f"  📋 {total_suppressed} INFOs suprimidos (known_issues)")
     print(f"{'═'*70}")
 
     if args.json_report:

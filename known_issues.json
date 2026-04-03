@@ -1,0 +1,64 @@
+{
+  "_doc": "Registro de issues verificados manualmente. O validador suprime esses INFOs. O extrator aplica os overrides.",
+  "_updated": "2026-04-03",
+
+  "artigos_faltantes_verificados": {
+    "_doc": "Artigos ausentes da versão compilada do Planalto — revogados por lei e removidos do texto.",
+    "CF88": {
+      "171": "Revogado pela EC nº 6/1995 (eliminação da distinção empresa nacional vs estrangeira)",
+      "233": "Revogado pela EC nº 28/2000 (unificação de prazos prescricionais trabalhistas)"
+    },
+    "CLT": {
+      "597": "Revogado pela Lei nº 4.589/1964 (extinção da Comissão do Imposto Sindical)"
+    },
+    "CC": {
+      "1621": "Revogados em bloco (Arts. 1.621-1.629) pela Lei nº 12.010/2009 (Nova Lei de Adoção)",
+      "1622": "Revogados em bloco (Arts. 1.621-1.629) pela Lei nº 12.010/2009",
+      "1623": "Revogados em bloco (Arts. 1.621-1.629) pela Lei nº 12.010/2009",
+      "1624": "Revogados em bloco (Arts. 1.621-1.629) pela Lei nº 12.010/2009",
+      "1625": "Revogados em bloco (Arts. 1.621-1.629) pela Lei nº 12.010/2009",
+      "1626": "Revogados em bloco (Arts. 1.621-1.629) pela Lei nº 12.010/2009",
+      "1627": "Revogados em bloco (Arts. 1.621-1.629) pela Lei nº 12.010/2009",
+      "1628": "Revogados em bloco (Arts. 1.621-1.629) pela Lei nº 12.010/2009",
+      "1629": "Revogados em bloco (Arts. 1.621-1.629) pela Lei nº 12.010/2009"
+    },
+    "CP": {
+      "187": "Revogado pela Lei nº 9.279/1996 (Lei de Propriedade Industrial)"
+    },
+    "MEI": {
+      "72": "Revogado pela LC nº 155/2016 (não exige mais ME/EPP no nome empresarial)"
+    }
+  },
+
+  "artigos_sem_titulo_verificados": {
+    "_doc": "Artigos legitimamente sem TÍTULO — preâmbulos ou seções finais sem subdivisão.",
+    "CLT": {
+      "artigos": ["Art. 1"],
+      "motivo": "Artigo de promulgação do Decreto-Lei, aparece antes do TÍTULO I"
+    },
+    "CC": {
+      "artigos": ["Art. 2.028", "Art. 2.029", "Art. 2.030", "Art. 2.031", "Art. 2.032", "Art. 2.033", "Art. 2.034", "Art. 2.035", "Art. 2.036", "Art. 2.037", "Art. 2.038", "Art. 2.039", "Art. 2.040", "Art. 2.041", "Art. 2.042", "Art. 2.043", "Art. 2.044", "Art. 2.045", "Art. 2.046"],
+      "motivo": "Livro Complementar — Das Disposições Finais e Transitórias (sem subdivisão em títulos)"
+    },
+    "CPC": {
+      "artigos": ["Art. 1.045", "Art. 1.046", "Art. 1.047", "Art. 1.048", "Art. 1.049", "Art. 1.050", "Art. 1.051", "Art. 1.052", "Art. 1.053", "Art. 1.054", "Art. 1.055", "Art. 1.056", "Art. 1.057", "Art. 1.058", "Art. 1.059", "Art. 1.060", "Art. 1.061", "Art. 1.062", "Art. 1.063", "Art. 1.064", "Art. 1.065", "Art. 1.066", "Art. 1.067", "Art. 1.068", "Art. 1.069", "Art. 1.070", "Art. 1.071", "Art. 1.072"],
+      "motivo": "Livro Complementar — Das Disposições Finais e Transitórias (sem subdivisão em títulos)"
+    }
+  },
+
+  "capitulo_sem_nome_verificados": {
+    "_doc": "Capítulos sem nome capturado — formatação do Planalto impede extração automática.",
+    "LGPD": {
+      "CAPÍTULO IX": "Da Autoridade Nacional de Proteção de Dados (ANPD) e do Conselho Nacional de Proteção de Dados Pessoais e da Privacidade"
+    }
+  },
+
+  "overrides_pos_extracao": {
+    "_doc": "Correções manuais aplicadas pelo extrator após a extração automática.",
+    "capitulo_nome": {
+      "LGPD": {
+        "CAPÍTULO IX": "Da Autoridade Nacional de Proteção de Dados (ANPD) e do Conselho Nacional de Proteção de Dados Pessoais e da Privacidade"
+      }
+    }
+  }
+}
