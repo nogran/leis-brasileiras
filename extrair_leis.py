@@ -38,6 +38,7 @@ LEIS_CONFIG = {
         "versao": "Constituição Federal 1988",
         "url": "https://www.planalto.gov.br/ccivil_03/constituicao/constituicao.htm",
         "nome_base": "cf88",
+        "dedup_redacoes": True,
         "boundaries": [
             {
                 # Signatários do corpo principal (ANTES do ADCT)
@@ -76,6 +77,7 @@ LEIS_CONFIG = {
         "versao": "Decreto-Lei 5.452/1943",
         "url": "https://www.planalto.gov.br/ccivil_03/decreto-lei/del5452compilado.htm",
         "nome_base": "clt",
+        "dedup_redacoes": True,
         "boundaries": [
             {"pattern": r"^ANEXO\b", "action": "anexo"},
         ],
@@ -89,6 +91,7 @@ LEIS_CONFIG = {
         "versao": "Lei 13.105/2015",
         "url": "https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2015/lei/L13105compilada.htm",
         "nome_base": "cpc",
+        "dedup_redacoes": True,
     },
     "CP": {
         "versao": "Decreto-Lei 2.848/1940",
@@ -104,6 +107,7 @@ LEIS_CONFIG = {
         "versao": "Lei 8.069/1990",
         "url": "https://www.planalto.gov.br/ccivil_03/leis/L8069Compilado.htm",
         "nome_base": "eca",
+        "dedup_redacoes": True,
     },
     "LI": {
         "versao": "Lei 8.245/1991",
@@ -120,6 +124,7 @@ LEIS_CONFIG = {
         "versao": "Lei Complementar 123/2006",
         "url": "https://www.planalto.gov.br/ccivil_03/leis/lcp/lcp123.htm",
         "nome_base": "lc123",
+        "dedup_redacoes": True,
         "boundaries": [
             {"pattern": r"^ANEXO(?:\s+[IVXLCDM]+(?:-[A-Z])?|\s+[ÚU]NICO|\s+\d+)?\s*$", "action": "anexo"},
         ],
@@ -133,6 +138,7 @@ LEIS_CONFIG = {
         "versao": "Lei 12.414/2011",
         "url": "https://www.planalto.gov.br/ccivil_03/_ato2011-2014/2011/lei/l12414.htm",
         "nome_base": "cadastro_positivo",
+        "dedup_redacoes": True,
     },
 }
 
@@ -160,48 +166,6 @@ def extrair_alteracoes(texto: str) -> list[dict]:
                 vistos.add(chave)
                 alteracoes.append({"tipo": tipo, "norma": norma})
     return alteracoes
-
-
-# --- Redações supersedidas ---
-# O Planalto compilado mantém ambas as redações (antiga + nova) quando um dispositivo
-# recebe nova redação. Ex:
-#   II - texto antigo;
-#   II - texto novo; (Redação dada pela LC nº 166, de 2019)
-# Esta função remove a redação antiga ANTES da limpeza de ruído (que apaga o marcador).
-DISP_PREFIX_RE = re.compile(
-    r'^(\s*(?:[IVXLCDM]+\s*[-–—]|§\s*\d+[°ºo]?\s*[-–—.]|Parágrafo\s+único|[a-z]\)))'
-)
-REDACAO_MARKER_RE = re.compile(
-    r'\((?:Redação\s+dada|Incluíd[oa]s?|Acrescentad[oa]s?|Nova\s+redação)\s+(?:pela|pelo|ao)',
-    re.IGNORECASE
-)
-
-def remover_redacoes_supersedidas(texto: str) -> str:
-    lines = texto.split('\n')
-    if len(lines) < 2:
-        return texto
-    to_remove = set()
-    hierarchy_re = re.compile(r'^\s*(§\s*\d+|Parágrafo\s+único)', re.IGNORECASE)
-    for i in range(len(lines)):
-        m_i = DISP_PREFIX_RE.match(lines[i])
-        if not m_i:
-            continue
-        prefix = m_i.group(1).strip()
-        # Procura nas próximas 3 linhas por mesmo prefixo com marcador de alteração
-        for j in range(i + 1, min(i + 4, len(lines))):
-            # Se há mudança de hierarquia (§ ou Parágrafo) entre i e j, são contextos
-            # diferentes — mesmo marcador romano é legítimo, não duplicata.
-            if any(hierarchy_re.match(lines[k]) for k in range(i + 1, j + 1)):
-                break
-            m_j = DISP_PREFIX_RE.match(lines[j])
-            if not m_j:
-                continue
-            if m_j.group(1).strip() == prefix and REDACAO_MARKER_RE.search(lines[j]):
-                to_remove.add(i)
-            break  # só checa o próximo dispositivo
-    if not to_remove:
-        return texto
-    return '\n'.join(line for idx, line in enumerate(lines) if idx not in to_remove)
 
 
 # --- Ruido legislativo ---
@@ -433,6 +397,56 @@ def extrair_referencias(texto: str, artigo_atual: str) -> dict:
     return {"internas": sorted(internas), "leis_externas": leis_externas, "constituicao": ref_cf}
 
 
+# --- Dedup de redações (config-driven, roda pós-extração) ---
+_DEDUP_PREFIX_RE = re.compile(
+    r'^(\s*(?:[IVXLCDM]+(?:-[A-Z])?\s*[-–—]|§\s*\d+\s*[°ºo]?(?:-[A-Z])?\s*[-–—.\s]|Parágrafo\s+único|[a-z]\)))'
+)
+_DEDUP_HIERARCHY_RE = re.compile(r'^\s*(§\s*\d+|Parágrafo\s+único)', re.IGNORECASE)
+_DEDUP_PARA_RE = re.compile(r'^§\s*\d+')
+# "§ 15 do art. 18" é referência a outro artigo, não header de parágrafo
+_DEDUP_REF_RE = re.compile(r'^§\s*\d+\s+(?:do|da|de|ao|dos|das|deste|desta|desse|dessa)\b', re.IGNORECASE)
+# Normaliza "§ 1 o", "§ 1º", "§ 1°" → "§1" para comparação
+_DEDUP_NORM_RE = re.compile(r'[°ºo\s.\-–—]')
+
+def _norm_prefix(prefix: str) -> str:
+    """Normaliza prefixo para comparação: '§ 1 o' == '§ 1º' == '§ 1°'."""
+    return _DEDUP_NORM_RE.sub('', prefix)
+
+def dedup_redacoes_bloco(texto: str) -> str:
+    """Remove redações antigas de texto_limpo.
+    Regra: mesmo prefixo na mesma hierarquia → última ocorrência é vigente."""
+    lines = texto.split('\n')
+    if len(lines) < 2:
+        return texto
+    prefixes = [None] * len(lines)
+    norm_prefixes = [None] * len(lines)
+    for i, line in enumerate(lines):
+        m = _DEDUP_PREFIX_RE.match(line)
+        if m and not _DEDUP_REF_RE.match(line):
+            prefixes[i] = m.group(1).strip()
+            norm_prefixes[i] = _norm_prefix(prefixes[i])
+    to_remove = set()
+    for i in range(len(lines)):
+        if norm_prefixes[i] is None:
+            continue
+        nprefix = norm_prefixes[i]
+        is_para = bool(_DEDUP_PARA_RE.match(prefixes[i]))
+        window = 12 if is_para else 4
+        for j in range(i + 1, min(i + window, len(lines))):
+            if any(_DEDUP_HIERARCHY_RE.match(lines[k]) for k in range(i + 1, j)):
+                break
+            if norm_prefixes[j] is None:
+                continue
+            if norm_prefixes[j] == nprefix:
+                to_remove.add(i)
+                break
+            if not is_para:
+                break
+    if not to_remove:
+        return texto
+    return '\n'.join(line for idx, line in enumerate(lines) if idx not in to_remove)
+
+
 # =====================================================================
 #  EXTRACAO DE ESTRUTURA (config-driven)
 # =====================================================================
@@ -458,7 +472,6 @@ def extrair_estrutura(texto, sigla, versao, url, data_ext, config):
         texto_raw = "\n".join(buffer).strip()
         alteracoes = extrair_alteracoes(texto_raw)
         status, vetos_parciais = detectar_status_artigo(texto_raw)
-        texto_raw = remover_redacoes_supersedidas(texto_raw)
         texto_limpo = limpar_ruido_legislativo(texto_raw)
         if not texto_limpo:
             buffer = []; return
@@ -834,6 +847,28 @@ def extrair_lei(session, sigla, hashes, force=False):
         })
         lapides_count += 1
 
+    # -- Dedup redações (config-driven) --
+    dedup_count = 0
+    _SUFIXO_RE = re.compile(r'§\s*\d+[°ºo]?-[A-Z]|[IVXLCDM]+-[A-Z]\s*[-–—]')
+    if config.get("dedup_redacoes"):
+        for bloco in blocos:
+            texto_orig = bloco["texto_limpo"]
+            texto_limpo = dedup_redacoes_bloco(texto_orig)
+            if texto_limpo != texto_orig:
+                # Sanity check: nenhum dispositivo com sufixo-letra pode sumir
+                sufixos_antes = set(_SUFIXO_RE.findall(texto_orig))
+                sufixos_depois = set(_SUFIXO_RE.findall(texto_limpo))
+                perdidos = sufixos_antes - sufixos_depois
+                if perdidos:
+                    print(f"  ⚠️  DEDUP ABORTADO {bloco['artigo']}: perderia {perdidos}")
+                    continue  # não aplica o dedup neste bloco
+                if len(texto_limpo.strip()) < 20:
+                    print(f"  ⚠️  DEDUP ABORTADO {bloco['artigo']}: texto ficaria muito curto")
+                    continue
+                bloco["texto_limpo"] = texto_limpo
+                bloco["hash_artigo"] = hash_texto(texto_limpo)
+                dedup_count += 1
+
     with open(f"data/{nome_base}_{data_ext}.json", "w", encoding="utf-8") as f:
         json.dump(blocos, f, ensure_ascii=False, indent=2)
 
@@ -843,7 +878,7 @@ def extrair_lei(session, sigla, hashes, force=False):
     rev = sum(1 for b in blocos if b["status"] == "revogado")
     vig = sum(1 for b in blocos if b["status"] == "vigente")
     print(f"✅ {sigla} → {len(blocos)} blocos")
-    print(f"   vigentes={vig}  vetados_total={vet}  revogados={rev}  lápides={lapides_count}")
+    print(f"   vigentes={vig}  vetados_total={vet}  revogados={rev}  lápides={lapides_count}  dedup={dedup_count}")
     print(f"   com_vetos_parciais={sum(1 for b in blocos if b.get('vetos_parciais'))}"
           f"  com_alteracoes={sum(1 for b in blocos if b.get('alteracoes'))}")
     return True

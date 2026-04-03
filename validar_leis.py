@@ -333,7 +333,8 @@ def validate_hierarquia(data: list[dict], report: FileReport):
     has_titulo = any(c["titulo"] for c in data if c["artigo"] != "EMENTA")
     if has_titulo:
         no_titulo = [c["artigo"] for c in data
-                     if not c["titulo"] and c["artigo"] != "EMENTA"]
+                     if not c["titulo"] and c["artigo"] != "EMENTA"
+                     and c.get("status") != "revogado"]
         if no_titulo:
             _add(report, "INFO", "HIERARQUIA", "artigo_sem_titulo",
                  f"{len(no_titulo)} artigos sem titulo (ex: {no_titulo[:3]})")
@@ -863,6 +864,9 @@ def main():
     print(f"  {tfc} FAILs · {twc} WARNs · {ti} issues total")
     if total_suppressed:
         print(f"  📋 {total_suppressed} INFOs suprimidos (known_issues)")
+        expected = ki.get("_expected_suppressions")
+        if expected is not None and total_suppressed != expected:
+            print(f"  ⚠️  Esperado {expected} suprimidos, obteve {total_suppressed} — investigar!")
     print(f"{'═'*70}")
 
     if args.json_report:
