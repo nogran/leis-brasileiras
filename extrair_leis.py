@@ -181,6 +181,7 @@ def remover_redacoes_supersedidas(texto: str) -> str:
     if len(lines) < 2:
         return texto
     to_remove = set()
+    hierarchy_re = re.compile(r'^\s*(§\s*\d+|Parágrafo\s+único)', re.IGNORECASE)
     for i in range(len(lines)):
         m_i = DISP_PREFIX_RE.match(lines[i])
         if not m_i:
@@ -188,6 +189,10 @@ def remover_redacoes_supersedidas(texto: str) -> str:
         prefix = m_i.group(1).strip()
         # Procura nas próximas 3 linhas por mesmo prefixo com marcador de alteração
         for j in range(i + 1, min(i + 4, len(lines))):
+            # Se há mudança de hierarquia (§ ou Parágrafo) entre i e j, são contextos
+            # diferentes — mesmo marcador romano é legítimo, não duplicata.
+            if any(hierarchy_re.match(lines[k]) for k in range(i + 1, j + 1)):
+                break
             m_j = DISP_PREFIX_RE.match(lines[j])
             if not m_j:
                 continue
@@ -648,7 +653,9 @@ def extrair_estrutura(texto, sigla, versao, url, data_ext, config):
                     flush_buffer(artigo_label_atual)
                     # Normaliza separador de milhar: "1337" → "1.337" (Planalto CC Art. 1337)
                     if '.' not in num_str and num_atual >= 1000:
-                        num_str = f"{num_atual:,}".replace(',', '.')
+                        num_str_novo = f"{num_atual:,}".replace(',', '.')
+                        linha_clean = linha_clean.replace(f"Art. {num_str}", f"Art. {num_str_novo}", 1)
+                        num_str = num_str_novo
                     sufixo_norm = f"-{sufixo}" if sufixo else ""
                     artigo_label_atual = f"Art. {num_str}{sufixo_norm}"
                     if em_transitorias:
