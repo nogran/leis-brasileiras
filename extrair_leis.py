@@ -733,8 +733,12 @@ def extrair_lei(session, sigla: str, hashes: dict, force: bool = False) -> bool:
 
     # ── FIX 30: "A\nrt. 107" → "Art. 107" ──
     # Planalto CP quebra "Art." como "A" + "rt." em linhas separadas.
-    # Também cobre "A\nr t." e variações.
     clean_text = re.sub(r'\bA\s*\n\s*rt\.\s*(\d)', r'Art. \1', clean_text)
+
+    # ── FIX 31: "Art. 5\n7." → "Art. 57." ──
+    # Planalto LGPD quebra números de artigo entre linhas (56 → "5\n6", 57 → "5\n7").
+    # Requer ponto após o número concatenado para evitar falsos positivos.
+    clean_text = re.sub(r'(Art\.\s*\d+)\s*\n\s*(\d+)\s*\.', r'\1\2.', clean_text)
 
     # ── FIX 26: Remove pontos extras entre "Art." e o número ──
     # CLT Art. 153 gera "Art. . 154" (ponto duplo) após cleanup de revogados.
