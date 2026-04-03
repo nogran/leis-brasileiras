@@ -3,12 +3,18 @@
   "_updated": "2026-04-03",
 
   "artigos_faltantes_verificados": {
-    "_doc": "Artigos ausentes da versão compilada do Planalto — revogados por lei e removidos do texto.",
+    "_doc": "Artigos ausentes da versão compilada do Planalto — revogados por lei, removidos do texto, ou não recepcionados pela CF88.",
     "CF88": {
       "171": "Revogado pela EC nº 6/1995 (eliminação da distinção empresa nacional vs estrangeira)",
+      "117": "Revogado pela EC nº 24/1999 (extinção da representação classista na Justiça do Trabalho)",
       "233": "Revogado pela EC nº 28/2000 (unificação de prazos prescricionais trabalhistas)"
     },
     "CLT": {
+      "554": "Não recepcionado pela CF88 Art. 8° (destituição de diretoria sindical pelo governo)",
+      "555": "Não recepcionado pela CF88 Art. 8° (cassação de carta de filiação sindical)",
+      "571": "Não recepcionado pela CF88 Art. 8° (enquadramento sindical por categoria)",
+      "572": "Não recepcionado pela CF88 Art. 8° (criação de federações por categoria)",
+      "575": "Não recepcionado pela CF88 Art. 8° (regras para confederações sindicais)",
       "597": "Revogado pela Lei nº 4.589/1964 (extinção da Comissão do Imposto Sindical)"
     },
     "CC": {
@@ -23,9 +29,10 @@
       "1629": "Revogados em bloco (Arts. 1.621-1.629) pela Lei nº 12.010/2009"
     },
     "CP": {
-      "187": "Revogado pela Lei nº 9.279/1996 (Lei de Propriedade Industrial)"
+      "187": "Revogado pela Lei nº 9.279/1996 (Lei de Propriedade Industrial)",
+      "188": "Revogado pela Lei nº 9.279/1996 (Lei de Propriedade Industrial — mesmo capítulo do Art. 187)"
     },
-    "MEI": {
+    "LC123": {
       "72": "Revogado pela LC nº 155/2016 (não exige mais ME/EPP no nome empresarial)"
     }
   },

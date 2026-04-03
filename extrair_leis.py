@@ -1,3 +1,15 @@
+"""
+Extrator de leis brasileiras - v6.0 (config-driven)
+
+Arquitetura:
+  LEIS_CONFIG  -> config por lei (url, encoding, boundaries)
+  Engine       -> parsing generico de artigos, hierarquia, status, vetos
+  Boundaries   -> comportamentos especificos declarados na config
+
+Para adicionar uma lei nova: crie entrada em LEIS_CONFIG com url e boundaries.
+Para corrigir um bug de parsing: altere o engine - vale para todas as leis.
+"""
+
 import requests
 from bs4 import BeautifulSoup
 from requests.adapters import HTTPAdapter
@@ -7,32 +19,129 @@ import hashlib, re, json, sys, os
 
 HASHES_FILE = os.path.join(os.path.dirname(__file__), "data", "hashes.json")
 
-# ─── v3 CHANGELOG ────────────────────────────────────────────────────────────
-# FIX 1: detectar_status_artigo → distingue veto total vs parcial
-# FIX 2: title bleed → detecta e remove nomes de seção do buffer
-# FIX 3: referencias_cruzadas → remove auto-referência, separa internas/externas
-# FIX 4: alteracoes → extrai markers ANTES de limpar, preserva histórico legislativo
-# FIX 5: artigos totalmente vetados incluídos (threshold < 30 chars removido p/ vetados)
-# FIX 6: IDs normalizados (sem duplo underscore)
-# FIX 7: path_hierarquico semântico (nomes dos títulos/capítulos, não só números)
-# ─── v4 CHANGELOG ────────────────────────────────────────────────────────────
-# FIX 18: REGEX_ARTIGO → sufixo EXIGE hífen; "Art. 1° O ..." não gera mais "-O"
-# FIX 19: off-by-one → flush_buffer ANTES de atualizar título/capítulo/seção
-# FIX 20: REGEX_SECAO_HEADER → strict end-of-line; impede contaminação por texto
-#         ("título respectivo.", "Capítulo, nos termos..." não casam mais)
-# FIX 21: headers partidos ("CAPÍTULO\nVI-A") → concatenação de linhas de continuação
-# FIX 22: REGEX_NOME_SECAO → aceita ALL-CAPS ("DA PREVENÇÃO E DO TRATAMENTO...")
-# FIX 23: normaliza "SeçãoI" → "Seção I" (espaço faltante no Planalto)
-# FIX 24: regex feminino/plural — (?:a)? → [oa]s? em TODOS os padrões de marcador
-#         "Incluído(?:a)?" casava "Incluídoa" mas NÃO "Incluída" — 26+ artigos afetados
-# FIX 25: vetos parciais — handle multi-line, Parágrafo único, alíneas
-# FIX 26: "Art. . 154" → "Art. 154" (ponto duplo residual após cleanup)
-# ─────────────────────────────────────────────────────────────────────────────
+
+# =====================================================================
+#  CONFIGURACAO POR LEI
+#  Cada lei declara so o que e diferente. O engine cuida do resto.
+#
+#  Campos opcionais:
+#    encoding   - forca encoding (ex: "utf-16" para LMP)
+#    boundaries - lista de regras de boundary:
+#      pattern    - regex (match no inicio da linha)
+#      action     - "transitorias" | "flush_section" | "anexo"
+#      condition  - (opcional) "em_transitorias" - so dispara se estiver no ADCT
+#      label      - (opcional) label para flush_section
+# =====================================================================
+
+LEIS_CONFIG = {
+    "CF88": {
+        "versao": "Constituição Federal 1988",
+        "url": "https://www.planalto.gov.br/ccivil_03/constituicao/constituicao.htm",
+        "nome_base": "cf88",
+        "boundaries": [
+            {
+                # Signatários do corpo principal (ANTES do ADCT)
+                # Pattern específico com data para não casar "Brasília" em texto de artigo
+                "pattern": r"^Brasília\s*,\s*\d+\s+de\s+\w+\s+de\s+\d{4}",
+                "action": "flush_section",
+                "label": "SIGNATÁRIOS",
+            },
+            {
+                "pattern": r"^ATO DAS DISPOSIÇÕES CONSTITUCIONAIS TRANSITÓRIAS",
+                "action": "transitorias",
+            },
+            {
+                # Signatários do ADCT (DEPOIS do ADCT)
+                "pattern": r"^Brasília\s*,",
+                "condition": "em_transitorias",
+                "action": "flush_section",
+                "label": "SIGNATÁRIOS (ADCT)",
+            },
+        ],
+    },
+    "CDC": {
+        "versao": "Lei 8.078/1990",
+        "url": "https://www.planalto.gov.br/ccivil_03/leis/l8078compilado.htm",
+        "nome_base": "cdc",
+        # O Planalto CDC tem headers inline: "TÍTULO I Dos Direitos do Consumidor"
+        # O transform separa em duas linhas para o parser capturar numeral + nome.
+        "text_transforms": [
+            {
+                "pattern": r"^((?:TÍTULO|CAPÍTULO|SEÇÃO)\s+(?:[IVXLCDM]+(?:\s*-\s*[A-Z])?|[ÚU]NIC[OA]|PRELIMINAR|COMPLEMENTAR|ESPECIAL))\s+([A-ZÀ-Ú].+)$",
+                "replace": r"\1\n\2",
+            },
+        ],
+    },
+    "CLT": {
+        "versao": "Decreto-Lei 5.452/1943",
+        "url": "https://www.planalto.gov.br/ccivil_03/decreto-lei/del5452compilado.htm",
+        "nome_base": "clt",
+        "boundaries": [
+            {"pattern": r"^ANEXO\b", "action": "anexo"},
+        ],
+    },
+    "CC": {
+        "versao": "Lei 10.406/2002",
+        "url": "https://www.planalto.gov.br/ccivil_03/leis/2002/l10406compilada.htm",
+        "nome_base": "codigo_civil",
+    },
+    "CPC": {
+        "versao": "Lei 13.105/2015",
+        "url": "https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2015/lei/L13105compilada.htm",
+        "nome_base": "cpc",
+    },
+    "CP": {
+        "versao": "Decreto-Lei 2.848/1940",
+        "url": "https://www.planalto.gov.br/ccivil_03/decreto-lei/del2848compilado.htm",
+        "nome_base": "cp",
+    },
+    "LGPD": {
+        "versao": "Lei 13.709/2018",
+        "url": "https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2018/lei/L13709compilado.htm",
+        "nome_base": "lgpd",
+    },
+    "ECA": {
+        "versao": "Lei 8.069/1990",
+        "url": "https://www.planalto.gov.br/ccivil_03/leis/L8069Compilado.htm",
+        "nome_base": "eca",
+    },
+    "LI": {
+        "versao": "Lei 8.245/1991",
+        "url": "https://www.planalto.gov.br/ccivil_03/leis/L8245compilado.htm",
+        "nome_base": "lei_inquilinato",
+    },
+    "LMP": {
+        "versao": "Lei 11.340/2006",
+        "url": "https://www.planalto.gov.br/ccivil_03/_ato2004-2006/2006/lei/l11340.htm",
+        "nome_base": "lei_maria_penha",
+        "encoding": "utf-16",
+    },
+    "LC123": {
+        "versao": "Lei Complementar 123/2006",
+        "url": "https://www.planalto.gov.br/ccivil_03/leis/lcp/lcp123.htm",
+        "nome_base": "lc123",
+        "boundaries": [
+            {"pattern": r"^ANEXO(?:\s+[IVXLCDM]+(?:-[A-Z])?|\s+[ÚU]NICO|\s+\d+)?\s*$", "action": "anexo"},
+        ],
+    },
+    "LT": {
+        "versao": "Lei 6.019/1974",
+        "url": "https://www.planalto.gov.br/ccivil_03/leis/l6019compilado.htm",
+        "nome_base": "lei_terceirizacao",
+    },
+    "CADPOS": {
+        "versao": "Lei 12.414/2011",
+        "url": "https://www.planalto.gov.br/ccivil_03/_ato2011-2014/2011/lei/l12414.htm",
+        "nome_base": "cadastro_positivo",
+    },
+}
 
 
-# ─── FIX 4 + FIX 24: Padrões de alteração legislativa ────────────────────────
-# FIX 24: (?:a)? → [oa]s? — "Incluído(?:a)?" casava "Incluído"/"Incluídoa"
-# mas NÃO "Incluída". Afetava 25+ artigos em 8 leis.
+# =====================================================================
+#  ENGINE — Funcoes de parsing genericas
+# =====================================================================
+
+# --- Alteracoes legislativas ---
 ALTERACAO_PATTERNS = [
     (re.compile(r'\(Redação dada (?:pela|pelo|ao)\s+(.+?)\)',       re.IGNORECASE | re.DOTALL), "redacao_dada"),
     (re.compile(r'\(Incluíd[oa]s? (?:pela|pelo|ao)\s+(.+?)\)',     re.IGNORECASE | re.DOTALL), "incluido"),
@@ -42,12 +151,7 @@ ALTERACAO_PATTERNS = [
 ]
 
 def extrair_alteracoes(texto: str) -> list[dict]:
-    """
-    FIX 4: Extrai markers de alteração legislativa ANTES de limpar o texto.
-    Retorna lista de {"tipo": "redacao_dada", "norma": "Lei nº 14.181, de 2021"}.
-    """
-    alteracoes = []
-    vistos = set()
+    alteracoes, vistos = [], set()
     for pattern, tipo in ALTERACAO_PATTERNS:
         for match in pattern.finditer(texto):
             norma = re.sub(r'\s+', ' ', match.group(1).strip())
@@ -58,13 +162,45 @@ def extrair_alteracoes(texto: str) -> list[dict]:
     return alteracoes
 
 
-# ─── Ruído legislativo a remover do texto (aplicado APÓS extração de alterações)
-# FIX 24: [oa]s? para casar feminino e plural
-# FIX 27: Duas passadas — (1) marcadores com ) dentro de 200 chars,
-#         (2) fallback para parênteses não fechados (para até o ano "de YYYY")
-#         Também usa \s+ em vez de espaço literal (Planalto quebra linhas no meio)
+# --- Redações supersedidas ---
+# O Planalto compilado mantém ambas as redações (antiga + nova) quando um dispositivo
+# recebe nova redação. Ex:
+#   II - texto antigo;
+#   II - texto novo; (Redação dada pela LC nº 166, de 2019)
+# Esta função remove a redação antiga ANTES da limpeza de ruído (que apaga o marcador).
+DISP_PREFIX_RE = re.compile(
+    r'^(\s*(?:[IVXLCDM]+\s*[-–—]|§\s*\d+[°ºo]?\s*[-–—.]|Parágrafo\s+único|[a-z]\)))'
+)
+REDACAO_MARKER_RE = re.compile(
+    r'\((?:Redação\s+dada|Incluíd[oa]s?|Acrescentad[oa]s?|Nova\s+redação)\s+(?:pela|pelo|ao)',
+    re.IGNORECASE
+)
+
+def remover_redacoes_supersedidas(texto: str) -> str:
+    lines = texto.split('\n')
+    if len(lines) < 2:
+        return texto
+    to_remove = set()
+    for i in range(len(lines)):
+        m_i = DISP_PREFIX_RE.match(lines[i])
+        if not m_i:
+            continue
+        prefix = m_i.group(1).strip()
+        # Procura nas próximas 3 linhas por mesmo prefixo com marcador de alteração
+        for j in range(i + 1, min(i + 4, len(lines))):
+            m_j = DISP_PREFIX_RE.match(lines[j])
+            if not m_j:
+                continue
+            if m_j.group(1).strip() == prefix and REDACAO_MARKER_RE.search(lines[j]):
+                to_remove.add(i)
+            break  # só checa o próximo dispositivo
+    if not to_remove:
+        return texto
+    return '\n'.join(line for idx, line in enumerate(lines) if idx not in to_remove)
+
+
+# --- Ruido legislativo ---
 NOISE_PATTERNS = [
-    # ── Passada 1: marcadores com ) fechado dentro de 200 chars ──
     re.compile(r'\(Redação\s+dada\s+(?:pela|pelo|ao)[^)]{0,200}\)',  re.IGNORECASE | re.DOTALL),
     re.compile(r'\(Incluíd[oa]s?\s+(?:pela|pelo|ao)[^)]{0,200}\)',   re.IGNORECASE | re.DOTALL),
     re.compile(r'\(Revogad[oa]s?\s+[^)]{0,200}\)',                    re.IGNORECASE | re.DOTALL),
@@ -72,15 +208,12 @@ NOISE_PATTERNS = [
     re.compile(r'\(Nova\s+redação\s+[^)]{0,200}\)',                   re.IGNORECASE | re.DOTALL),
     re.compile(r'\(Renumerad[oa]s?\s+[^)]{0,200}\)',                  re.IGNORECASE | re.DOTALL),
     re.compile(r'\(Suprimid[oa]s?\s+[^)]{0,200}\)',                   re.IGNORECASE | re.DOTALL),
-    # ── Formas curtas com pontuação após ) ──
     re.compile(r'\(Revogad[oa]s?\)\s*[.;,]?',                         re.IGNORECASE),
     re.compile(r'\(Suprimid[oa]s?\)\s*[.;,]?',                        re.IGNORECASE),
-    # ── Passada 2: fallback para ) não fechado (para no ano "de YYYY") ──
     re.compile(r'\(Redação\s+dada\s+(?:pela|pelo|ao)\s+[^)]*?\bde\s+[\d./]*\d{4}[:\s.]*',  re.IGNORECASE | re.DOTALL),
     re.compile(r'\(Incluíd[oa]s?\s+(?:pela|pelo|ao)\s+[^)]*?\bde\s+[\d./]*\d{4}[:\s.]*',   re.IGNORECASE | re.DOTALL),
     re.compile(r'\(Revogad[oa]s?\s+[^)]*?\bde\s+[\d./]*\d{4}[:\s.]*',                      re.IGNORECASE | re.DOTALL),
     re.compile(r'\(Acrescentad[oa]s?\s+[^)]*?\bde\s+[\d./]*\d{4}[:\s.]*',                   re.IGNORECASE | re.DOTALL),
-    # ── Vigência ──
     re.compile(r'\n\s*Vigência\s*\n',      re.IGNORECASE),
     re.compile(r'\(Vigência\)',             re.IGNORECASE),
     re.compile(r'\n\s*\(Vigência\)\s*\n',  re.IGNORECASE),
@@ -93,7 +226,7 @@ def limpar_ruido_legislativo(texto: str) -> str:
     return '\n'.join(linhas).strip()
 
 
-# ─── Hashes ──────────────────────────────────────────────────────────────────
+# --- Hashes ---
 def carregar_hashes():
     if os.path.exists(HASHES_FILE):
         with open(HASHES_FILE, encoding="utf-8") as f:
@@ -112,7 +245,7 @@ def hash_texto(texto: str) -> str:
     return hashlib.sha256(texto.encode("utf-8")).hexdigest()[:16]
 
 
-# ─── HTTP ─────────────────────────────────────────────────────────────────────
+# --- HTTP ---
 def criar_sessao():
     session = requests.Session()
     retry = Retry(total=5, backoff_factor=2, status_forcelist=[500, 502, 503, 504])
@@ -123,29 +256,10 @@ def criar_sessao():
     return session
 
 
-# ─── Configuração das leis ────────────────────────────────────────────────────
-LEIS_CONFIG = {
-    "CDC":  ("Lei 8.078/1990",            "https://www.planalto.gov.br/ccivil_03/leis/l8078compilado.htm",                     "cdc"),
-    "CLT":  ("Decreto-Lei 5.452/1943",    "https://www.planalto.gov.br/ccivil_03/decreto-lei/del5452compilado.htm",            "clt"),
-    "CC":   ("Lei 10.406/2002",           "https://www.planalto.gov.br/ccivil_03/leis/2002/l10406compilada.htm",               "codigo_civil"),
-    "CPC":  ("Lei 13.105/2015",           "https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2015/lei/L13105compilada.htm",  "cpc"),
-    "CF88": ("Constituição Federal 1988", "https://www.planalto.gov.br/ccivil_03/constituicao/constituicao.htm",               "cf88"),
-    "CP":   ("Decreto-Lei 2.848/1940",    "https://www.planalto.gov.br/ccivil_03/decreto-lei/del2848compilado.htm",            "cp"),
-    "LGPD": ("Lei 13.709/2018",           "https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2018/lei/L13709compilado.htm",  "lgpd"),
-    "ECA":  ("Lei 8.069/1990",            "https://www.planalto.gov.br/ccivil_03/leis/L8069Compilado.htm",                     "eca"),
-    "LI":   ("Lei 8.245/1991",            "https://www.planalto.gov.br/ccivil_03/leis/L8245compilado.htm",                     "lei_inquilinato"),
-    "LMP":  ("Lei 11.340/2006",           "https://www.planalto.gov.br/ccivil_03/_ato2004-2006/2006/lei/l11340.htm",           "lei_maria_penha"),
-    "MEI":  ("Lei Complementar 123/2006", "https://www.planalto.gov.br/ccivil_03/leis/lcp/lcp123.htm",                        "mei"),
-    "LT":   ("Lei 6.019/1974",            "https://www.planalto.gov.br/ccivil_03/leis/l6019compilado.htm",                    "lei_terceirizacao"),
-    "CP2":  ("Lei 12.414/2011",           "https://www.planalto.gov.br/ccivil_03/_ato2011-2014/2011/lei/l12414.htm",           "cadastro_positivo"),
-}
-
-
-# ─── Chunking com overlap ────────────────────────────────────────────────────
+# --- Chunking ---
 def split_com_overlap(texto: str, max_chars: int = 6000, overlap_chars: int = 400) -> list[str]:
     if len(texto) <= max_chars:
         return [texto]
-
     partes, inicio = [], 0
     while inicio < len(texto):
         fim = inicio + max_chars
@@ -157,92 +271,51 @@ def split_com_overlap(texto: str, max_chars: int = 6000, overlap_chars: int = 40
             corte = fim
         partes.append(texto[inicio:corte].strip())
         inicio = max(inicio + 1, corte - overlap_chars)
-
     return [p for p in partes if p]
 
 
-# ─── Regex de artigo ─────────────────────────────────────────────────────────
-# FIX 8 + 10 + 13 + 17 + 18: Case-sensitive, end-of-line, dotted numbers, ordinal before suffix
-# FIX 18: sufixo EXIGE hífen COLADO. "Art. 42-A" casa, "Art. 142 - O" não casa.
-# v4.1: removeu \s* ao redor do hífen — CLT usa "Art. 142 - O empregador..."
-# que com \s*-\s* ainda capturava "O" como sufixo.
+# --- Regex de artigo ---
 REGEX_ARTIGO = re.compile(
-    r'^Art\.?\s*(\d[\d.]*\d|\d+)'       # "1.000" ou "999" ou "7"
-    r'(?:[°ºo])?'                        # ordinal pode vir ANTES do sufixo
-    r'(?:-([A-Z](?:-[A-Z])*))?'         # sufixo REQUER hífen colado: "-A", "-B"
-    r'(?:[°ºo])?'                        # ordinal pode vir DEPOIS também
-    r'(?:[\.\s]|$)'                      # separador ou fim de linha
+    r'^Art\.?\s*(\d[\d.]*\d|\d+)'
+    r'(?:[°ºo])?'
+    r'(?:-([A-Z](?:-[A-Z])*))?'
+    r'(?:[°ºo])?'
+    r'(?:[\.\s]|$)'
 )
 
-def parse_art_num(num_str: str) -> int:
-    """Converte '1.000' → 1000, '999' → 999."""
-    return int(num_str.replace('.', ''))
-
-# ─── FIX 2 + FIX 22: Regex para nomes descritivos de seção ──────────────────
-# Linhas como "Dos Direitos do Consumidor", "DA PROTEÇÃO À SAÚDE E SEGURANÇA"
-# FIX 22: IGNORECASE no prefixo para aceitar ALL-CAPS do Planalto em leis recentes
 REGEX_NOME_SECAO = re.compile(
     r'^(Dos?|Das?|Disposições)\s+[A-ZÀ-Ú][\w\sÀ-ú,()áéíóúâêîôûãõçÁÉÍÓÚÂÊÎÔÛÃÕÇ]+$',
     re.IGNORECASE
 )
 
 
-# ─── Classificação de linha de artigo ────────────────────────────────────────
+# --- Classificacao artigo vs citacao ---
 def classificar_linha_artigo(linha: str, num_atual: int, sufixo: str, ultimo_num: int) -> str:
-    MARCADORES_CITACAO_CONFIAVEIS = [
-        r'da lei n[°º]?\s*\d',
-        r'do decreto n[°º]?\s*\d',
-        r'da lei complementar n',
-        r'do código civil',
-        r'desta lei',                    # FIX 9: "art. 12 desta Lei Complementar"
-        r'da constituição',              # FIX 9: "art. 5° da Constituição Federal"
+    MARCADORES_CITACAO = [
+        r'da lei n[°º]?\s*\d', r'do decreto n[°º]?\s*\d',
+        r'da lei complementar n', r'do código civil',
+        r'desta lei', r'da constituição',
     ]
     linha_lower = linha[:120].lower()
-    
-    # FIX 9: Se a linha contém marcador de referência a outra norma,
-    # trata como citação SOMENTE se o número também for suspeito.
-    # "art. 966 da Lei nº 10.406" (salto +954) → citação ✅
-    # "Art. 110. ... da Lei nº 7.347" (sequência +1) → novo artigo ✅
-    for marcador in MARCADORES_CITACAO_CONFIAVEIS:
+    for marcador in MARCADORES_CITACAO:
         if re.search(marcador, linha_lower):
             if num_atual > ultimo_num + 200 or num_atual < ultimo_num - 10:
                 return 'citacao'
-
-    # FIX 9: Salto forward absurdo (ex: Art. 12 → Art. 966)
-    # Nenhuma lei brasileira tem gaps > 200 entre artigos consecutivos.
     if num_atual > ultimo_num + 200:
         return 'citacao'
-
-    # Backward jump grande → provável citação
     if num_atual < ultimo_num - 15:
         return 'citacao'
-
-    if num_atual == ultimo_num and sufixo:
-        return 'novo_artigo'
-
-    if num_atual >= ultimo_num:
-        return 'novo_artigo'
-
     return 'novo_artigo'
 
 
-# ─── FIX 1: Detecção de status corrigida ────────────────────────────────────
+# --- Status / vetos ---
+# Enum de status (3 valores possíveis):
+#   "vigente"      — artigo em vigor (pode ter vetos_parciais em dispositivos internos)
+#   "vetado_total"  — artigo integralmente vetado na sanção da lei
+#   "revogado"      — artigo revogado ou suprimido por lei posterior
 def detectar_status_artigo(texto_artigo: str) -> tuple[str, list[str]]:
-    """
-    Retorna (status, vetos_parciais).
-    
-    FIX 1:  Distingue veto total vs parcial.
-    FIX 11: Roda no texto RAW (antes de limpar).
-            - Artigos curtos (< 200 chars): checa texto completo
-              → "Art. 11.\\n(Vetado)\\n." → vetado_total ✅
-            - Artigos longos (>= 200 chars): checa só primeira linha
-              → Art. 5 com §1° Vetado → NÃO marca artigo inteiro ✅
-    """
     t = texto_artigo.strip()
-    
-    # Strip amendment markers before analysis — they pollute corpo detection.
-    # "Art. 54-E. (VETADO).\n(Incluído pela Lei nº 14.181)" → "Art. 54-E. (VETADO)."
-    # FIX 24: [oa]s? para casar feminino/plural
+
     t_for_status = t
     for pattern in [
         re.compile(r'\(Incluíd[oa]s?\s+(?:pela|pelo|ao).*?\)',  re.IGNORECASE | re.DOTALL),
@@ -253,138 +326,84 @@ def detectar_status_artigo(texto_artigo: str) -> tuple[str, list[str]]:
         t_for_status = pattern.sub('', t_for_status)
     t_for_status = t_for_status.strip()
     t_lower = t_for_status.lower()
-    
-    # ── Para artigos curtos, analisa o corpo completo ──
-    # Para longos, analisa só a primeira linha (evita falso positivo do Art. 5/6)
-    if len(t) < 200:
-        corpo_ref = t_lower
-    else:
-        corpo_ref = t_lower.split('\n')[0].strip()
-    
+
+    corpo_ref = t_lower if len(t) < 200 else t_lower.split('\n')[0].strip()
     corpo = re.sub(r'^art\.\s*[\d.]+[\w-]*[°º]?\s*\.?\s*', '', corpo_ref, count=1).strip()
     corpo_limpo = re.sub(r'[\s.\-–—()]', '', corpo)
-    
-    # ── Artigo INTEIRAMENTE vetado ──
+
     if corpo_limpo.startswith('vetado'):
         return ('vetado_total', [])
-    
-    # ── Artigo INTEIRAMENTE revogado/suprimido ──
     if corpo_limpo.startswith(('revogado', 'revogada', 'revogados', 'suprimido', 'suprimida')):
         return ('revogado', [])
-    
-    # ── FIX 14: Fallback para artigos curtos com marcador em qualquer posição ──
-    # Cobre edge cases como "Art. 1.620. a 1.629. (Revogados pela Lei...)"
-    # e "Art. 686. (Suprimido pelo Decreto-Lei...)"
-    # NÃO inclui vetado aqui — artigos curtos podem ter vetos PARCIAIS como
-    # "IX - (Vetado)" que devem ser tratados pelo detector de vetos parciais abaixo.
+
     if len(t) < 200:
         t_lower_full = t.lower()
         if re.search(r'\(suprimid', t_lower_full):
             return ('revogado', [])
         if re.search(r'\(revogad', t_lower_full):
             return ('revogado', [])
-    
-    # ── Dispositivos vetados internamente (sempre checa texto completo) ──
-    # FIX 25: Normaliza newlines para veto detection (Planalto quebra linhas entre
-    # o dispositivo e "(Vetado)"). Também adiciona "Parágrafo único" e alíneas.
-    t_veto = re.sub(r'\s*\n\s*', ' ', t)  # colapsa newlines para detecção
-    # FIX 25.1: Normaliza ordinal solto "§ 2 o" → "§ 2°" (Planalto gera "§ 2\no\n")
+
+    # Vetos parciais
+    t_veto = re.sub(r'\s*\n\s*', ' ', t)
     t_veto = re.sub(r'(§\s*\d+)\s+o\b', r'\1°', t_veto)
-    
-    vetos_parciais = []
-    seen_vetos = set()
-    
-    # Parágrafos: "§ 1° (Vetado)" / "§ 2o (VETADO)"
-    for m in re.finditer(
-        r'(§\s*\d+[°ºo]?)\s*[-–—.\s]*\(?\s*[Vv][Ee][Tt][Aa][Dd][Oo]\s*\)?',
-        t_veto
-    ):
+    vetos_parciais, seen = [], set()
+
+    for m in re.finditer(r'(§\s*\d+[°ºo]?)\s*[-–—.\s]*\(?\s*[Vv][Ee][Tt][Aa][Dd][Oo]\s*\)?', t_veto):
         label = m.group(1).strip()
-        if label not in seen_vetos:
-            seen_vetos.add(label)
-            vetos_parciais.append(label)
-    
-    # Parágrafo único: "Parágrafo único. (Vetado)"
-    for m in re.finditer(
-        r'(Parágrafo\s+único)\s*[.\s]*\(?\s*[Vv][Ee][Tt][Aa][Dd][Oo]\s*\)?',
-        t_veto, re.IGNORECASE
-    ):
+        if label not in seen: seen.add(label); vetos_parciais.append(label)
+
+    for m in re.finditer(r'(Parágrafo\s+único)\s*[.\s]*\(?\s*[Vv][Ee][Tt][Aa][Dd][Oo]\s*\)?', t_veto, re.IGNORECASE):
         label = "Parágrafo único"
-        if label not in seen_vetos:
-            seen_vetos.add(label)
-            vetos_parciais.append(label)
+        if label not in seen: seen.add(label); vetos_parciais.append(label)
 
-    # Incisos romanos: "IX - (Vetado)" / "V (VETADO)"
-    for m in re.finditer(
-        r'([IVXLCDM]+)\s*[-–—.\s]+\(?\s*[Vv][Ee][Tt][Aa][Dd][Oo]\s*\)?',
-        t_veto
-    ):
-        label = m.group(1).strip()
-        if label not in seen_vetos:
-            seen_vetos.add(label)
-            vetos_parciais.append(label)
-    
-    # Alíneas: "a) (Vetado)" / "c) (VETADO)"
-    for m in re.finditer(
-        r'\b([a-z]\))\s*[-–—.\s]*\(?\s*[Vv][Ee][Tt][Aa][Dd][Oo]\s*\)?',
-        t_veto
-    ):
-        label = m.group(1).strip()
-        if label not in seen_vetos:
-            seen_vetos.add(label)
-            vetos_parciais.append(label)
+    for m in re.finditer(r'([IVXLCDM]+)\s*[-–—.\s]+\(?\s*[Vv][Ee][Tt][Aa][Dd][Oo]\s*\)?', t_veto):
+        inciso = m.group(1).strip()
+        texto_antes = t_veto[:m.start()]
+        pm = re.findall(r'§\s*\d+[°ºo]?', texto_antes)
+        pu = re.findall(r'Parágrafo\s+único', texto_antes, re.IGNORECASE)
+        if pu and (not pm or texto_antes.rfind(pu[-1]) > texto_antes.rfind(pm[-1])):
+            label = f"Parágrafo único, {inciso}"
+        elif pm:
+            label = f"{pm[-1].strip()}, {inciso}"
+        else:
+            label = inciso
+        if label not in seen: seen.add(label); vetos_parciais.append(label)
 
-    # FIX 28: Sub-artigos sem hífen: "Art. 401A. (VETADO)" (CLT)
-    for m in re.finditer(
-        r'(Art\.\s*\d+[A-Z])\s*\.\s*\(?\s*[Vv][Ee][Tt][Aa][Dd][Oo]\s*\)?',
-        t_veto
-    ):
-        label = m.group(1).strip()
-        if label not in seen_vetos:
-            seen_vetos.add(label)
-            vetos_parciais.append(label)
+    for m in re.finditer(r'\b([a-z]\))\s*[-–—.\s]*\(?\s*[Vv][Ee][Tt][Aa][Dd][Oo]\s*\)?', t_veto):
+        alinea = m.group(1).strip()
+        texto_antes = t_veto[:m.start()]
+        pm = re.findall(r'§\s*\d+[°ºo]?', texto_antes)
+        pu = re.findall(r'Parágrafo\s+único', texto_antes, re.IGNORECASE)
+        if pu and (not pm or texto_antes.rfind(pu[-1]) > texto_antes.rfind(pm[-1])):
+            label = f"Parágrafo único, {alinea}"
+        elif pm:
+            label = f"{pm[-1].strip()}, {alinea}"
+        else:
+            label = alinea
+        if label not in seen: seen.add(label); vetos_parciais.append(label)
 
-    # FIX 28: Fallback — qualquer (VETADO) restante não capturado acima
-    # Conta ocorrências totais de (VETADO) vs já capturadas
-    total_vetados_no_texto = len(re.findall(
-        r'\(\s*[Vv][Ee][Tt][Aa][Dd][Oo]\s*\)', t_veto
-    ))
-    if total_vetados_no_texto > len(vetos_parciais):
-        # Há vetos não capturados — adicionar como genéricos
-        faltam = total_vetados_no_texto - len(vetos_parciais)
-        for i in range(faltam):
-            label = f"dispositivo vetado {len(vetos_parciais)+1}"
-            vetos_parciais.append(label)
-    
+    for m in re.finditer(r'(Art\.\s*\d+[A-Z])\s*\.\s*\(?\s*[Vv][Ee][Tt][Aa][Dd][Oo]\s*\)?', t_veto):
+        label = m.group(1).strip()
+        if label not in seen: seen.add(label); vetos_parciais.append(label)
+
+    total_vet = len(re.findall(r'\(\s*[Vv][Ee][Tt][Aa][Dd][Oo]\s*\)', t_veto))
+    if total_vet > len(vetos_parciais):
+        for i in range(total_vet - len(vetos_parciais)):
+            vetos_parciais.append(f"dispositivo vetado {len(vetos_parciais)+1}")
+
     if vetos_parciais:
         return ('vigente', vetos_parciais)
-    
-    # ── Revogado/Suprimido em qualquer parte do texto (usa texto original) ──
-    # Fallback para artigos longos que não foram pegos acima
-    # MAS: se há "Redação dada pela" ou "Incluído pela" posterior, o artigo foi
-    # ressuscitado — a nova redação prevalece sobre a revogação anterior.
+
     if re.search(r'\((?:revogad|suprimid)', t.lower()):
-        has_nova_redacao = bool(re.search(
-            r'\((?:Redação dada|Nova redação|Incluíd[oa]s?)\s+(?:pela|pelo)',
-            t, re.IGNORECASE
-        ))
-        if not has_nova_redacao:
+        if not re.search(r'\((?:Redação dada|Nova redação|Incluíd[oa]s?)\s+(?:pela|pelo)', t, re.IGNORECASE):
             return ('revogado', [])
-    
+
     return ('vigente', [])
 
 
-# ─── FIX 3: Extração de referências cruzadas ────────────────────────────────
+# --- Referencias cruzadas ---
 def extrair_referencias(texto: str, artigo_atual: str) -> dict:
-    """
-    v2 BUG: incluía auto-referência (Art. 7 → ["Art. 7"]).
-            73% dos chunks tinham apenas self-ref → campo inútil.
-    
-    FIX: filtra auto-ref, separa internas/externas/CF.
-    """
     art_num_atual = re.sub(r'^Art\.\s*', '', artigo_atual)
-    
-    # Referências internas
     padrao_interno = re.compile(
         r'arts?\.\s*(\d+(?:-[A-Z])?)'
         r'(?:\s*,\s*(?:§\s*\d+|inciso\s+[IVXLCDM]+|parágrafo\s+único))?',
@@ -395,129 +414,106 @@ def extrair_referencias(texto: str, artigo_atual: str) -> dict:
         num = m.group(1)
         if num != art_num_atual:
             internas.add(f"Art. {num}")
-    
-    # Referências a leis externas
+
     padrao_lei = re.compile(
         r'(?:Lei|Decreto(?:-Lei)?|Lei Complementar|Medida Provisória)\s+'
-        r'n[°º]?\s*([\d\.]+(?:/\d+)?)',
-        re.IGNORECASE
+        r'n[°º]?\s*([\d\.]+(?:/\d+)?)', re.IGNORECASE
     )
-    leis_externas = sorted(set(m.group(0).strip() for m in padrao_lei.finditer(texto)))
-    
-    # Referência à CF
+    leis_externas = sorted(set(
+        re.sub(r'\s+', ' ', m.group(0)).strip()
+        for m in padrao_lei.finditer(texto)
+    ))
     ref_cf = bool(re.search(r'Constitui[çc][ãa]o\s+Federal', texto, re.IGNORECASE))
-    
-    return {
-        "internas": sorted(internas),
-        "leis_externas": leis_externas,
-        "constituicao": ref_cf,
-    }
+
+    return {"internas": sorted(internas), "leis_externas": leis_externas, "constituicao": ref_cf}
 
 
-# ─── Extração de estrutura ───────────────────────────────────────────────────
-def extrair_estrutura(texto: str, sigla: str, versao: str, url: str, data_ext: str) -> list[dict]:
-    livro, titulo, subtitulo, capitulo, secao = "", "", "", "", ""
-    # FIX 7: nomes semânticos
-    livro_nome, titulo_nome, capitulo_nome, secao_nome = "", "", "", ""
+# =====================================================================
+#  EXTRACAO DE ESTRUTURA (config-driven)
+# =====================================================================
+
+def extrair_estrutura(texto, sigla, versao, url, data_ext, config):
+    livro = titulo = subtitulo = capitulo = secao = ""
+    livro_nome = titulo_nome = capitulo_nome = secao_nome = ""
     artigo_label_atual = "EMENTA"
     ultimo_num_artigo = 0
-    ultimo_sufixo = ""
     em_transitorias = False
     blocos, buffer = [], []
     esperando_nome_secao = None
 
-    def flush_buffer(artigo_label: str):
+    # Compila boundaries da config
+    boundaries = []
+    for b in config.get("boundaries", []):
+        boundaries.append({**b, "_re": re.compile(b["pattern"], re.IGNORECASE)})
+
+    def flush_buffer(artigo_label):
         nonlocal buffer
         if not buffer:
             return
-
         texto_raw = "\n".join(buffer).strip()
-        
-        # FIX 4: extrai alterações ANTES de limpar
         alteracoes = extrair_alteracoes(texto_raw)
-        
-        # FIX 11: detecta status no texto RAW, antes da limpeza.
-        # limpar_ruido_legislativo remove "(Revogado...)" dos NOISE_PATTERNS,
-        # então se rodar status detection depois, "Art. 78. (REVOGADO)" vira
-        # "Art. 78." → detecta como 'vigente' → filtrado por tamanho < 30.
         status, vetos_parciais = detectar_status_artigo(texto_raw)
-        
+        texto_raw = remover_redacoes_supersedidas(texto_raw)
         texto_limpo = limpar_ruido_legislativo(texto_raw)
-        
         if not texto_limpo:
-            buffer = []
-            return
+            buffer = []; return
 
-        # FIX 5: só filtra por tamanho se NÃO for vetado/revogado
+        # Strip trailing section headers que sangraram do buffer
+        # (último artigo antes de TÍTULO/CAPÍTULO/SEÇÃO absorve o header seguinte)
+        texto_limpo = re.sub(
+            r'\n(?:LIVRO|SUBT[IÍ]TULO|T[IÍ]TULO|CAP[IÍ]TULO|SE[CÇ][AÃ]O)\s+.*$',
+            '', texto_limpo, flags=re.IGNORECASE
+        ).strip()
+
+        if not texto_limpo:
+            buffer = []; return
         if len(texto_limpo) < 30 and status == 'vigente':
-            buffer = []
-            return
+            buffer = []; return
 
-        # FIX 3: referências sem auto-ref
         refs = extrair_referencias(texto_limpo, artigo_label)
-
-        # FIX 7: path hierárquico semântico
         path_partes = []
         for num, nome in [(titulo, titulo_nome), (capitulo, capitulo_nome), (secao, secao_nome)]:
             if num:
-                label = f"{num} — {nome}" if nome else num
-                path_partes.append(label)
+                path_partes.append(f"{num} — {nome}" if nome else num)
         path = " > ".join(path_partes) if path_partes else ""
 
-        partes = split_com_overlap(texto_limpo)
+        # Enriquece vetado_total: se alteracoes está vazio, registra a norma de origem.
+        # Se já tem (ex: "Incluído pela Lei 14.181" + vetado), o veto foi nessa lei.
+        if status == 'vetado_total' and not alteracoes:
+            alteracoes = [{"tipo": "vetado", "norma": f"Veto na sanção — {versao}"}]
 
+        partes = split_com_overlap(texto_limpo)
         for i, parte in enumerate(partes):
             suffix_label = f" (Parte {i+1}/{len(partes)})" if len(partes) > 1 else ""
-            
-            # FIX 6: ID normalizado, sem duplo underscore
-            # Remove "Art. " do slug para evitar "cdc_art_art_1"
             art_clean = re.sub(r'^Art\.?\s*', '', artigo_label)
             art_slug = re.sub(r'[^\w]', '_', art_clean).strip('_').lower()
             part_slug = f"_p{i+1}" if len(partes) > 1 else ""
             artigo_id = re.sub(r'_+', '_', f"{sigla.lower()}_art_{art_slug}{part_slug}")
 
             blocos.append({
-                "id":                   artigo_id,
-                "lei":                  sigla,
-                "versao":               versao,
-                "versao_consolidada":   True,
-                "artigo":               f"{artigo_label}{suffix_label}",
-                "livro":                livro,
-                "titulo":               titulo,
-                "titulo_nome":          titulo_nome,
-                "subtitulo":            subtitulo,
-                "capitulo":             capitulo,
-                "capitulo_nome":        capitulo_nome,
-                "secao":                secao,
-                "secao_nome":           secao_nome,
-                "path_hierarquico":     path,
-                "texto_limpo":          parte,
-                "status":               status,
-                "vetos_parciais":       vetos_parciais if vetos_parciais else None,
-                "alteracoes":           alteracoes if alteracoes else None,
-                "referencias":          refs,
-                "hash_artigo":          hash_texto(parte),
-                "url_fonte":            url,
-                "data_extracao":        data_ext,
-                "parte_num":            i + 1 if len(partes) > 1 else None,
-                "total_partes":         len(partes) if len(partes) > 1 else None,
+                "id": artigo_id, "lei": sigla, "versao": versao,
+                "versao_consolidada": True,
+                "artigo": f"{artigo_label}{suffix_label}",
+                "livro": livro, "titulo": titulo, "titulo_nome": titulo_nome,
+                "subtitulo": subtitulo,
+                "capitulo": capitulo, "capitulo_nome": capitulo_nome,
+                "secao": secao, "secao_nome": secao_nome,
+                "path_hierarquico": path, "texto_limpo": parte,
+                "status": status,
+                "vetos_parciais": vetos_parciais if vetos_parciais else None,
+                "alteracoes": alteracoes if alteracoes else None,
+                "referencias": refs, "hash_artigo": hash_texto(parte),
+                "url_fonte": url, "data_extracao": data_ext,
+                "parte_num": i + 1 if len(partes) > 1 else None,
+                "total_partes": len(partes) if len(partes) > 1 else None,
             })
-
         buffer = []
 
-    # FIX 20: Strict header regex — exige fim de linha após keyword + numeral opcional.
-    # Impede contaminação por texto de artigo que começa com "título", "capítulo" etc.
-    # Exemplos que NÃO casam mais:
-    #   "título respectivo."  /  "Capítulo, nos termos do art. 201."
-    #   "títulos de bolsa, mercadorias ou valores..."
     REGEX_SECAO_HEADER = re.compile(
         r'^(LIVRO|SUBT[IÍ]TULO|T[IÍ]TULO|CAP[IÍ]TULO|SE[CÇ][AÃ]O)\s*'
         r'([IVXLCDM]+(?:\s*-\s*[A-Z])?|[ÚU]NIC[OA]|PRELIMINAR|COMPLEMENTAR|ESPECIAL)?\s*$',
         re.IGNORECASE
     )
-
-    # FIX 21+29: Continuação de header partido.
-    # Detecta numerais romanos E qualificadores (COMPLEMENTAR, PRELIMINAR, etc.)
     REGEX_CONTINUACAO_HEADER = re.compile(
         r'^([IVXLCDM]+(?:\s*-\s*[A-Z])?|COMPLEMENTAR|PRELIMINAR|ESPECIAL|[ÚU]NIC[OA])\s*$',
         re.IGNORECASE
@@ -527,203 +523,200 @@ def extrair_estrutura(texto: str, sigla: str, versao: str, url: str, data_ext: s
         linha_clean = linha.replace('\xa0', ' ').strip()
         if not linha_clean:
             continue
+        linha_clean = re.sub(r'^(Se[çc][ãa]o)([IVXLCDM])', r'\1 \2', linha_clean, flags=re.IGNORECASE)
 
-        # FIX 23: normaliza "SeçãoI" → "Seção I" (espaço faltante no HTML do Planalto)
-        linha_clean = re.sub(
-            r'^(Se[çc][ãa]o)([IVXLCDM])',
-            r'\1 \2',
-            linha_clean,
-            flags=re.IGNORECASE,
-        )
+        # -- Boundaries da config --
+        boundary_matched = False
+        for b in boundaries:
+            if not b["_re"].match(linha_clean):
+                continue
+            cond = b.get("condition")
+            if cond == "em_transitorias" and not em_transitorias:
+                continue
 
-        # Detecta ADCT (Constituição)
-        # FIX 15: só dispara se a linha COMEÇA com "ATO DAS DISPOSIÇÕES" (o header real).
-        if linha_clean.upper().startswith("ATO DAS DISPOSIÇÕES CONSTITUCIONAIS TRANSITÓRIAS"):
-            if ultimo_num_artigo > 0:
-                flush_buffer(artigo_label_atual)  # FIX 19: flush antes de mudar contexto
-                em_transitorias = True
-                ultimo_num_artigo = 0
-
-        # ── FIX 21: Continuação de header partido ("CAPÍTULO\nVI-A") ──
-        # Se estamos esperando nome de seção e a linha é um numeral romano,
-        # ela é a continuação do header, não o nome.
-        if esperando_nome_secao and REGEX_CONTINUACAO_HEADER.match(linha_clean):
-            numeral = linha_clean.strip()
-            if esperando_nome_secao == "livro":
-                livro = f"{livro} {numeral}"
-            elif esperando_nome_secao == "subtitulo":
-                subtitulo = f"{subtitulo} {numeral}"
-            elif esperando_nome_secao == "titulo":
-                titulo = f"{titulo} {numeral}"
-            elif esperando_nome_secao == "capitulo":
-                capitulo = f"{capitulo} {numeral}"
-            elif esperando_nome_secao == "secao":
-                secao = f"{secao} {numeral}"
-            # Continua esperando o nome descritivo
+            action = b["action"]
+            if action == "transitorias":
+                if ultimo_num_artigo > 0:
+                    flush_buffer(artigo_label_atual)
+                    em_transitorias = True
+                    ultimo_num_artigo = 0
+                    livro = titulo = subtitulo = capitulo = secao = ""
+                    livro_nome = titulo_nome = capitulo_nome = secao_nome = ""
+                boundary_matched = True
+            elif action == "flush_section":
+                flush_buffer(artigo_label_atual)
+                artigo_label_atual = b.get("label", "SEÇÃO")
+                buffer = []
+                boundary_matched = True
+            elif action == "anexo":
+                if ultimo_num_artigo > 0:
+                    flush_buffer(artigo_label_atual)
+                    m_anexo = re.match(
+                        r'^(ANEXO(?:\s+[IVXLCDM]+(?:-[A-Z])?|\s+[ÚU]NICO|\s+\d+)?)',
+                        linha_clean, re.IGNORECASE
+                    )
+                    artigo_label_atual = m_anexo.group(1).strip().upper() if m_anexo else "ANEXO"
+                    ultimo_num_artigo = 999999
+                    buffer = []
+                    boundary_matched = True
+            if boundary_matched:
+                break
+        if boundary_matched:
             continue
 
-        # ── Headers de estrutura numerados ──
-        if REGEX_SECAO_HEADER.match(linha_clean) and len(linha_clean) < 80:
-            # FIX 19: flush buffer ANTES de atualizar hierarquia.
-            # Sem isso, o último artigo da seção anterior herdava a hierarquia da
-            # seção SEGUINTE (off-by-one que afetava TODAS as 13 leis).
-            flush_buffer(artigo_label_atual)
+        # -- Continuacao de header partido --
+        if esperando_nome_secao and REGEX_CONTINUACAO_HEADER.match(linha_clean):
+            numeral = linha_clean.strip()
+            if esperando_nome_secao == "livro": livro = f"{livro} {numeral}"
+            elif esperando_nome_secao == "subtitulo": subtitulo = f"{subtitulo} {numeral}"
+            elif esperando_nome_secao == "titulo": titulo = f"{titulo} {numeral}"
+            elif esperando_nome_secao == "capitulo": capitulo = f"{capitulo} {numeral}"
+            elif esperando_nome_secao == "secao": secao = f"{secao} {numeral}"
+            continue
 
+        # -- Headers de estrutura --
+        if REGEX_SECAO_HEADER.match(linha_clean) and len(linha_clean) < 80:
+            flush_buffer(artigo_label_atual)
             u = linha_clean.upper()
             if "LIVRO" in u:
-                livro = linha_clean
-                titulo = subtitulo = capitulo = secao = ""
+                livro = linha_clean; titulo = subtitulo = capitulo = secao = ""
                 livro_nome = titulo_nome = capitulo_nome = secao_nome = ""
                 esperando_nome_secao = "livro"
             elif "SUBTÍTULO" in u or "SUBTITULO" in u:
-                subtitulo = linha_clean
-                capitulo = secao = ""
-                capitulo_nome = secao_nome = ""
-                esperando_nome_secao = "subtitulo"
+                subtitulo = linha_clean; capitulo = secao = ""
+                capitulo_nome = secao_nome = ""; esperando_nome_secao = "subtitulo"
             elif "TÍTULO" in u or "TITULO" in u:
-                titulo = linha_clean
-                subtitulo = capitulo = secao = ""
-                titulo_nome = capitulo_nome = secao_nome = ""
-                esperando_nome_secao = "titulo"
+                titulo = linha_clean; subtitulo = capitulo = secao = ""
+                titulo_nome = capitulo_nome = secao_nome = ""; esperando_nome_secao = "titulo"
             elif "CAPÍTULO" in u or "CAPITULO" in u:
-                capitulo = linha_clean
-                secao = ""
-                capitulo_nome = secao_nome = ""
-                esperando_nome_secao = "capitulo"
+                capitulo = linha_clean; secao = ""
+                capitulo_nome = secao_nome = ""; esperando_nome_secao = "capitulo"
             elif "SEÇÃO" in u or "SECAO" in u:
-                secao = linha_clean
-                secao_nome = ""
-                esperando_nome_secao = "secao"
+                secao = linha_clean; secao_nome = ""; esperando_nome_secao = "secao"
             continue
 
-        # ── FIX 2 + FIX 7 + FIX 29: Nomes descritivos de seção ──
-        # Quando esperando_nome_secao está ativo, aceita qualquer linha curta que
-        # não seja artigo ou header (captura "Introdução", "Normas Gerais", etc.)
-        is_nome_secao = REGEX_NOME_SECAO.match(linha_clean) and len(linha_clean) < 120
+        # -- Nomes descritivos de secao --
+        is_nome_secao = REGEX_NOME_SECAO.match(linha_clean) and len(linha_clean) < 200
         is_nome_permissivo = (
-            esperando_nome_secao
-            and len(linha_clean) < 120
+            esperando_nome_secao and len(linha_clean) < 200
             and not REGEX_ARTIGO.match(linha_clean)
             and not REGEX_SECAO_HEADER.match(linha_clean)
             and not REGEX_CONTINUACAO_HEADER.match(linha_clean)
-            and re.match(r'^[A-ZÀ-Ú]', linha_clean)  # começa com maiúscula
+            and re.match(r'^[A-ZÀ-Ú]', linha_clean)
         )
 
         if is_nome_secao or is_nome_permissivo:
             if esperando_nome_secao:
+                m_num = re.match(r'^([IVXLCDM]+(?:-[A-Z])?)\s+(.*)', linha_clean)
+                if m_num:
+                    numeral_extra, nome_parte = m_num.group(1), m_num.group(2)
+                else:
+                    numeral_extra, nome_parte = None, linha_clean
+
                 if esperando_nome_secao == "livro":
-                    livro_nome = linha_clean
+                    if numeral_extra: livro = f"{livro} {numeral_extra}"
+                    livro_nome = nome_parte
                 elif esperando_nome_secao == "titulo":
-                    titulo_nome = linha_clean
+                    if numeral_extra: titulo = f"{titulo} {numeral_extra}"
+                    titulo_nome = nome_parte
                 elif esperando_nome_secao == "capitulo":
-                    capitulo_nome = linha_clean
+                    if numeral_extra: capitulo = f"{capitulo} {numeral_extra}"
+                    capitulo_nome = nome_parte
                 elif esperando_nome_secao == "secao":
-                    secao_nome = linha_clean
+                    if numeral_extra: secao = f"{secao} {numeral_extra}"
+                    secao_nome = nome_parte
                 esperando_nome_secao = None
                 continue
             elif is_nome_secao:
-                # Nome de seção sem header precedente — associa ao nível sem nome
-                if titulo and not titulo_nome:
-                    titulo_nome = linha_clean
-                elif capitulo and not capitulo_nome:
-                    capitulo_nome = linha_clean
-                elif secao and not secao_nome:
-                    secao_nome = linha_clean
+                if titulo and not titulo_nome: titulo_nome = linha_clean
+                elif capitulo and not capitulo_nome: capitulo_nome = linha_clean
+                elif secao and not secao_nome: secao_nome = linha_clean
                 continue
 
         esperando_nome_secao = None
 
-        # ── Detecta início de artigo ──
+        # -- Detecta inicio de artigo --
         match_art = REGEX_ARTIGO.match(linha_clean)
         if match_art:
             num_str = match_art.group(1)
             sufixo = (match_art.group(2) or "").strip()
-
-            # FIX 13: num_str pode ser "1.000" (CC) ou "999" (CDC)
             num_limpo = num_str.replace('.', '')
             if num_limpo.isdigit():
                 num_atual = int(num_limpo)
-                classificacao = classificar_linha_artigo(
-                    linha_clean, num_atual, sufixo, ultimo_num_artigo
-                )
-
+                classificacao = classificar_linha_artigo(linha_clean, num_atual, sufixo, ultimo_num_artigo)
                 if classificacao == 'novo_artigo':
                     flush_buffer(artigo_label_atual)
-
+                    # Normaliza separador de milhar: "1337" → "1.337" (Planalto CC Art. 1337)
+                    if '.' not in num_str and num_atual >= 1000:
+                        num_str = f"{num_atual:,}".replace(',', '.')
                     sufixo_norm = f"-{sufixo}" if sufixo else ""
                     artigo_label_atual = f"Art. {num_str}{sufixo_norm}"
                     if em_transitorias:
                         artigo_label_atual += " (ADCT)"
-
                     ultimo_num_artigo = num_atual
-                    ultimo_sufixo = sufixo
 
         buffer.append(linha_clean)
 
     flush_buffer(artigo_label_atual)
 
-    # ── Dedup ──
-    vistos: dict[str, dict] = {}
+    # Dedup
+    vistos = {}
     for b in blocos:
         chave = b["artigo"]
         if chave not in vistos or len(b["texto_limpo"]) > len(vistos[chave]["texto_limpo"]):
             vistos[chave] = b
-
     return list(vistos.values())
 
 
-# ─── Extração principal ───────────────────────────────────────────────────────
-def extrair_lei(session, sigla: str, hashes: dict, force: bool = False) -> bool:
-    if sigla not in LEIS_CONFIG:
-        print(f"❌ Sigla desconhecida: {sigla}")
-        return False
+# =====================================================================
+#  EXTRACAO PRINCIPAL
+# =====================================================================
 
-    versao, url, nome_base = LEIS_CONFIG[sigla]
+def extrair_lei(session, sigla, hashes, force=False):
+    config = LEIS_CONFIG.get(sigla)
+    if not config:
+        print(f"❌ Sigla desconhecida: {sigla}"); return False
+
+    versao, url, nome_base = config["versao"], config["url"], config["nome_base"]
+    encoding = config.get("encoding")
     print(f"\n📥 Processando {sigla}...")
 
     try:
         response = session.get(url, timeout=120)
         response.raise_for_status()
     except Exception as e:
-        print(f"❌ Erro na requisição: {e}")
-        return False
+        print(f"❌ Erro na requisição: {e}"); return False
 
     hash_atual = hash_conteudo(response.content)
     hash_anterior = hashes.get(sigla, {}).get("hash")
-
     if hash_atual == hash_anterior and not force:
-        print(f"⏭  {sigla} sem alterações desde {hashes[sigla]['data']} — pulando (use --force para re-extrair)")
+        print(f"⏭  {sigla} sem alterações desde {hashes[sigla]['data']} — pulando (use --force)")
         return False
-
     if hash_anterior and hash_atual != hash_anterior:
         print(f"🔄 {sigla} ATUALIZADO desde {hashes[sigla]['data']} — re-extraindo")
 
-    if response.content.startswith(b'\xff\xfe') or response.content.startswith(b'\xfe\xff'):
+    # Encoding
+    if encoding == "utf-16" or response.content.startswith((b'\xff\xfe', b'\xfe\xff')):
         soup = BeautifulSoup(response.content, "html.parser", from_encoding="utf-16")
+    elif encoding:
+        soup = BeautifulSoup(response.content, "html.parser", from_encoding=encoding)
     else:
         soup = BeautifulSoup(response.content, "html.parser")
-        if soup.original_encoding and soup.original_encoding.lower() in ('utf-8', 'windows-1252', 'iso-8859-1', 'latin-1'):
-            detected_enc = soup.original_encoding
-        else:
-            detected_enc = "windows-1252"
-        soup = BeautifulSoup(response.content, "html.parser", from_encoding=detected_enc)
+        det = soup.original_encoding
+        det = det if det and det.lower() in ('utf-8','windows-1252','iso-8859-1','latin-1') else "windows-1252"
+        soup = BeautifulSoup(response.content, "html.parser", from_encoding=det)
 
     data_ext = datetime.now().strftime("%Y-%m-%d")
 
-    for tag in soup(["script", "style", "nav", "header", "footer",
-                     "aside", "meta", "link", "img"]):
+    for tag in soup(["script","style","nav","header","footer","aside","meta","link","img"]):
         tag.decompose()
-
-    for tag in soup.find_all(["s", "del", "strike"]):
+    for tag in soup.find_all(["s","del","strike"]):
         tag.decompose()
-
     for tag in soup.find_all("a"):
-        texto_link = tag.get_text(strip=True)
-        if texto_link in ("Vigência", "Regulamento", "Vide", "Nota", "Ver", ""):
+        if tag.get_text(strip=True) in ("Vigência","Regulamento","Vide","Nota","Ver",""):
             tag.decompose()
 
     text = soup.get_text(separator="\n")
-
     text_limpo = re.sub(
         r'^.*?(Aprova|Institui|Dispõe|O PRESIDENTE|A PRESIDENTA|'
         r'O CONGRESSO|PREÂMBULO|Faço saber|Estabelece|Regulamenta)',
@@ -731,98 +724,137 @@ def extrair_lei(session, sigla: str, hashes: dict, force: bool = False) -> bool:
     )
 
     clean_text = "\n".join([
-        linha.replace('\xa0', ' ').strip()
-        for linha in text_limpo.splitlines()
-        if linha.replace('\xa0', ' ').strip()
+        l.replace('\xa0',' ').strip() for l in text_limpo.splitlines()
+        if l.replace('\xa0',' ').strip()
     ])
 
+    # Normaliza Art. quebrados
     clean_text = re.sub(r'(Art\.)\s*\n\s*(\d)', r'\1 \2', clean_text, flags=re.IGNORECASE)
-
-    # ── FIX 30: "A\nrt. 107" → "Art. 107" ──
-    # Planalto CP quebra "Art." como "A" + "rt." em linhas separadas.
     clean_text = re.sub(r'\bA\s*\n\s*rt\.\s*(\d)', r'Art. \1', clean_text)
-
-    # ── FIX 31: "Art. 5\n7." → "Art. 57." ──
-    # Planalto LGPD quebra números de artigo entre linhas (56 → "5\n6", 57 → "5\n7").
-    # Requer ponto após o número concatenado para evitar falsos positivos.
     clean_text = re.sub(r'(Art\.\s*\d+)\s*\n\s*(\d+)\s*\.', r'\1\2.', clean_text)
-
-    # ── FIX 26: Remove pontos extras entre "Art." e o número ──
-    # CLT Art. 153 gera "Art. . 154" (ponto duplo) após cleanup de revogados.
-    # Também cobre "Art. .\n154" e variações com whitespace.
     clean_text = re.sub(r'(Art\.)\s*\.\s*(\d)', r'\1 \2', clean_text, flags=re.IGNORECASE)
+    clean_text = re.sub(r'(Art\.\s*\d[\d.]*)\s*\n\s*o\s*\n\s*(-[A-Z])', r'\1\2', clean_text)
+    # "Art 1.636" (sem ponto) → "Art. 1.636" — Planalto CC omite o ponto em alguns artigos
+    clean_text = re.sub(r'\bArt\s+(\d)', r'Art. \1', clean_text)
+    # Quebra artigos inline: "...artigo 1.638. Art. 1.636. O pai..." → duas linhas
+    # Só capital "Art." (início de artigo), não lowercase "art." (referência)
+    clean_text = re.sub(r'(\S)\s+(Art\.\s*\d)', r'\1\n\2', clean_text)
 
-    # ── FIX 16: Unifica sufixo de artigo quebrado em 3 linhas ──
-    # Planalto às vezes gera: "Art. 4\no\n-A.  Texto..." (3 linhas)
-    # quando o HTML é: Art. 4<sup>o</sup>-A.
-    # Afeta: LT (Art. 4-A, 4-B, 4-C, 5-A, 5-B), MEI (Art. 3-A, 3-B), CLT, ECA, CP
-    clean_text = re.sub(
-        r'(Art\.\s*\d[\d.]*)\s*\n\s*o\s*\n\s*(-[A-Z])',
-        r'\1\2',
-        clean_text
-    )
+    # Merge de linhas falsas — marcadores base + boundary patterns da config
+    extra_markers = []
+    for b in config.get("boundaries", []):
+        m = re.match(r'\^?(\w+)', b["pattern"])
+        if m: extra_markers.append(m.group(1))
+    extra_pat = "|".join(extra_markers) + "|" if extra_markers else ""
+
+    linhas = clean_text.split('\n')
+    merged = []
+    for linha in linhas:
+        stripped = linha.strip()
+        if not stripped: continue
+        is_marker = bool(re.match(
+            r'^(Art\.|§|[IVXLCDM]+\s*[-–—]|[a-z]\)|'
+            r'\d+[\.\)]\s|Parágrafo\s+único|LIVRO|T[IÍ]TULO|'
+            r'CAP[IÍ]TULO|SE[CÇ][AÃ]O|SUBT[IÍ]TULO|'
+            r'PARTE\s|DISPOSIÇÕES|' + extra_pat + r'Pena\s)',
+            stripped, re.IGNORECASE
+        ))
+        if merged and not is_marker and not merged[-1].endswith((':',)):
+            merged[-1] = merged[-1] + ' ' + stripped
+        else:
+            merged.append(stripped)
+    clean_text = '\n'.join(merged)
+
+    # -- text_transforms da config (ex: CDC split inline headers) --
+    for tx in config.get("text_transforms", []):
+        clean_text = re.sub(tx["pattern"], tx["replace"], clean_text, flags=re.IGNORECASE | re.MULTILINE)
 
     os.makedirs("data", exist_ok=True)
-    txt_path = f"data/{nome_base}_{data_ext}_clean.txt"
-    with open(txt_path, "w", encoding="utf-8") as f:
+    with open(f"data/{nome_base}_{data_ext}_clean.txt", "w", encoding="utf-8") as f:
         f.write(clean_text)
 
-    blocos = extrair_estrutura(clean_text, sigla, versao, url, data_ext)
+    blocos = extrair_estrutura(clean_text, sigla, versao, url, data_ext, config)
 
-    # ── Aplica overrides manuais de known_issues.json ──
-    ki_path = os.path.join(os.path.dirname(__file__), "data", "known_issues.json")
+    # Overrides manuais
+    ki_path = os.path.join(os.path.dirname(__file__), "known_issues.json")
+    ki = {}
     if os.path.exists(ki_path):
         with open(ki_path, encoding="utf-8") as f:
             ki = json.load(f)
-        overrides = ki.get("overrides_pos_extracao", {})
-        cap_nomes = overrides.get("capitulo_nome", {}).get(sigla, {})
+        cap_nomes = ki.get("overrides_pos_extracao", {}).get("capitulo_nome", {}).get(sigla, {})
         if cap_nomes:
             for bloco in blocos:
                 cap = bloco.get("capitulo", "")
                 if cap in cap_nomes and not bloco.get("capitulo_nome"):
                     bloco["capitulo_nome"] = cap_nomes[cap]
-                    # Atualiza path_hierarquico
-                    path_partes = []
-                    for num, nome_field in [("titulo","titulo_nome"),("capitulo","capitulo_nome"),("secao","secao_nome")]:
-                        val = bloco.get(num, "")
-                        nome = bloco.get(nome_field, "")
-                        if val:
-                            path_partes.append(f"{val} — {nome}" if nome else val)
-                    bloco["path_hierarquico"] = " > ".join(path_partes)
+                    pp = []
+                    for n, nf in [("titulo","titulo_nome"),("capitulo","capitulo_nome"),("secao","secao_nome")]:
+                        v = bloco.get(n, ""); nm = bloco.get(nf, "")
+                        if v: pp.append(f"{v} — {nm}" if nm else v)
+                    bloco["path_hierarquico"] = " > ".join(pp)
 
-    json_path = f"data/{nome_base}_{data_ext}.json"
-    with open(json_path, "w", encoding="utf-8") as f:
+    # -- Lápides: chunks para artigos revogados ausentes do Planalto --
+    faltantes = ki.get("artigos_faltantes_verificados", {}).get(sigla, {})
+    artigos_existentes = {b["artigo"] for b in blocos}
+    lapides_count = 0
+    for art_num, motivo in faltantes.items():
+        if art_num.startswith("_"):
+            continue
+        artigo_label = f"Art. {art_num}"
+        if artigo_label in artigos_existentes:
+            continue
+        art_slug = re.sub(r'[^\w]', '_', art_num).strip('_').lower()
+        artigo_id = re.sub(r'_+', '_', f"{sigla.lower()}_art_{art_slug}")
+        blocos.append({
+            "id": artigo_id, "lei": sigla, "versao": versao,
+            "versao_consolidada": True,
+            "artigo": artigo_label,
+            "livro": "", "titulo": "", "titulo_nome": "",
+            "subtitulo": "",
+            "capitulo": "", "capitulo_nome": "",
+            "secao": "", "secao_nome": "",
+            "path_hierarquico": "",
+            "texto_limpo": f"{artigo_label} — {motivo}. Artigo ausente da versão compilada do Planalto.",
+            "status": "revogado",
+            "vetos_parciais": None,
+            "alteracoes": [{"tipo": "revogado", "norma": motivo.split("(")[0].strip()}] if motivo else None,
+            "referencias": {"internas": [], "leis_externas": [], "constituicao": False},
+            "hash_artigo": hash_texto(f"{artigo_label} — {motivo}"),
+            "url_fonte": url,
+            "data_extracao": data_ext,
+            "parte_num": None,
+            "total_partes": None,
+        })
+        lapides_count += 1
+
+    with open(f"data/{nome_base}_{data_ext}.json", "w", encoding="utf-8") as f:
         json.dump(blocos, f, ensure_ascii=False, indent=2)
 
-    hashes[sigla] = {
-        "hash": hash_atual,
-        "data": data_ext,
-        "blocos": len(blocos),
-        "url": url,
-    }
+    hashes[sigla] = {"hash": hash_atual, "data": data_ext, "blocos": len(blocos), "url": url}
 
-    vetados   = sum(1 for b in blocos if b["status"] == "vetado_total")
-    revogados = sum(1 for b in blocos if b["status"] == "revogado")
-    vigentes  = sum(1 for b in blocos if b["status"] == "vigente")
-    com_vetos = sum(1 for b in blocos if b.get("vetos_parciais"))
-    com_alter = sum(1 for b in blocos if b.get("alteracoes"))
-    
+    vet = sum(1 for b in blocos if b["status"] == "vetado_total")
+    rev = sum(1 for b in blocos if b["status"] == "revogado")
+    vig = sum(1 for b in blocos if b["status"] == "vigente")
     print(f"✅ {sigla} → {len(blocos)} blocos")
-    print(f"   vigentes={vigentes}  vetados_total={vetados}  revogados={revogados}")
-    print(f"   com_vetos_parciais={com_vetos}  com_alteracoes={com_alter}")
+    print(f"   vigentes={vig}  vetados_total={vet}  revogados={rev}  lápides={lapides_count}")
+    print(f"   com_vetos_parciais={sum(1 for b in blocos if b.get('vetos_parciais'))}"
+          f"  com_alteracoes={sum(1 for b in blocos if b.get('alteracoes'))}")
     return True
 
 
-# ─── Entry point ─────────────────────────────────────────────────────────────
+# =====================================================================
+#  CLI
+# =====================================================================
+
 if __name__ == "__main__":
     os.makedirs("data", exist_ok=True)
-    args        = sys.argv[1:]
-    force       = "--force" in args
+    args = sys.argv[1:]
+    force = "--force" in args
     siglas_args = [a for a in args if a != "--force"]
-    arg         = siglas_args[0].upper() if siglas_args else "ALL"
+    arg = siglas_args[0].upper() if siglas_args else "ALL"
 
     session = criar_sessao()
-    hashes  = carregar_hashes()
+    hashes = carregar_hashes()
 
     if arg == "ALL":
         for sigla in LEIS_CONFIG:

@@ -45,7 +45,7 @@ VALID_STATUS = {"vigente", "vetado_total", "revogado"}
 
 VALID_LEI_SIGLAS = {
     "CDC", "CLT", "CC", "CPC", "CF88", "CP", "LGPD",
-    "ECA", "LI", "LMP", "MEI", "LT", "CP2",
+    "ECA", "LI", "LMP", "LC123", "LT", "CADPOS",
 }
 
 # Limites para RAG
@@ -481,7 +481,7 @@ def validate_metadata(data: list[dict], report: FileReport):
         if chunk.get("vetos_parciais"):
             for v in chunk["vetos_parciais"]:
                 if not re.match(
-                    r'^(§\s*\d+[°ºo]?|[IVXLCDM]+|Parágrafo\s+único|[a-z]\)|Art\.\s*\d+[A-Z]|dispositivo vetado \d+)$',
+                    r'^(§\s*\d+[°ºo]?|[IVXLCDM]+|Parágrafo\s+único|[a-z]\)|Art\.\s*\d+[A-Z]|dispositivo vetado \d+|(?:§\s*\d+[°ºo]?|Parágrafo\s+único),\s*(?:[IVXLCDM]+|[a-z]\)))$',
                     v.strip(), re.IGNORECASE
                 ):
                     _add(report, "WARN", "METADATA", "veto_formato",
