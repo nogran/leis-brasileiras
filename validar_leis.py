@@ -388,6 +388,12 @@ def validate_conteudo(data: list[dict], report: FileReport):
             _add(report, "FAIL", "CONTEUDO", "texto_vazio", "texto_limpo vazio", art)
             continue
 
+        # ── Null bytes (UTF-16 decodificado errado) ──
+        if '\x00' in texto:
+            _add(report, "FAIL", "CONTEUDO", "null_bytes",
+                 f"texto_limpo contém null bytes — provável UTF-16 decodificado como UTF-8", art)
+            continue
+
         # ── Mojibake / encoding ──
         for bad in ['Ã£','Ã¡','Ã©','Ã³','Ã§','Ãº','Â°','Â§','\ufffd']:
             if bad in texto:
@@ -409,6 +415,13 @@ def validate_conteudo(data: list[dict], report: FileReport):
         if status == "vigente" and len(texto) < RAG_MIN_CONTENT_CHARS:
             _add(report, "WARN", "CONTEUDO", "texto_curto",
                  f"Vigente com {len(texto)} chars", art)
+
+        # ── Encoding silencioso: texto sem caracteres portugueses ──
+        if status == "vigente" and len(texto) > 50:
+            has_pt = bool(re.search(r'[áéíóúãõçâêôÁÉÍÓÚÃÕÇÂÊÔ]', texto))
+            if not has_pt:
+                _add(report, "FAIL", "CONTEUDO", "encoding_silencioso",
+                     f"Vigente com {len(texto)} chars mas sem diacríticos PT — possível encoding errado", art)
 
         # ── Whitespace excessivo ──
         if '\n\n\n' in texto:
