@@ -361,8 +361,15 @@ def detectar_status_artigo(texto_artigo: str) -> tuple[str, list[str]]:
     
     # ── Revogado/Suprimido em qualquer parte do texto (usa texto original) ──
     # Fallback para artigos longos que não foram pegos acima
+    # MAS: se há "Redação dada pela" ou "Incluído pela" posterior, o artigo foi
+    # ressuscitado — a nova redação prevalece sobre a revogação anterior.
     if re.search(r'\((?:revogad|suprimid)', t.lower()):
-        return ('revogado', [])
+        has_nova_redacao = bool(re.search(
+            r'\((?:Redação dada|Nova redação|Incluíd[oa]s?)\s+(?:pela|pelo)',
+            t, re.IGNORECASE
+        ))
+        if not has_nova_redacao:
+            return ('revogado', [])
     
     return ('vigente', [])
 

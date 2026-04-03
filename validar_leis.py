@@ -417,7 +417,8 @@ def validate_conteudo(data: list[dict], report: FileReport):
                  f"Vigente com {len(texto)} chars", art)
 
         # ── Encoding silencioso: texto sem caracteres portugueses ──
-        if status == "vigente" and len(texto) > 50:
+        # Threshold 300 chars: textos curtos podem legitimamente não ter acentos
+        if status == "vigente" and len(texto) > 300:
             has_pt = bool(re.search(r'[áéíóúãõçâêôÁÉÍÓÚÃÕÇÂÊÔ]', texto))
             if not has_pt:
                 _add(report, "FAIL", "CONTEUDO", "encoding_silencioso",
