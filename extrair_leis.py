@@ -371,28 +371,64 @@ def detectar_status_artigo(texto_artigo: str) -> tuple[str, list[str]]:
 
 
 # --- Referencias cruzadas ---
+
+# FIX 34: Contexto que indica referencia externa (nao interna)
+_REF_EXT_CONTEXT = re.compile(
+    r'\s*(?:da\s+Lei|do\s+Decreto|da\s+Constitui[cç]|do\s+C[oó]digo|'
+    r'da\s+Medida|da\s+Emenda|da\s+Lei\s+Complementar|deste\s+Ato)',
+    re.IGNORECASE
+)
+
+# FIX 33b: Padroes reais de referencia a CF/88 (sem falsos positivos)
+_REF_CF_REAL = re.compile(
+    r'(?:'
+    r'art(?:igo)?s?\.\s*\d+.*?(?:da|desta)\s+Constitui[cç][aã]o'
+    r'|nos\s+termos\s+(?:da|desta)\s+Constitui[cç][aã]o\s+(?:Federal|da\s+Rep[uú]blica)'
+    r'|(?:garantid|previst|estabelecid|assegurad|definid|protegid)[oa]s?\s+(?:na|pela)\s+Constitui[cç][aã]o'
+    r'|Constitui[cç][aã]o\s+(?:Federal|da\s+Rep[uú]blica\s+Federativa)'
+    r')',
+    re.IGNORECASE
+)
+_REF_CF_FALSE = re.compile(
+    r'Constitui[cç][aã]o\s+de\s+\d{4}|Constitui[cç][aã]o\s+de\s+mil[ií]cia'
+    r'|Da\s+Constitui[cç][aã]o\s+do\s+Penhor',
+    re.IGNORECASE
+)
+
 def extrair_referencias(texto: str, artigo_atual: str) -> dict:
     art_num_atual = re.sub(r'^Art\.\s*', '', artigo_atual)
-    padrao_interno = re.compile(
-        r'arts?\.\s*(\d+(?:-[A-Z])?)'
-        r'(?:\s*,\s*(?:§\s*\d+|inciso\s+[IVXLCDM]+|parágrafo\s+único))?',
+
+    # FIX 35: Captura multi-artigo: "arts. X, Y e Z" / "arts. X e Y" / "arts. X a Y"
+    _num_re = re.compile(r'([\d\.]+(?:-[A-Z])?)')
+    _arts_multi = re.compile(
+        r'\bart(?:s|igos?)\.\s*((?:[\d\.]+(?:-[A-Z])?\s*[,ea]\s*)*[\d\.]+(?:-[A-Z])?)',
         re.IGNORECASE
     )
-    internas = set()
-    for m in padrao_interno.finditer(texto):
-        num = m.group(1)
-        if num != art_num_atual:
-            internas.add(f"Art. {num}")
 
+    internas = set()
+    for m in _arts_multi.finditer(texto):
+        # FIX 34: Checa se o contexto apos o match indica ref externa ou CF
+        after = texto[m.end():m.end()+60]
+        if _REF_EXT_CONTEXT.match(after):
+            continue
+        nums = _num_re.findall(m.group(1))
+        for num in nums:
+            if num != art_num_atual:
+                internas.add(f"Art. {num}")
+
+    # Leis externas (inclui Emenda Constitucional)
     padrao_lei = re.compile(
-        r'(?:Lei|Decreto(?:-Lei)?|Lei Complementar|Medida Provisória)\s+'
-        r'n[°º]?\s*([\d\.]+(?:/\d+)?)', re.IGNORECASE
+        r'(?:Lei|Decreto(?:-Lei)?|Lei Complementar|Medida Provisória|Emenda Constitucional)\s+'
+        r'n[°ºo]?\s*[\d\.]+(?:/\d+)?',
+        re.IGNORECASE
     )
     leis_externas = sorted(set(
         re.sub(r'\s+', ' ', m.group(0)).strip()
         for m in padrao_lei.finditer(texto)
     ))
-    ref_cf = bool(re.search(r'Constitui[çc][ãa]o\s+Federal', texto, re.IGNORECASE))
+
+    # FIX 33b: Deteccao robusta de ref a CF/88
+    ref_cf = bool(_REF_CF_REAL.search(texto) and not _REF_CF_FALSE.search(texto))
 
     return {"internas": sorted(internas), "leis_externas": leis_externas, "constituicao": ref_cf}
 
@@ -518,8 +554,8 @@ def extrair_estrutura(texto, sigla, versao, url, data_ext, config):
                 "secao": secao, "secao_nome": secao_nome,
                 "path_hierarquico": path, "texto_limpo": parte,
                 "status": status,
-                "vetos_parciais": vetos_parciais if vetos_parciais else None,
-                "alteracoes": alteracoes if alteracoes else None,
+                "vetos_parciais": vetos_parciais if vetos_parciais else [],
+                "alteracoes": alteracoes if alteracoes else [],
                 "referencias": refs, "hash_artigo": hash_texto(parte),
                 "url_fonte": url, "data_extracao": data_ext,
                 "parte_num": i + 1 if len(partes) > 1 else None,
@@ -813,6 +849,21 @@ def extrair_lei(session, sigla, hashes, force=False):
                         if v: pp.append(f"{v} — {nm}" if nm else v)
                     bloco["path_hierarquico"] = " > ".join(pp)
 
+        # FIX 36: Override remover_alteracao — remove markers incorretamente atribuídos
+        rem_alt = ki.get("overrides_pos_extracao", {}).get("remover_alteracao", {}).get(sigla, {})
+        if rem_alt:
+            for bloco in blocos:
+                art = bloco.get("artigo", "")
+                if art in rem_alt:
+                    normas_remover = rem_alt[art]
+                    antes = len(bloco.get("alteracoes", []))
+                    bloco["alteracoes"] = [
+                        a for a in bloco.get("alteracoes", [])
+                        if a.get("norma") not in normas_remover
+                    ]
+                    if len(bloco["alteracoes"]) < antes:
+                        print(f"    [override] {art}: removidas {antes - len(bloco['alteracoes'])} alteracoes incorretas")
+
     # -- Lápides: chunks para artigos revogados ausentes do Planalto --
     faltantes = ki.get("artigos_faltantes_verificados", {}).get(sigla, {})
     artigos_existentes = {b["artigo"] for b in blocos}
@@ -836,8 +887,8 @@ def extrair_lei(session, sigla, hashes, force=False):
             "path_hierarquico": "",
             "texto_limpo": f"{artigo_label} — {motivo}. Artigo ausente da versão compilada do Planalto.",
             "status": "revogado",
-            "vetos_parciais": None,
-            "alteracoes": [{"tipo": "revogado", "norma": motivo.split("(")[0].strip()}] if motivo else None,
+            "vetos_parciais": [],
+            "alteracoes": [{"tipo": "revogado", "norma": motivo.split("(")[0].strip()}] if motivo else [],
             "referencias": {"internas": [], "leis_externas": [], "constituicao": False},
             "hash_artigo": hash_texto(f"{artigo_label} — {motivo}"),
             "url_fonte": url,

@@ -68,6 +68,12 @@
       "LGPD": {
         "CAPÍTULO IX": "Da Autoridade Nacional de Proteção de Dados (ANPD) e do Conselho Nacional de Proteção de Dados Pessoais e da Privacidade"
       }
+    },
+    "remover_alteracao": {
+      "_doc": "Remove alteracoes incorretamente atribuídas (marker no boundary entre artigos no HTML).",
+      "CP": {
+        "Art. 121-A": ["Lei nº 13.968, de 2019"]
+      }
     }
   }
 }
