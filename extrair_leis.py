@@ -743,13 +743,9 @@ def extrair_lei(session, sigla, hashes, force=False):
     except Exception as e:
         print(f"❌ Erro na requisição: {e}"); return False
 
-    hash_atual = hash_conteudo(response.content)
+    # Hash check preliminar (HTML bruto) — pula processamento se identico
+    hash_html = hash_conteudo(response.content)
     hash_anterior = hashes.get(sigla, {}).get("hash")
-    if hash_atual == hash_anterior and not force:
-        print(f"⏭  {sigla} sem alterações desde {hashes[sigla]['data']} — pulando (use --force)")
-        return False
-    if hash_anterior and hash_atual != hash_anterior:
-        print(f"🔄 {sigla} ATUALIZADO desde {hashes[sigla]['data']} — re-extraindo")
 
     # Encoding
     if encoding == "utf-16" or response.content.startswith((b'\xff\xfe', b'\xfe\xff')):
@@ -824,6 +820,16 @@ def extrair_lei(session, sigla, hashes, force=False):
     # -- text_transforms da config (ex: CDC split inline headers) --
     for tx in config.get("text_transforms", []):
         clean_text = re.sub(tx["pattern"], tx["replace"], clean_text, flags=re.IGNORECASE | re.MULTILINE)
+
+    # Hash check definitivo: compara texto limpo (ignora mudancas cosmeticas no HTML)
+    hash_atual = hash_conteudo(clean_text.encode("utf-8"))
+    if hash_atual == hash_anterior and not force:
+        print(f"⏭  {sigla} sem alterações desde {hashes[sigla]['data']} — pulando (use --force)")
+        return False
+    if hash_anterior and hash_atual != hash_anterior:
+        print(f"🔄 {sigla} ATUALIZADO desde {hashes[sigla]['data']} — re-extraindo")
+    elif not hash_anterior:
+        print(f"🆕 {sigla} — primeira extração")
 
     os.makedirs("data", exist_ok=True)
     with open(f"data/{nome_base}_{data_ext}_clean.txt", "w", encoding="utf-8") as f:
