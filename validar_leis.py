@@ -817,7 +817,8 @@ def main():
         files = sorted(os.path.join(args.path, f)
                        for f in os.listdir(args.path)
                        if f.endswith(".json") and not f.startswith("hashes")
-                       and f != "known_issues.json")
+                       and f != "known_issues.json"
+                       and "_questions" not in f)
     elif os.path.isfile(args.path):
         files = [args.path]
     else:
