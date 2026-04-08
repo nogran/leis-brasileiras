@@ -64,14 +64,8 @@ LEIS_CONFIG = {
         "versao": "Lei 8.078/1990",
         "url": "https://www.planalto.gov.br/ccivil_03/leis/l8078compilado.htm",
         "nome_base": "cdc",
-        # O Planalto CDC tem headers inline: "TÍTULO I Dos Direitos do Consumidor"
-        # O transform separa em duas linhas para o parser capturar numeral + nome.
-        "text_transforms": [
-            {
-                "pattern": r"^((?:TÍTULO|CAPÍTULO|SEÇÃO)\s+(?:[IVXLCDM]+(?:\s*-\s*[A-Z])?|[ÚU]NIC[OA]|PRELIMINAR|COMPLEMENTAR|ESPECIAL))\s+([A-ZÀ-Ú].+)$",
-                "replace": r"\1\n\2",
-            },
-        ],
+        # Headers inline (TÍTULO I Dos Direitos...) sao tratados pelo
+        # split_inline_headers do engine (PL-13 sub-bloco 2e).
     },
     "CLT": {
         "versao": "Decreto-Lei 5.452/1943",
@@ -133,12 +127,16 @@ LEIS_CONFIG = {
         "versao": "Lei 6.019/1974",
         "url": "https://www.planalto.gov.br/ccivil_03/leis/l6019compilado.htm",
         "nome_base": "lei_terceirizacao",
+        # Lei sem hierarquia interna (sem LIVRO/TÍTULO/CAPÍTULO/SEÇÃO).
+        "inline_headers": False,
     },
     "CADPOS": {
         "versao": "Lei 12.414/2011",
         "url": "https://www.planalto.gov.br/ccivil_03/_ato2011-2014/2011/lei/l12414.htm",
         "nome_base": "cadastro_positivo",
         "dedup_redacoes": True,
+        # Lei sem hierarquia interna (sem LIVRO/TÍTULO/CAPÍTULO/SEÇÃO).
+        "inline_headers": False,
     },
 }
 
@@ -279,6 +277,24 @@ REGEX_CONTINUACAO_HEADER = re.compile(
     r'^([IVXLCDM]+(?:\s*-\s*[A-Z])?|COMPLEMENTAR|PRELIMINAR|ESPECIAL|[ÚU]NIC[OA])\s*$',
     re.IGNORECASE
 )
+
+# PL-13 sub-bloco 2e: header de hierarquia em formato inline (numeral e nome
+# na mesma linha). Ex: "LIVRO I DAS PESSOAS", "CAPÍTULO I Da Personalidade".
+# split_inline_headers reescreve essas linhas em duas (numeral + nome) pra que
+# o parser de extrair_estrutura possa capturar como header standalone.
+INLINE_HEADER_RE = re.compile(
+    r'^((?:LIVRO|SUBT[IÍ]TULO|T[IÍ]TULO|CAP[IÍ]TULO|SE[CÇ][AÃ]O)'
+    r'\s+(?:[IVXLCDM]+(?:\s*-\s*[A-Z])?|[ÚU]NIC[OA]|PRELIMINAR|COMPLEMENTAR|ESPECIAL))'
+    r'\s+([A-ZÀ-Ú].+)$',
+    re.MULTILINE | re.IGNORECASE
+)
+
+
+def split_inline_headers(text: str) -> str:
+    """Quebra headers de hierarquia em formato inline em duas linhas.
+    Ex: 'CAPÍTULO I Da Personalidade' → 'CAPÍTULO I\\nDa Personalidade'.
+    Aplicado linha-a-linha via re.MULTILINE — linhas que nao casam ficam intactas."""
+    return INLINE_HEADER_RE.sub(r'\1\n\2', text)
 
 
 def parse_art_num(num_str: str) -> int:
@@ -858,9 +874,16 @@ def extrair_lei(session, sigla, hashes, force=False):
             merged.append(stripped)
     clean_text = '\n'.join(merged)
 
-    # -- text_transforms da config (ex: CDC split inline headers) --
+    # -- text_transforms da config (extension point pra casos especiais por lei) --
     for tx in config.get("text_transforms", []):
         clean_text = re.sub(tx["pattern"], tx["replace"], clean_text, flags=re.IGNORECASE | re.MULTILINE)
+
+    # -- PL-13 sub-bloco 2e: split de inline headers (default ON) --
+    # "LIVRO I DAS PESSOAS" → "LIVRO I\nDAS PESSOAS" pra que o parser de
+    # extrair_estrutura possa capturar como header standalone. Leis sem
+    # hierarquia interna desabilitam via "inline_headers": False na config.
+    if config.get("inline_headers", True):
+        clean_text = split_inline_headers(clean_text)
 
     # Hash check definitivo: compara texto limpo (ignora mudancas cosmeticas no HTML)
     hash_atual = hash_conteudo(clean_text.encode("utf-8"))

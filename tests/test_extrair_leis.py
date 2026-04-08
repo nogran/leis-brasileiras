@@ -11,6 +11,7 @@ from extrair_leis import (
     REGEX_ARTIGO,
     REGEX_SECAO_HEADER,
     REGEX_CONTINUACAO_HEADER,
+    INLINE_HEADER_RE,
     parse_art_num,
     classificar_linha_artigo,
     detectar_status_artigo,
@@ -18,6 +19,7 @@ from extrair_leis import (
     extrair_referencias,
     limpar_ruido_legislativo,
     split_com_overlap,
+    split_inline_headers,
     hash_texto,
 )
 
@@ -415,6 +417,99 @@ class TestRegexContinuacaoHeader:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# split_inline_headers — PL-13 sub-bloco 2e
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestSplitInlineHeaders:
+    """Garante que split_inline_headers separa numeral+nome inline em 2 linhas
+    pra que o parser possa capturar como header standalone."""
+
+    def test_livro_inline_maiusculo(self):
+        assert split_inline_headers("LIVRO I DAS PESSOAS") == "LIVRO I\nDAS PESSOAS"
+
+    def test_livro_inline_title_case(self):
+        assert split_inline_headers("LIVRO III Dos Fatos Jurídicos") == "LIVRO III\nDos Fatos Jurídicos"
+
+    def test_titulo_inline(self):
+        assert (
+            split_inline_headers("TÍTULO I DAS PESSOAS NATURAIS")
+            == "TÍTULO I\nDAS PESSOAS NATURAIS"
+        )
+
+    def test_subtitulo_inline(self):
+        assert (
+            split_inline_headers("SUBTÍTULO I Da Sociedade Não Personificada")
+            == "SUBTÍTULO I\nDa Sociedade Não Personificada"
+        )
+
+    def test_capitulo_inline(self):
+        assert (
+            split_inline_headers("CAPÍTULO I Da Personalidade e da Capacidade")
+            == "CAPÍTULO I\nDa Personalidade e da Capacidade"
+        )
+
+    def test_capitulo_com_sufixo_inline(self):
+        assert (
+            split_inline_headers("CAPÍTULO VII-A Do Condomínio em Multipropriedade")
+            == "CAPÍTULO VII-A\nDo Condomínio em Multipropriedade"
+        )
+
+    def test_secao_inline(self):
+        assert (
+            split_inline_headers("Seção I Da Curadoria dos Bens do Ausente")
+            == "Seção I\nDa Curadoria dos Bens do Ausente"
+        )
+
+    def test_titulo_unico_inline(self):
+        assert (
+            split_inline_headers("TÍTULO ÚNICO Das Diferentes Classes de Bens")
+            == "TÍTULO ÚNICO\nDas Diferentes Classes de Bens"
+        )
+
+    # Casos negativos: nao deve mexer
+
+    def test_header_standalone_intacto(self):
+        assert split_inline_headers("LIVRO I") == "LIVRO I"
+
+    def test_header_so_marcador_intacto(self):
+        assert split_inline_headers("CAPÍTULO") == "CAPÍTULO"
+
+    def test_artigo_intacto(self):
+        assert (
+            split_inline_headers("Art. 1° Toda pessoa é capaz de direitos e deveres")
+            == "Art. 1° Toda pessoa é capaz de direitos e deveres"
+        )
+
+    def test_paragrafo_intacto(self):
+        assert split_inline_headers("§ 1° Quando ocorrer") == "§ 1° Quando ocorrer"
+
+    def test_texto_arbitrario_intacto(self):
+        assert split_inline_headers("texto sem header") == "texto sem header"
+
+    def test_multiplas_linhas(self):
+        entrada = (
+            "LIVRO I DAS PESSOAS\n"
+            "TÍTULO I DAS PESSOAS NATURAIS\n"
+            "Art. 1° Toda pessoa\n"
+        )
+        esperado = (
+            "LIVRO I\n"
+            "DAS PESSOAS\n"
+            "TÍTULO I\n"
+            "DAS PESSOAS NATURAIS\n"
+            "Art. 1° Toda pessoa\n"
+        )
+        assert split_inline_headers(entrada) == esperado
+
+    def test_idempotente(self):
+        """Aplicar 2x da mesmo resultado (linhas ja split nao sao re-split)."""
+        entrada = "CAPÍTULO I Da Personalidade"
+        once = split_inline_headers(entrada)
+        twice = split_inline_headers(once)
+        assert once == twice == "CAPÍTULO I\nDa Personalidade"
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # extrair_estrutura — hierarquia (PL-13)
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -478,6 +573,41 @@ class TestExtrairEstruturaHierarquia:
         assert limpar_marker_hierarquia("(Vigência)") == ""
         # Vazio
         assert limpar_marker_hierarquia("") == ""
+
+    def test_inline_headers_split_e_parser_produzem_path_completo(self):
+        """PL-13 Bug C (sub-bloco 2e): texto com headers inline (formato Planalto)
+        passa pelo split_inline_headers e o parser captura hierarquia 4-niveis.
+        Reproduz mini-CC com LIVRO + TÍTULO + CAPÍTULO inline."""
+        # Input em formato Planalto (numeral e nome inline, como vem do clean.txt
+        # apos a etapa de merge em extrair_lei). Uso Art. 1 pra evitar o filtro
+        # de salto > 200 do classificar_linha_artigo.
+        texto_planalto = (
+            "LIVRO I DAS PESSOAS\n"
+            "TÍTULO I DAS PESSOAS NATURAIS\n"
+            "CAPÍTULO I Da Personalidade e da Capacidade\n"
+            "Art. 1° Toda pessoa é capaz de direitos e deveres na ordem civil, "
+            "e tem personalidade desde o nascimento com vida.\n"
+        )
+        # Aplicar o split (e o que extrair_lei faz antes de chamar extrair_estrutura)
+        texto_split = split_inline_headers(texto_planalto)
+        blocos = extrair_estrutura(texto_split, "TEST", "Lei Test", "http://test", "2026-01-01", {})
+        assert len(blocos) >= 1
+        bloco = blocos[0]
+        assert bloco["artigo"] == "Art. 1", f"artigo errado: {bloco['artigo']!r}"
+        assert bloco["livro"] == "LIVRO I"
+        assert bloco["livro_nome"] == "DAS PESSOAS"
+        assert bloco["titulo"] == "TÍTULO I"
+        assert bloco["titulo_nome"] == "DAS PESSOAS NATURAIS"
+        assert bloco["capitulo"] == "CAPÍTULO I"
+        assert bloco["capitulo_nome"] == "Da Personalidade e da Capacidade"
+        # Path completo na ordem certa
+        path = bloco["path_hierarquico"]
+        parts = path.split(" > ")
+        labels = [p.split(" — ")[0] for p in parts]
+        assert labels == ["LIVRO I", "TÍTULO I", "CAPÍTULO I"], f"path: {path!r}"
+        assert "DAS PESSOAS" in path
+        assert "DAS PESSOAS NATURAIS" in path
+        assert "Da Personalidade e da Capacidade" in path
 
     def test_path_hierarquico_inclui_livro_e_subtitulo(self):
         """PL-13 Bug B: path_hierarquico deve incluir livro e subtitulo na ordem correta (sub-bloco 2b)."""
