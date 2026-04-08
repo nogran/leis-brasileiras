@@ -1,8 +1,8 @@
 {
   "_doc": "Registro de issues verificados manualmente. O validador suprime esses INFOs. O extrator aplica os overrides.",
-  "_updated": "2026-04-03",
-  "_expected_suppressions": 2,
-  "_expected_suppressions_detail": "artigo_sem_titulo: CLT (Art. 1 pré-TÍTULO I) + CC ou CPC (Livro Complementar)",
+  "_updated": "2026-04-08",
+  "_expected_suppressions": 3,
+  "_expected_suppressions_detail": "artigo_sem_titulo: CLT (Art. 1 pré-TÍTULO I) + CC (Livro Complementar Art. 2.028-2.046) + CPC (Livro Complementar Art. 1.045-1.072)",
 
   "artigos_faltantes_verificados": {
     "_doc": "Artigos ausentes da versão compilada do Planalto — revogados por lei, removidos do texto, ou não recepcionados pela CF88.",
@@ -20,15 +20,15 @@
       "597": "Revogado pela Lei nº 4.589/1964 (extinção da Comissão do Imposto Sindical)"
     },
     "CC": {
-      "1621": "Revogados em bloco (Arts. 1.621-1.629) pela Lei nº 12.010/2009 (Nova Lei de Adoção)",
-      "1622": "Revogados em bloco (Arts. 1.621-1.629) pela Lei nº 12.010/2009",
-      "1623": "Revogados em bloco (Arts. 1.621-1.629) pela Lei nº 12.010/2009",
-      "1624": "Revogados em bloco (Arts. 1.621-1.629) pela Lei nº 12.010/2009",
-      "1625": "Revogados em bloco (Arts. 1.621-1.629) pela Lei nº 12.010/2009",
-      "1626": "Revogados em bloco (Arts. 1.621-1.629) pela Lei nº 12.010/2009",
-      "1627": "Revogados em bloco (Arts. 1.621-1.629) pela Lei nº 12.010/2009",
-      "1628": "Revogados em bloco (Arts. 1.621-1.629) pela Lei nº 12.010/2009",
-      "1629": "Revogados em bloco (Arts. 1.621-1.629) pela Lei nº 12.010/2009"
+      "1.621": "Revogados em bloco (Arts. 1.621-1.629) pela Lei nº 12.010/2009 (Nova Lei de Adoção)",
+      "1.622": "Revogados em bloco (Arts. 1.621-1.629) pela Lei nº 12.010/2009",
+      "1.623": "Revogados em bloco (Arts. 1.621-1.629) pela Lei nº 12.010/2009",
+      "1.624": "Revogados em bloco (Arts. 1.621-1.629) pela Lei nº 12.010/2009",
+      "1.625": "Revogados em bloco (Arts. 1.621-1.629) pela Lei nº 12.010/2009",
+      "1.626": "Revogados em bloco (Arts. 1.621-1.629) pela Lei nº 12.010/2009",
+      "1.627": "Revogados em bloco (Arts. 1.621-1.629) pela Lei nº 12.010/2009",
+      "1.628": "Revogados em bloco (Arts. 1.621-1.629) pela Lei nº 12.010/2009",
+      "1.629": "Revogados em bloco (Arts. 1.621-1.629) pela Lei nº 12.010/2009"
     },
     "CP": {
       "187": "Revogado pela Lei nº 9.279/1996 (Lei de Propriedade Industrial)",
@@ -67,6 +67,51 @@
     "capitulo_nome": {
       "LGPD": {
         "CAPÍTULO IX": "Da Autoridade Nacional de Proteção de Dados (ANPD) e do Conselho Nacional de Proteção de Dados Pessoais e da Privacidade"
+      }
+    },
+    "titulo_nome": {
+      "CF88": {
+        "TÍTULO IX": "Das Disposições Constitucionais Gerais"
+      }
+    },
+    "notas_legais": {
+      "_doc": "Adiciona notas_legais a artigos especificos. Util pra marcar artigos com status doutrinario divergente do formal (ex: nao recepcionados pela CF88 — formalmente vigentes no Planalto mas inaplicaveis na pratica). O parser injeta essas notas pos-extracao SEM alterar texto_limpo nem status.",
+      "CLT": {
+        "Art. 554": [
+          {
+            "tipo": "nao_recepcionado_cf88",
+            "referencia": "CF88 Art. 8°",
+            "raw": "Não recepcionado pela CF88 Art. 8° (destituição de diretoria sindical pelo governo). Doutrinariamente inaplicável desde 05/10/1988 (promulgação da CF88)."
+          }
+        ],
+        "Art. 555": [
+          {
+            "tipo": "nao_recepcionado_cf88",
+            "referencia": "CF88 Art. 8°",
+            "raw": "Não recepcionado pela CF88 Art. 8° (cassação de carta de filiação sindical). Doutrinariamente inaplicável desde 05/10/1988."
+          }
+        ],
+        "Art. 571": [
+          {
+            "tipo": "nao_recepcionado_cf88",
+            "referencia": "CF88 Art. 8°",
+            "raw": "Não recepcionado pela CF88 Art. 8° (enquadramento sindical por categoria). Doutrinariamente inaplicável desde 05/10/1988."
+          }
+        ],
+        "Art. 572": [
+          {
+            "tipo": "nao_recepcionado_cf88",
+            "referencia": "CF88 Art. 8°",
+            "raw": "Não recepcionado pela CF88 Art. 8° (criação de federações por categoria). Doutrinariamente inaplicável desde 05/10/1988."
+          }
+        ],
+        "Art. 575": [
+          {
+            "tipo": "nao_recepcionado_cf88",
+            "referencia": "CF88 Art. 8°",
+            "raw": "Não recepcionado pela CF88 Art. 8° (regras para confederações sindicais). Doutrinariamente inaplicável desde 05/10/1988."
+          }
+        ]
       }
     },
     "remover_alteracao": {

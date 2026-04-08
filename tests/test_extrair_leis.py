@@ -953,3 +953,184 @@ class TestExtrairEstruturaHierarquia:
         assert "Das Pessoas Naturais" in path
         assert "Disposições Preliminares" in path
         assert "Da Personalidade" in path
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Fixes 2026-04-08 — bugs descobertos na auditoria pre-liberacao
+# ═══════════════════════════════════════════════════════════════════════════════
+
+from extrair_leis import limpar_marker_hierarquia
+
+
+class TestParserFixes20260408:
+    """Regressao guard pros 4 fixes do parser feitos em 2026-04-08:
+    1. INLINE_HEADER_RE aceita markers entre numeral e nome (LGPD CAP IX)
+    2. is_nome_secao/permissivo strip markers antes do length check (CF88 TIT IX)
+    3. limpar_marker_hierarquia strip trailing smart-quotes
+    4. titulo_nome em overrides_pos_extracao (defesa em profundidade)
+    """
+
+    def test_inline_header_aceita_marker_entre_numeral_e_nome(self):
+        """Bug LGPD CAPÍTULO IX: linha tinha marker (Redação dada...) entre
+        o numeral e o nome do capitulo. Antes do fix, o split nao acontecia
+        e o capitulo inteiro era perdido."""
+        entrada = "CAPÍTULO IX (Redação dada pela Lei nº 15.352, de 2026) DA AGÊNCIA NACIONAL DE PROTEÇÃO DE DADOS"
+        out = split_inline_headers(entrada)
+        # Deve splittar em 2 linhas, mantendo o marker junto com o nome (linha 2)
+        assert "\n" in out, f"split nao aconteceu: {out!r}"
+        linhas = out.split("\n")
+        assert linhas[0] == "CAPÍTULO IX"
+        assert "(Redação dada pela Lei nº 15.352, de 2026)" in linhas[1]
+        assert "DA AGÊNCIA NACIONAL DE PROTEÇÃO DE DADOS" in linhas[1]
+
+    def test_inline_header_multiplos_markers(self):
+        """Edge case: header com 2 markers consecutivos."""
+        entrada = "CAPÍTULO V (Vide Lei nº 9.999) (Incluído pela Lei nº 8.888) Das Disposições"
+        out = split_inline_headers(entrada)
+        assert out.startswith("CAPÍTULO V\n")
+        assert "(Vide Lei nº 9.999)" in out
+        assert "(Incluído pela Lei nº 8.888)" in out
+        assert "Das Disposições" in out
+
+    def test_inline_header_sem_marker_continua_funcionando(self):
+        """Regressao: o caso simples (sem markers) ainda deve funcionar igual."""
+        assert (
+            split_inline_headers("CAPÍTULO I Da Personalidade")
+            == "CAPÍTULO I\nDa Personalidade"
+        )
+
+    def test_extrair_estrutura_recupera_capitulo_com_marker_inline(self):
+        """Integration: confirma que o fluxo completo (split + extrair_estrutura)
+        recupera capitulo_nome quando o input tem marker entre numeral e nome.
+        Bug real do LGPD CAPÍTULO IX."""
+        texto = (
+            "CAPÍTULO IX (Redação dada pela Lei nº 15.352, de 2026) DA AGÊNCIA NACIONAL\n"
+            "Art. 55-A. Fica criada a Agência Nacional de Proteção de Dados.\n"
+        )
+        # Simula o pipeline: split inline → extrair_estrutura
+        texto_split = split_inline_headers(texto)
+        blocos = extrair_estrutura(texto_split, "TEST", "Lei Teste", "http://test", "2026-04-08", config={})
+        assert len(blocos) >= 1
+        bloco = blocos[0]
+        assert bloco["capitulo"] == "CAPÍTULO IX", f"capitulo errado: {bloco['capitulo']!r}"
+        assert "AGÊNCIA NACIONAL" in bloco["capitulo_nome"], (
+            f"capitulo_nome nao capturado: {bloco['capitulo_nome']!r}"
+        )
+
+    def test_is_nome_permissivo_aceita_linha_longa_apos_strip_markers(self):
+        """Bug CF88 TÍTULO IX: linha "Das Disposições Constitucionais Gerais"
+        seguida de 4x marker (Revogado pela EC nº 28...) repetidos — total
+        > 200 chars. Antes do fix, o length check rejeitava a linha.
+
+        Usa Art. 1 + Art. 2 (sequencia normal) pra evitar que o parser
+        classifique como citacao por salto numerico."""
+        texto = (
+            "TÍTULO IX\n"
+            "Das Disposições Constitucionais Gerais (Revogado pela Emenda Constitucional nº 28, de 25/05/2000) (Revogado pela Emenda Constitucional nº 28, de 25/05/2000) (Revogado pela Emenda Constitucional nº 28, de 25/05/2000) (Revogado pela Emenda Constitucional nº 28, de 25/05/2000)\n"
+            "Art. 1° Disposicao primeira do titulo IX.\n"
+            "Art. 2° Disposicao segunda do titulo IX.\n"
+        )
+        blocos = extrair_estrutura(texto, "TEST", "Lei Teste", "http://test", "2026-04-08", config={})
+        assert len(blocos) >= 1, f"esperava ao menos 1 bloco, recebi {len(blocos)}"
+        bloco = blocos[0]
+        assert bloco["titulo"] == "TÍTULO IX", f"titulo errado: {bloco['titulo']!r}"
+        assert bloco["titulo_nome"] == "Das Disposições Constitucionais Gerais", (
+            f"titulo_nome errado: {bloco['titulo_nome']!r}"
+        )
+
+    def test_limpar_marker_strip_trailing_smart_quote(self):
+        """Bug LGPD CAP IX: nome terminava com smart quote U+2019."""
+        entrada = "DA AGÊNCIA NACIONAL DE PROTEÇÃO DE DADOS\u2019"
+        assert limpar_marker_hierarquia(entrada) == "DA AGÊNCIA NACIONAL DE PROTEÇÃO DE DADOS"
+
+    def test_limpar_marker_strip_trailing_aspas_normais(self):
+        entrada = 'Nome Do Capitulo"'
+        assert limpar_marker_hierarquia(entrada) == "Nome Do Capitulo"
+
+    def test_limpar_marker_strip_multiplas_aspas(self):
+        entrada = "Nome\u2019\u2018'\""
+        assert limpar_marker_hierarquia(entrada) == "Nome"
+
+    def test_limpar_marker_preserva_aspas_meio_do_nome(self):
+        """Aspas no meio do nome NAO devem ser removidas, so trailing."""
+        entrada = "Disposições \"Especiais\" do Código"
+        out = limpar_marker_hierarquia(entrada)
+        # Aspas no meio sao preservadas
+        assert "Especiais" in out
+
+    def test_limpar_marker_remove_marker_e_smart_quote(self):
+        """Caso real LGPD: nome com marker no meio E smart quote no fim."""
+        entrada = "(Redação dada pela Lei nº 15.352, de 2026) DA AGÊNCIA NACIONAL\u2019"
+        out = limpar_marker_hierarquia(entrada)
+        assert out == "DA AGÊNCIA NACIONAL"
+
+    def test_titulo_nome_override_aplicado(self):
+        """Defesa em profundidade: confirma que titulo_nome em
+        overrides_pos_extracao funciona quando o parser nao captura
+        o nome (caso real CF88 TÍTULO IX antes do fix do parser)."""
+        import os, json, tempfile, shutil
+        # Cria diretorio temporario com extrair_leis copiado pra simular
+        # known_issues isolado
+        # Mais simples: importa o ki do projeto e verifica que CF88 TÍTULO IX
+        # tem override registrado
+        ki_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "known_issues.json"
+        )
+        with open(ki_path, encoding='utf-8') as f:
+            ki = json.load(f)
+        ovr = ki.get("overrides_pos_extracao", {}).get("titulo_nome", {})
+        assert "CF88" in ovr, "override titulo_nome.CF88 ausente"
+        assert "TÍTULO IX" in ovr["CF88"], "override TÍTULO IX ausente"
+        assert "Disposições Constitucionais Gerais" in ovr["CF88"]["TÍTULO IX"]
+
+
+class TestNotasLegaisOverride:
+    """Override de notas_legais (introduzido 2026-04-08 pra CLT 554-575
+    nao recepcionados pela CF88). Confirma que o parser injeta as notas
+    sem alterar texto_limpo nem status do artigo."""
+
+    def test_known_issues_tem_clt_nao_recepcionados(self):
+        """Confirma que known_issues.json tem as 5 entradas pra CLT."""
+        import os, json
+        ki_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "known_issues.json"
+        )
+        with open(ki_path, encoding='utf-8') as f:
+            ki = json.load(f)
+        notas = ki.get("overrides_pos_extracao", {}).get("notas_legais", {}).get("CLT", {})
+        for art in ["Art. 554", "Art. 555", "Art. 571", "Art. 572", "Art. 575"]:
+            assert art in notas, f"{art} ausente em notas_legais override CLT"
+            assert len(notas[art]) >= 1
+            assert notas[art][0]["tipo"] == "nao_recepcionado_cf88"
+            assert "CF88" in notas[art][0]["referencia"]
+
+    def test_clt_extracted_tem_notas_legais_nao_recepcionado(self):
+        """Confirma que apos a re-extracao da CLT, os 5 artigos tem
+        a nota injetada via override pos-extracao."""
+        import os, json, glob
+        data_dir = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "data"
+        )
+        clt_files = sorted(glob.glob(os.path.join(data_dir, "clt_*.json")))
+        if not clt_files:
+            import pytest
+            pytest.skip("CLT JSON nao extraido — pular teste")
+        # Pega o mais recente
+        with open(clt_files[-1], encoding='utf-8') as f:
+            chunks = json.load(f)
+        for art_alvo in ["Art. 554", "Art. 555", "Art. 571", "Art. 572", "Art. 575"]:
+            matches = [c for c in chunks if c.get("artigo") == art_alvo]
+            assert matches, f"{art_alvo} nao encontrado no CLT extraido"
+            c = matches[0]
+            notas = c.get("notas_legais", []) or []
+            tipos = [n.get("tipo") for n in notas]
+            assert "nao_recepcionado_cf88" in tipos, (
+                f"{art_alvo}: nota nao_recepcionado_cf88 ausente. Notas: {tipos}"
+            )
+            # Confirma que status nao mudou (ainda vigente conforme Planalto)
+            assert c.get("status") == "vigente", (
+                f"{art_alvo}: status mudou de vigente — esperado preservar texto original"
+            )

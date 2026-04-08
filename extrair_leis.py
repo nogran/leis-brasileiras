@@ -223,12 +223,16 @@ def limpar_ruido_legislativo(texto: str) -> str:
 def limpar_marker_hierarquia(nome: str) -> str:
     """Remove markers de alteracao legislativa de nomes hierarquicos
     (livro_nome, titulo_nome, capitulo_nome, secao_nome).
-    Aplica os mesmos padroes de NOISE_PATTERNS e normaliza espacos."""
+    Aplica os mesmos padroes de NOISE_PATTERNS e normaliza espacos.
+    2026-04-08: tambem strip de smart-quotes/aspas trailing (ex LGPD CAP IX
+    que termina com ' U+2019)."""
     if not nome:
         return ""
     for pattern in NOISE_PATTERNS:
         nome = pattern.sub('', nome)
     nome = re.sub(r'\s+', ' ', nome).strip()
+    # Strip trailing smart-quotes / aspas / pontuacao residual
+    nome = re.sub(r'[\u2019\u2018\u201C\u201D\'"`]+$', '', nome).strip()
     return nome
 
 
@@ -468,9 +472,14 @@ REGEX_CONTINUACAO_HEADER = re.compile(
 # na mesma linha). Ex: "LIVRO I DAS PESSOAS", "CAPÍTULO I Da Personalidade".
 # split_inline_headers reescreve essas linhas em duas (numeral + nome) pra que
 # o parser de extrair_estrutura possa capturar como header standalone.
+#
+# 2026-04-08 fix: aceita markers de alteracao opcionais entre o numeral e o
+# nome. Ex LGPD: "CAPÍTULO IX (Redação dada pela Lei nº 15.352, de 2026) DA
+# AGÊNCIA NACIONAL..." — antes desse fix, o parser perdia o capitulo inteiro.
 INLINE_HEADER_RE = re.compile(
     r'^((?:LIVRO|SUBT[IÍ]TULO|T[IÍ]TULO|CAP[IÍ]TULO|SE[CÇ][AÃ]O)'
     r'\s+(?:[IVXLCDM]+(?:\s*-\s*[A-Z])?|[ÚU]NIC[OA]|PRELIMINAR|COMPLEMENTAR|ESPECIAL))'
+    r'((?:\s*\([^)]+\))*)'  # markers opcionais entre numeral e nome (capturado em \2)
     # PL-13: primeira letra do nome precisa ser MAIUSCULA. Inline flag (?-i:...)
     # desabilita IGNORECASE so nesse grupo, evitando casar citacoes inline
     # tipo "Livro II da Parte Especial deste Código" onde 'da' e lowercase.
@@ -479,11 +488,25 @@ INLINE_HEADER_RE = re.compile(
 )
 
 
+def _split_inline_repl(m: re.Match) -> str:
+    header_part = m.group(1)
+    marker_part = (m.group(2) or '').strip()
+    name_part = m.group(3)
+    # Markers vao pra linha 2 (junto com o nome) pra que extrair_alteracoes /
+    # extrair_notas_legais consigam captura-los como pertencentes ao escopo do
+    # capitulo/titulo, e limpar_marker_hierarquia depois remova do nome final.
+    if marker_part:
+        return f"{header_part}\n{marker_part} {name_part}"
+    return f"{header_part}\n{name_part}"
+
+
 def split_inline_headers(text: str) -> str:
     """Quebra headers de hierarquia em formato inline em duas linhas.
     Ex: 'CAPÍTULO I Da Personalidade' → 'CAPÍTULO I\\nDa Personalidade'.
+    Aceita markers opcionais entre o numeral e o nome (preservando-os na
+    linha 2 pra que extrair_alteracoes/notas_legais possa capturar).
     Aplicado linha-a-linha via re.MULTILINE — linhas que nao casam ficam intactas."""
-    return INLINE_HEADER_RE.sub(r'\1\n\2', text)
+    return INLINE_HEADER_RE.sub(_split_inline_repl, text)
 
 
 def parse_art_num(num_str: str) -> int:
@@ -958,13 +981,23 @@ def extrair_estrutura(texto, sigla, versao, url, data_ext, config):
             continue
 
         # -- Nomes descritivos de secao --
-        is_nome_secao = REGEX_NOME_SECAO.match(linha_clean) and len(linha_clean) < 200
+        # 2026-04-08 fix: linha_for_match strip markers (...) ANTES do length
+        # check + first-letter check. Resolve dois bugs:
+        # 1) CF88 TÍTULO IX: nome "Das Disposições Constitucionais Gerais"
+        #    seguido de 4x "(Revogado pela EC nº 28...)" repetidos — linha
+        #    original > 200 chars, falhava o length check;
+        # 2) LGPD CAPÍTULO IX (apos split_inline_headers): linha comeca com
+        #    "(Redação dada...)" entao falha o `^[A-ZÀ-Ú]` check.
+        # Os markers ainda sao capturados via extrair_alteracoes/notas_legais
+        # que rodam sobre nome_parte (linha_clean original).
+        linha_for_match = re.sub(r'\s*\([^)]+\)', '', linha_clean).strip()
+        is_nome_secao = REGEX_NOME_SECAO.match(linha_for_match) and len(linha_for_match) < 200
         is_nome_permissivo = (
-            esperando_nome_secao and len(linha_clean) < 200
+            esperando_nome_secao and len(linha_for_match) < 200
             and not REGEX_ARTIGO.match(linha_clean)
             and not REGEX_SECAO_HEADER.match(linha_clean)
             and not REGEX_CONTINUACAO_HEADER.match(linha_clean)
-            and re.match(r'^[A-ZÀ-Ú]', linha_clean)
+            and re.match(r'^[A-ZÀ-Ú]', linha_for_match)
         )
 
         if is_nome_secao or is_nome_permissivo:
@@ -1212,6 +1245,41 @@ def extrair_lei(session, sigla, hashes, force=False):
                         v = bloco.get(n, ""); nm = bloco.get(nf, "")
                         if v: pp.append(f"{v} — {nm}" if nm else v)
                     bloco["path_hierarquico"] = " > ".join(pp)
+
+        # Override titulo_nome (mesmo padrao do capitulo_nome). Necessario quando
+        # o parser nao captura o nome do titulo (ex: CF88 TÍTULO IX onde o nome
+        # vem em linha seguinte com markers de revogacao repetidos).
+        tit_nomes = ki.get("overrides_pos_extracao", {}).get("titulo_nome", {}).get(sigla, {})
+        if tit_nomes:
+            for bloco in blocos:
+                tit = bloco.get("titulo", "")
+                if tit in tit_nomes and not bloco.get("titulo_nome"):
+                    bloco["titulo_nome"] = tit_nomes[tit]
+                    pp = []
+                    for n, nf in [("livro","livro_nome"),("titulo","titulo_nome"),("subtitulo","subtitulo_nome"),("capitulo","capitulo_nome"),("secao","secao_nome")]:
+                        v = bloco.get(n, ""); nm = bloco.get(nf, "")
+                        if v: pp.append(f"{v} — {nm}" if nm else v)
+                    bloco["path_hierarquico"] = " > ".join(pp)
+
+        # Override notas_legais — adiciona notas_legais especificas a artigos
+        # selecionados (ex: CLT 554-575 nao recepcionados pela CF88 Art. 8°).
+        # Reusa estrutura existente sem alterar texto_limpo nem status. As notas
+        # ficam disponiveis pro Justina renderizar como aviso doutrinario.
+        notas_overrides = ki.get("overrides_pos_extracao", {}).get("notas_legais", {}).get(sigla, {})
+        if notas_overrides:
+            for bloco in blocos:
+                art = bloco.get("artigo", "")
+                if art.startswith("_"):
+                    continue
+                if art in notas_overrides:
+                    existing = bloco.get("notas_legais", []) or []
+                    existing_keys = {(n.get("tipo"), n.get("referencia")) for n in existing}
+                    for nova in notas_overrides[art]:
+                        chave = (nova.get("tipo"), nova.get("referencia"))
+                        if chave not in existing_keys:
+                            existing.append(nova)
+                            existing_keys.add(chave)
+                    bloco["notas_legais"] = existing
 
         # FIX 36: Override remover_alteracao — remove markers incorretamente atribuídos
         rem_alt = ki.get("overrides_pos_extracao", {}).get("remover_alteracao", {}).get(sigla, {})
