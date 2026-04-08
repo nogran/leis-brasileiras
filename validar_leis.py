@@ -38,6 +38,7 @@ REQUIRED_FIELDS = [
     "capitulo", "capitulo_nome", "secao", "secao_nome",
     "path_hierarquico", "texto_limpo", "status",
     "vetos_parciais", "alteracoes", "referencias",
+    "notas_legais", "controle_constitucionalidade",
     "hash_artigo", "url_fonte", "data_extracao",
     "parte_num", "total_partes",
 ]
@@ -59,9 +60,11 @@ LEIS_LONGAS_COM_LIVRO = {"CC", "CPC"}
 LEIS_SEM_HIERARQUIA = {"CADPOS", "LT"}
 
 # PL-13: padrao pra detectar marker de alteracao em nomes hierarquicos
+# PL-19 B-07: estendido pra cobrir Vide, Regulamento, Producao de efeito
 _RE_MARKER_ALTERACAO = re.compile(
     r'\(\s*(?:Inclu[ií]d|Reda[cç][aã]o\s+dada|Renumerad|Acrescentad|'
-    r'Revogad|Suprimid|Vig[eê]ncia|Nova\s+reda[cç][aã]o)',
+    r'Revogad|Suprimid|Restaurad|Express[ãa]o\s+substitu[ií]d|'
+    r'Vig[eê]ncia|Nova\s+reda[cç][aã]o|Vide|Regulamento|Produ[cç][ãa]o\s+de\s+efeito)',
     re.IGNORECASE
 )
 

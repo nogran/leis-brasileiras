@@ -152,6 +152,10 @@ ALTERACAO_PATTERNS = [
     (re.compile(r'\(Renumerad[oa]s?\s+(?:pela|pelo|ao)\s+(.+?)\)', re.IGNORECASE | re.DOTALL), "renumerado"),
     (re.compile(r'\(Acrescentad[oa]s?\s+(?:pela|pelo|ao)\s+(.+?)\)', re.IGNORECASE | re.DOTALL), "acrescentado"),
     (re.compile(r'\(Nova redação\s+(?:pela|pelo|ao)\s+(.+?)\)',     re.IGNORECASE | re.DOTALL), "nova_redacao"),
+    # PL-19 B-04: 3 markers que estavam perdidos no texto mas nao eram capturados
+    (re.compile(r'\(Suprimid[oa]s?\s+(?:pela|pelo|ao)\s+(.+?)\)',  re.IGNORECASE | re.DOTALL), "suprimido"),
+    (re.compile(r'\(Restaurad[oa]s?\s+(?:pela|pelo|ao)\s+(.+?)\)', re.IGNORECASE | re.DOTALL), "restaurado"),
+    (re.compile(r'\(Express[ãa]o\s+substitu[ií]d[oa]\s+(?:pela|pelo|ao)\s+(.+?)\)', re.IGNORECASE | re.DOTALL), "expressao_substituida"),
 ]
 
 def extrair_alteracoes(texto: str) -> list[dict]:
@@ -175,6 +179,8 @@ NOISE_PATTERNS = [
     re.compile(r'\(Nova\s+redação\s+[^)]{0,200}\)',                   re.IGNORECASE | re.DOTALL),
     re.compile(r'\(Renumerad[oa]s?\s+[^)]{0,200}\)',                  re.IGNORECASE | re.DOTALL),
     re.compile(r'\(Suprimid[oa]s?\s+[^)]{0,200}\)',                   re.IGNORECASE | re.DOTALL),
+    re.compile(r'\(Restaurad[oa]s?\s+[^)]{0,200}\)',                  re.IGNORECASE | re.DOTALL),
+    re.compile(r'\(Express[ãa]o\s+substitu[ií]d[oa]\s+[^)]{0,200}\)', re.IGNORECASE | re.DOTALL),
     re.compile(r'\(Revogad[oa]s?\)\s*[.;,]?',                         re.IGNORECASE),
     re.compile(r'\(Suprimid[oa]s?\)\s*[.;,]?',                        re.IGNORECASE),
     re.compile(r'\(Redação\s+dada\s+(?:pela|pelo|ao)\s+[^)]*?\bde\s+[\d./]*\d{4}[:\s.]*',  re.IGNORECASE | re.DOTALL),
@@ -184,6 +190,10 @@ NOISE_PATTERNS = [
     re.compile(r'\n\s*Vigência\s*\n',      re.IGNORECASE),
     re.compile(r'\(Vigência\)',             re.IGNORECASE),
     re.compile(r'\n\s*\(Vigência\)\s*\n',  re.IGNORECASE),
+    # PL-19 B-07: markers cross-reference que pollunavam *_nome (CDC Art. 60, CLT etc)
+    re.compile(r'\(Vide\s+[^)]{0,200}\)',                  re.IGNORECASE | re.DOTALL),
+    re.compile(r'\(Regulamento[^)]{0,100}\)',              re.IGNORECASE),
+    re.compile(r'\(Produ[çc][ãa]o\s+de\s+efeitos?\)',     re.IGNORECASE),
 ]
 
 def limpar_ruido_legislativo(texto: str) -> str:
@@ -203,6 +213,140 @@ def limpar_marker_hierarquia(nome: str) -> str:
         nome = pattern.sub('', nome)
     nome = re.sub(r'\s+', ' ', nome).strip()
     return nome
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# PL-19 B-10 / B-11 — notas_legais e controle_constitucionalidade
+# ──────────────────────────────────────────────────────────────────────────────
+# Markers cross-reference que ate PL-19 estavam perdidos ou polluindo *_nome.
+# Auditoria 2.0 (2026-04-08) achou 632 ocorrencias na base. Agora cada uma
+# vira entry estruturada em notas_legais (cross-refs) ou
+# controle_constitucionalidade (ADI/ADIN/ADPF/ADC/MI — risco juridico maior).
+
+# Patterns ordenados — mais especificos PRIMEIRO. Os tipos especificos do
+# controle constitucional sao verificados antes do fallback `vide_outros`.
+NOTA_LEGAL_PATTERNS = [
+    (re.compile(r'\(Vide\s+Lei\s+Complementar\s+n[ºo°.]?\s*([^)]+)\)', re.IGNORECASE), 'vide_lei_complementar'),
+    (re.compile(r'\(Vide\s+Lei\s+n[ºo°.]?\s*([^)]+)\)',                 re.IGNORECASE), 'vide_lei'),
+    (re.compile(r'\(Vide\s+Decreto-Lei\s+n[ºo°.]?\s*([^)]+)\)',          re.IGNORECASE), 'vide_decreto_lei'),
+    (re.compile(r'\(Vide\s+Decreto\s+n[ºo°.]?\s*([^)]+)\)',              re.IGNORECASE), 'vide_decreto'),
+    (re.compile(r'\(Vide\s+Emenda\s+[Cc]onstitucional\s+n[ºo°.]?\s*([^)]+)\)', re.IGNORECASE), 'vide_emenda'),
+    (re.compile(r'\(Vide\s+Medida\s+Provis[óo]ria\s+n[ºo°.]?\s*([^)]+)\)', re.IGNORECASE), 'vide_medida_provisoria'),
+    (re.compile(r'\(Vide\s+Constitui[çc][ãa]o\s+([^)]+)\)',              re.IGNORECASE), 'vide_constituicao'),
+    (re.compile(r'\(Vide\s+Recurso\s+Extraordin[áa]rio\s+(?:n[ºo°.]?\s*)?([^)]+)\)', re.IGNORECASE), 'vide_recurso_extraordinario'),
+    (re.compile(r'\(Vide\s+Processo\s+([^)]+)\)',                        re.IGNORECASE), 'vide_processo'),
+    (re.compile(r'\(Regulamento\)',                                      re.IGNORECASE), 'regulamento'),
+    (re.compile(r'\(Produ[çc][ãa]o\s+de\s+efeitos?\)',                  re.IGNORECASE), 'producao_de_efeito'),
+    # Fallback generico — DEVE ser ultimo (e tambem captura tipos nao listados)
+    (re.compile(r'\(Vide\s+([^)]+)\)',                                   re.IGNORECASE), 'vide_outros'),
+]
+
+# Controle de constitucionalidade — entradas separadas porque sao mais criticas
+CONTROLE_CONST_PATTERNS = [
+    (re.compile(r'\(Vide\s+(ADIN?)\s+(?:n[ºo°.]?\s*)?([\d.,/-]+)[^)]*\)', re.IGNORECASE), 'ADI'),
+    (re.compile(r'\(Vide\s+(ADPF)\s+(?:n[ºo°.]?\s*)?([\d.,/-]+)[^)]*\)', re.IGNORECASE), 'ADPF'),
+    (re.compile(r'\(Vide\s+(ADC)\s+(?:n[ºo°.]?\s*)?([\d.,/-]+)[^)]*\)',  re.IGNORECASE), 'ADC'),
+    (re.compile(r'\(Vide\s+(MI)\s+(?:n[ºo°.]?\s*)?([\d.,/-]+)[^)]*\)',   re.IGNORECASE), 'MI'),
+    (re.compile(r'\(Vide\s+(AR)\s+(?:n[ºo°.]?\s*)?([\d.,/-]+)[^)]*\)',   re.IGNORECASE), 'AR'),
+]
+
+
+def extrair_notas_legais(texto: str) -> list[dict]:
+    """Extrai markers cross-reference (Vide Lei, Regulamento, Producao de efeito, etc).
+    NAO inclui controle de constitucionalidade (ADI/ADPF/ADC/MI/AR) — esses vao
+    pro campo `controle_constitucionalidade` separado.
+
+    Retorna lista de dicts com tipo, referencia (norma alvo), raw (string completa)."""
+    if not texto:
+        return []
+
+    # Tracking de posicoes ja matchadas pra evitar dupla captura
+    # (1) Posicoes matched por controle constitucional — nao re-capturar como vide
+    # (2) Posicoes matched por patterns especificos — fallback `vide_outros` so
+    #     captura o que sobrou
+    matched_ranges = []
+    for pattern, _ in CONTROLE_CONST_PATTERNS:
+        for m in pattern.finditer(texto):
+            matched_ranges.append((m.start(), m.end()))
+
+    def _in_matched(start):
+        return any(s <= start < e for s, e in matched_ranges)
+
+    notas = []
+    seen = set()
+
+    # Pass 1 — patterns especificos (skip o generico vide_outros)
+    for pattern, tipo in NOTA_LEGAL_PATTERNS:
+        if tipo == 'vide_outros':
+            continue
+        for m in pattern.finditer(texto):
+            if _in_matched(m.start()):
+                continue
+            # SEMPRE registra no matched_ranges (mesmo se for dedupado abaixo)
+            # pra que vide_outros nao re-capture na Pass 2
+            matched_ranges.append((m.start(), m.end()))
+            ref = m.group(1).strip() if m.lastindex else None
+            if ref:
+                ref = re.sub(r'\s+', ' ', ref).strip()
+            raw = m.group(0)
+            chave = f"{tipo}:{raw}"
+            if chave in seen:
+                continue
+            seen.add(chave)
+            notas.append({
+                "tipo": tipo,
+                "referencia": ref if ref else None,
+                "raw": raw,
+            })
+
+    # Pass 2 — fallback vide_outros so pra Vide nao classificado nos especificos
+    pattern_outros = next(p for p, t in NOTA_LEGAL_PATTERNS if t == 'vide_outros')
+    for m in pattern_outros.finditer(texto):
+        if _in_matched(m.start()):
+            continue
+        ref = m.group(1).strip() if m.lastindex else None
+        if ref:
+            ref = re.sub(r'\s+', ' ', ref).strip()
+        raw = m.group(0)
+        chave = f"vide_outros:{raw}"
+        if chave in seen:
+            continue
+        seen.add(chave)
+        notas.append({
+            "tipo": "vide_outros",
+            "referencia": ref if ref else None,
+            "raw": raw,
+        })
+
+    return notas
+
+
+def extrair_controle_constitucionalidade(texto: str) -> list[dict]:
+    """Extrai referencias a controle constitucional do STF (ADI/ADIN/ADPF/ADC/MI/AR).
+    Severidade juridica maior — pode indicar inconstitucionalidade ou andamento
+    processual relevante.
+
+    Retorna lista de dicts com tipo, numero, tribunal (sempre STF), raw."""
+    if not texto:
+        return []
+    out = []
+    seen = set()
+    for pattern, tipo_normalizado in CONTROLE_CONST_PATTERNS:
+        for m in pattern.finditer(texto):
+            numero = m.group(2).strip().rstrip('.,;')
+            if not numero:
+                continue
+            chave = f"{tipo_normalizado}:{numero}"
+            if chave in seen:
+                continue
+            seen.add(chave)
+            out.append({
+                "tipo": tipo_normalizado,
+                "numero": numero,
+                "tribunal": "STF",
+                "raw": m.group(0),
+            })
+    return out
 
 
 # --- Hashes ---
@@ -423,6 +567,31 @@ def detectar_status_artigo(texto_artigo: str) -> tuple[str, list[str]]:
 
 # --- Referencias cruzadas ---
 
+def _normalizar_referencia_lei(raw: str) -> str:
+    """PL-19 B-05: normaliza formatos variantes pra 'Lei nº X' canonico.
+
+    Casos cobertos:
+        'Lei n°7.347'      -> 'Lei nº 7.347'
+        'Lei n° 4.380'     -> 'Lei nº 4.380'
+        'Lei no 8.212'     -> 'Lei nº 8.212'
+        'Lei n 8.212'      -> 'Lei nº 8.212'
+        'Decreto-lei nº X' -> 'Decreto-Lei nº X'
+    """
+    s = raw.strip()
+    # Decreto-lei -> Decreto-Lei
+    s = re.sub(r'\bDecreto-lei\b', 'Decreto-Lei', s)
+    # n°/no -> nº
+    s = s.replace('n°', 'nº')
+    s = re.sub(r'\bno(\s*\d)', r'nº\1', s)
+    # 'n ' alone (sem simbolo, espaco entre n e digito) -> 'nº '
+    s = re.sub(r'\bn\s+(\d)', r'nº \1', s)
+    # Garante espaco apos 'nº'
+    s = re.sub(r'nº\s*(\d)', r'nº \1', s)
+    # Normaliza espacos
+    s = re.sub(r'\s+', ' ', s).strip()
+    return s
+
+
 # FIX 34: Contexto que indica referencia externa (nao interna)
 _REF_EXT_CONTEXT = re.compile(
     r'\s*(?:da\s+Lei|do\s+Decreto|da\s+Constitui[cç]|do\s+C[oó]digo|'
@@ -469,13 +638,14 @@ def extrair_referencias(texto: str, artigo_atual: str) -> dict:
                 internas.add(f"Art. {num}")
 
     # Leis externas (inclui Emenda Constitucional)
+    # PL-19 B-05: exige digito no numero (evita 'Lei n.' vazio)
     padrao_lei = re.compile(
         r'(?:Lei|Decreto(?:-Lei)?|Lei Complementar|Medida Provisória|Emenda Constitucional)\s+'
-        r'n[°ºo]?\s*[\d\.]+(?:/\d+)?',
+        r'n(?:[°ºo]|\.)?\s*\d[\d\.]*(?:/\d+)?',
         re.IGNORECASE
     )
     leis_externas = sorted(set(
-        re.sub(r'\s+', ' ', m.group(0)).strip()
+        _normalizar_referencia_lei(m.group(0))
         for m in padrao_lei.finditer(texto)
     ))
 
@@ -559,6 +729,8 @@ def extrair_estrutura(texto, sigla, versao, url, data_ext, config):
             return
         texto_raw = "\n".join(buffer).strip()
         alteracoes = extrair_alteracoes(texto_raw)
+        notas_legais = extrair_notas_legais(texto_raw)
+        controle_const = extrair_controle_constitucionalidade(texto_raw)
         status, vetos_parciais = detectar_status_artigo(texto_raw)
         texto_limpo = limpar_ruido_legislativo(texto_raw)
         if not texto_limpo:
@@ -615,7 +787,10 @@ def extrair_estrutura(texto, sigla, versao, url, data_ext, config):
                 "status": status,
                 "vetos_parciais": vetos_parciais if vetos_parciais else [],
                 "alteracoes": alteracoes if alteracoes else [],
-                "referencias": refs, "hash_artigo": hash_texto(parte),
+                "referencias": refs,
+                "notas_legais": notas_legais,
+                "controle_constitucionalidade": controle_const,
+                "hash_artigo": hash_texto(parte),
                 "url_fonte": url, "data_extracao": data_ext,
                 "parte_num": i + 1 if len(partes) > 1 else None,
                 "total_partes": len(partes) if len(partes) > 1 else None,
@@ -964,6 +1139,8 @@ def extrair_lei(session, sigla, hashes, force=False):
             "vetos_parciais": [],
             "alteracoes": [{"tipo": "revogado", "norma": motivo.split("(")[0].strip()}] if motivo else [],
             "referencias": {"internas": [], "leis_externas": [], "constituicao": False},
+            "notas_legais": [],
+            "controle_constitucionalidade": [],
             "hash_artigo": hash_texto(f"{artigo_label} — {motivo}"),
             "url_fonte": url,
             "data_extracao": data_ext,

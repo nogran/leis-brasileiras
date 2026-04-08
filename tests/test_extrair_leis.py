@@ -206,6 +206,36 @@ class TestExtrairAlteracoes:
         result = extrair_alteracoes(texto)
         assert len(result) == 2
 
+    def test_suprimido(self):
+        """PL-19 B-04: marker (Suprimido pelo Decreto-Lei nº X) deve virar alteracao."""
+        texto = "(Suprimido pelo Decreto-Lei nº 9.797, de 9.9.1946)"
+        result = extrair_alteracoes(texto)
+        assert len(result) == 1
+        assert result[0]["tipo"] == "suprimido"
+        assert "9.797" in result[0]["norma"]
+
+    def test_suprimido_feminino(self):
+        texto = "(Suprimida pelo Decreto-lei nº 6.353, de 20.3.1944)"
+        result = extrair_alteracoes(texto)
+        assert len(result) == 1
+        assert result[0]["tipo"] == "suprimido"
+
+    def test_restaurado(self):
+        """PL-19 B-04: marker (Restaurado pelo Decreto-lei nº X) deve virar alteracao."""
+        texto = "(Restaurado pelo Decreto-lei nº 5, de 4.4.1966)"
+        result = extrair_alteracoes(texto)
+        assert len(result) == 1
+        assert result[0]["tipo"] == "restaurado"
+        assert "5" in result[0]["norma"]
+
+    def test_expressao_substituida(self):
+        """PL-19 B-04: marker (Expressão substituída pela Lei nº X) deve virar alteracao."""
+        texto = "(Expressão substituída pela Lei nº 12.010, de 2009)"
+        result = extrair_alteracoes(texto)
+        assert len(result) == 1
+        assert result[0]["tipo"] == "expressao_substituida"
+        assert "12.010" in result[0]["norma"]
+
     def test_sem_duplicatas(self):
         texto = (
             "(Redação dada pela Lei nº 12.741, de 2012)\n"
@@ -254,6 +284,151 @@ class TestExtrairReferencias:
         refs = extrair_referencias(texto, "Art. 7")
         assert "Art. 14" not in refs["internas"]
         assert any("8.078" in lei for lei in refs["leis_externas"])
+
+    def test_lei_sem_numero_nao_captura(self):
+        """PL-19 B-05: 'Lei n.' (sem digito) NAO deve virar leis_externas."""
+        texto = "Conforme Lei n. , o consumidor."
+        refs = extrair_referencias(texto, "Art. 7")
+        assert refs["leis_externas"] == [], f"capturou Lei sem numero: {refs['leis_externas']}"
+
+    def test_lei_sem_espaco_apos_n_normaliza(self):
+        """PL-19 B-05: 'Lei n°7.347' deve virar 'Lei nº 7.347' normalizado."""
+        texto = "nos termos da Lei n°7.347 e tambem"
+        refs = extrair_referencias(texto, "Art. 7")
+        assert refs["leis_externas"] == ["Lei nº 7.347"], f"got {refs['leis_externas']}"
+
+    def test_lei_no_normaliza_para_nº(self):
+        """PL-19 B-05: 'Lei no 8.212' deve virar 'Lei nº 8.212'."""
+        texto = "vide a Lei no 8.212 conforme."
+        refs = extrair_referencias(texto, "Art. 7")
+        assert refs["leis_externas"] == ["Lei nº 8.212"], f"got {refs['leis_externas']}"
+
+    def test_lei_n_simples_normaliza(self):
+        """PL-19 B-05: 'Lei n 8.212' deve virar 'Lei nº 8.212'."""
+        texto = "vide a Lei n 8.212 conforme."
+        refs = extrair_referencias(texto, "Art. 7")
+        assert refs["leis_externas"] == ["Lei nº 8.212"], f"got {refs['leis_externas']}"
+
+    def test_lei_dedupe_apos_normalizar(self):
+        """PL-19 B-05: 'Lei n°7.347' e 'Lei nº 7.347' viram 1 entrada apos normalizar."""
+        texto = "Lei n°7.347 e Lei nº 7.347 sao a mesma."
+        refs = extrair_referencias(texto, "Art. 7")
+        assert refs["leis_externas"] == ["Lei nº 7.347"]
+
+    def test_decreto_lei_case_normalizacao(self):
+        """PL-19 B-05: 'Decreto-lei nº 4.037' (lowercase) normaliza pra 'Decreto-Lei nº 4.037'."""
+        texto = "Conforme Decreto-lei nº 4.037 e tambem."
+        refs = extrair_referencias(texto, "Art. 7")
+        assert "Decreto-Lei nº 4.037" in refs["leis_externas"], f"got {refs['leis_externas']}"
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# extrair_notas_legais (PL-19 B-10)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+from extrair_leis import extrair_notas_legais, extrair_controle_constitucionalidade
+
+
+class TestExtrairNotasLegais:
+    def test_vide_lei(self):
+        notas = extrair_notas_legais("Art. 60. (Vide Lei nº 8.656, de 1993)")
+        assert len(notas) == 1
+        assert notas[0]["tipo"] == "vide_lei"
+        assert "8.656" in notas[0]["referencia"]
+        assert notas[0]["raw"] == "(Vide Lei nº 8.656, de 1993)"
+
+    def test_vide_lei_complementar(self):
+        notas = extrair_notas_legais("(Vide Lei Complementar nº 95, de 1998)")
+        assert notas[0]["tipo"] == "vide_lei_complementar"
+
+    def test_vide_decreto_lei(self):
+        notas = extrair_notas_legais("(Vide Decreto-Lei nº 5.452, de 1943)")
+        assert notas[0]["tipo"] == "vide_decreto_lei"
+
+    def test_vide_emenda_constitucional(self):
+        notas = extrair_notas_legais("(Vide Emenda constitucional nº 106, de 2020)")
+        assert notas[0]["tipo"] == "vide_emenda"
+
+    def test_vide_medida_provisoria(self):
+        notas = extrair_notas_legais("(Vide Medida Provisória nº 526, de 2011)")
+        assert notas[0]["tipo"] == "vide_medida_provisoria"
+
+    def test_regulamento(self):
+        notas = extrair_notas_legais("garantido no artigo. (Regulamento)")
+        assert notas[0]["tipo"] == "regulamento"
+        assert notas[0]["referencia"] is None
+
+    def test_producao_de_efeito(self):
+        notas = extrair_notas_legais("(Produção de efeito)")
+        assert notas[0]["tipo"] == "producao_de_efeito"
+
+    def test_dedup_raw_identico(self):
+        notas = extrair_notas_legais("(Vide Lei nº 8.656, de 1993) (Vide Lei nº 8.656, de 1993)")
+        assert len(notas) == 1
+
+    def test_vazio(self):
+        assert extrair_notas_legais("") == []
+        assert extrair_notas_legais("texto sem markers") == []
+
+    def test_adi_nao_vai_pra_notas_legais(self):
+        """ADI/ADPF/ADC vao pro campo controle_constitucionalidade separado.
+        Pass: extrair_notas_legais NAO retorna eles."""
+        texto = "(Vide ADI nº 2.135) (Vide ADPF 672)"
+        notas = extrair_notas_legais(texto)
+        assert notas == [], f"ADI vazou pra notas_legais: {notas}"
+
+    def test_vide_outros_fallback(self):
+        """Vide nao listado vira vide_outros — mas SO se nao for ADI/ADPF/ADC."""
+        notas = extrair_notas_legais("(Vide algo super exotico)")
+        assert len(notas) == 1
+        assert notas[0]["tipo"] == "vide_outros"
+        assert notas[0]["referencia"] == "algo super exotico"
+
+
+class TestExtrairControleConstitucionalidade:
+    def test_adi(self):
+        out = extrair_controle_constitucionalidade("(Vide ADI nº 2.135)")
+        assert out == [{"tipo": "ADI", "numero": "2.135", "tribunal": "STF", "raw": "(Vide ADI nº 2.135)"}]
+
+    def test_adin(self):
+        out = extrair_controle_constitucionalidade("(Vide ADIN 3392)")
+        assert out[0]["tipo"] == "ADI"
+        assert out[0]["numero"] == "3392"
+
+    def test_adpf(self):
+        out = extrair_controle_constitucionalidade("(Vide ADPF 672)")
+        assert out[0]["tipo"] == "ADPF"
+        assert out[0]["numero"] == "672"
+
+    def test_adc(self):
+        out = extrair_controle_constitucionalidade("(Vide ADC 58)")
+        assert out[0]["tipo"] == "ADC"
+
+    def test_mi(self):
+        out = extrair_controle_constitucionalidade("(Vide MI 7300)")
+        assert out[0]["tipo"] == "MI"
+
+    def test_ar(self):
+        out = extrair_controle_constitucionalidade("(Vide AR 2876)")
+        assert out[0]["tipo"] == "AR"
+
+    def test_multiplos(self):
+        texto = "(Vide ADI nº 2.135) e tambem (Vide ADPF 672)"
+        out = extrair_controle_constitucionalidade(texto)
+        assert len(out) == 2
+
+    def test_dedup(self):
+        texto = "(Vide ADI nº 2.135) outras coisas (Vide ADI nº 2.135)"
+        out = extrair_controle_constitucionalidade(texto)
+        assert len(out) == 1
+
+    def test_vazio(self):
+        assert extrair_controle_constitucionalidade("") == []
+        assert extrair_controle_constitucionalidade("texto sem ADI") == []
+
+    def test_lei_nao_e_controle_const(self):
+        out = extrair_controle_constitucionalidade("(Vide Lei nº 8.656, de 1993)")
+        assert out == []
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -586,6 +761,44 @@ class TestExtrairEstruturaHierarquia:
         assert limpar_marker_hierarquia("(Vigência)") == ""
         # Vazio
         assert limpar_marker_hierarquia("") == ""
+
+    def test_limpar_marker_hierarquia_vide(self):
+        """PL-19 B-07: limpar_marker_hierarquia deve cobrir Vide tambem."""
+        from extrair_leis import limpar_marker_hierarquia
+        # Caso real do CDC Art. 60: 'Das Sanções Administrativas (Vide Lei nº 8.656, de 1993)'
+        assert limpar_marker_hierarquia(
+            "Das Sanções Administrativas (Vide Lei nº 8.656, de 1993)"
+        ) == "Das Sanções Administrativas"
+        # Caso real CLT: 'CONVENÇÕES COLETIVAS DE TRABALHO (Vide Medida Provisória nº 1.046, de 2021)'
+        assert limpar_marker_hierarquia(
+            "CONVENÇÕES COLETIVAS DE TRABALHO (Vide Medida Provisória nº 1.046, de 2021)"
+        ) == "CONVENÇÕES COLETIVAS DE TRABALHO"
+
+    def test_limpar_marker_hierarquia_regulamento(self):
+        """PL-19 B-07: limpar_marker_hierarquia deve cobrir Regulamento."""
+        from extrair_leis import limpar_marker_hierarquia
+        assert limpar_marker_hierarquia(
+            "Dos Direitos Fundamentais (Regulamento)"
+        ) == "Dos Direitos Fundamentais"
+
+    def test_bloco_tem_notas_legais_e_controle_const(self):
+        """PL-19 B-10/B-11: dict do bloco precisa ter notas_legais e controle_constitucionalidade."""
+        texto = (
+            "Art. 1° Toda pessoa é capaz de direitos e deveres na ordem civil. "
+            "(Vide Lei nº 8.656, de 1993) (Vide ADI nº 2.135) (Regulamento)\n"
+        )
+        blocos = extrair_estrutura(texto, "TEST", "Lei Test", "http://test", "2026-01-01", {})
+        assert len(blocos) >= 1
+        bloco = blocos[0]
+        assert "notas_legais" in bloco
+        assert "controle_constitucionalidade" in bloco
+        # notas_legais deve ter vide_lei e regulamento (ADI vai pro outro campo)
+        tipos_notas = [n["tipo"] for n in bloco["notas_legais"]]
+        assert "vide_lei" in tipos_notas
+        assert "regulamento" in tipos_notas
+        # controle_constitucionalidade deve ter ADI
+        assert len(bloco["controle_constitucionalidade"]) == 1
+        assert bloco["controle_constitucionalidade"][0]["tipo"] == "ADI"
 
     def test_inline_headers_split_e_parser_produzem_path_completo(self):
         """PL-13 Bug C (sub-bloco 2e): texto com headers inline (formato Planalto)
