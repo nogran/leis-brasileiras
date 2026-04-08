@@ -158,16 +158,33 @@ ALTERACAO_PATTERNS = [
     (re.compile(r'\(Express[ãa]o\s+substitu[ií]d[oa]\s+(?:pela|pelo|ao)\s+(.+?)\)', re.IGNORECASE | re.DOTALL), "expressao_substituida"),
 ]
 
-def extrair_alteracoes(texto: str) -> list[dict]:
+def extrair_alteracoes(texto: str, escopo: str = "artigo") -> list[dict]:
+    """Extrai markers de alteracao legislativa do texto.
+    PL-19 Estagio 2: campo `escopo` indica de qual nivel hierarquico veio
+    a alteracao ('artigo' por default; 'livro'/'titulo'/'subtitulo'/'capitulo'/
+    'secao' quando capturado de header)."""
     alteracoes, vistos = [], set()
     for pattern, tipo in ALTERACAO_PATTERNS:
         for match in pattern.finditer(texto):
             norma = re.sub(r'\s+', ' ', match.group(1).strip())
-            chave = f"{tipo}:{norma}"
+            chave = f"{tipo}:{norma}:{escopo}"
             if chave not in vistos:
                 vistos.add(chave)
-                alteracoes.append({"tipo": tipo, "norma": norma})
+                alteracoes.append({"tipo": tipo, "norma": norma, "escopo": escopo})
     return alteracoes
+
+
+def _dedup_alteracoes(alts):
+    """Dedup alteracoes por (tipo, norma, escopo)."""
+    seen = set()
+    out = []
+    for a in alts:
+        chave = (a.get("tipo"), a.get("norma"), a.get("escopo", "artigo"))
+        if chave in seen:
+            continue
+        seen.add(chave)
+        out.append(a)
+    return out
 
 
 # --- Ruido legislativo ---
@@ -319,6 +336,31 @@ def extrair_notas_legais(texto: str) -> list[dict]:
         })
 
     return notas
+
+
+def _dedup_notas(notas_list):
+    """Dedup notas_legais por raw, preservando ordem."""
+    seen = set()
+    out = []
+    for n in notas_list:
+        if n["raw"] in seen:
+            continue
+        seen.add(n["raw"])
+        out.append(n)
+    return out
+
+
+def _dedup_controle(controle_list):
+    """Dedup controle_constitucionalidade por (tipo, numero)."""
+    seen = set()
+    out = []
+    for c in controle_list:
+        chave = (c["tipo"], c["numero"])
+        if chave in seen:
+            continue
+        seen.add(chave)
+        out.append(c)
+    return out
 
 
 def extrair_controle_constitucionalidade(texto: str) -> list[dict]:
@@ -712,6 +754,13 @@ def dedup_redacoes_bloco(texto: str) -> str:
 def extrair_estrutura(texto, sigla, versao, url, data_ext, config):
     livro = titulo = subtitulo = capitulo = secao = ""
     livro_nome = titulo_nome = subtitulo_nome = capitulo_nome = secao_nome = ""
+    # PL-19 Estagio 2: notas_legais, controle_const e alteracoes por nivel
+    # hierarquico. Sao captados ANTES do limpar_marker_hierarquia e
+    # PROPAGADOS pros artigos filhos via flush_buffer. Resetam junto com
+    # o respectivo *_nome.
+    livro_notas = titulo_notas = subtitulo_notas = capitulo_notas = secao_notas = []
+    livro_const = titulo_const = subtitulo_const = capitulo_const = secao_const = []
+    livro_alt = titulo_alt = subtitulo_alt = capitulo_alt = secao_alt = []
     artigo_label_atual = "EMENTA"
     ultimo_num_artigo = 0
     em_transitorias = False
@@ -728,9 +777,22 @@ def extrair_estrutura(texto, sigla, versao, url, data_ext, config):
         if not buffer:
             return
         texto_raw = "\n".join(buffer).strip()
-        alteracoes = extrair_alteracoes(texto_raw)
-        notas_legais = extrair_notas_legais(texto_raw)
-        controle_const = extrair_controle_constitucionalidade(texto_raw)
+        # PL-19 Estagio 2: alteracoes/notas/controle herdadas dos headers + do texto
+        alteracoes_artigo = extrair_alteracoes(texto_raw, escopo="artigo")
+        alteracoes = _dedup_alteracoes(
+            livro_alt + titulo_alt + subtitulo_alt
+            + capitulo_alt + secao_alt + alteracoes_artigo
+        )
+        notas_artigo = extrair_notas_legais(texto_raw)
+        controle_artigo = extrair_controle_constitucionalidade(texto_raw)
+        notas_legais = _dedup_notas(
+            livro_notas + titulo_notas + subtitulo_notas
+            + capitulo_notas + secao_notas + notas_artigo
+        )
+        controle_const = _dedup_controle(
+            livro_const + titulo_const + subtitulo_const
+            + capitulo_const + secao_const + controle_artigo
+        )
         status, vetos_parciais = detectar_status_artigo(texto_raw)
         texto_limpo = limpar_ruido_legislativo(texto_raw)
         if not texto_limpo:
@@ -764,7 +826,7 @@ def extrair_estrutura(texto, sigla, versao, url, data_ext, config):
         # Enriquece vetado_total: se alteracoes está vazio, registra a norma de origem.
         # Se já tem (ex: "Incluído pela Lei 14.181" + vetado), o veto foi nessa lei.
         if status == 'vetado_total' and not alteracoes:
-            alteracoes = [{"tipo": "vetado", "norma": f"Veto na sanção — {versao}"}]
+            alteracoes = [{"tipo": "vetado", "norma": f"Veto na sanção — {versao}", "escopo": "artigo"}]
 
         partes = split_com_overlap(texto_limpo)
         for i, parte in enumerate(partes):
@@ -820,6 +882,10 @@ def extrair_estrutura(texto, sigla, versao, url, data_ext, config):
                     ultimo_num_artigo = 0
                     livro = titulo = subtitulo = capitulo = secao = ""
                     livro_nome = titulo_nome = subtitulo_nome = capitulo_nome = secao_nome = ""
+                    # PL-19 Estagio 2: reset notas/controle/alteracoes ao entrar em transitorias
+                    livro_notas = titulo_notas = subtitulo_notas = capitulo_notas = secao_notas = []
+                    livro_const = titulo_const = subtitulo_const = capitulo_const = secao_const = []
+                    livro_alt = titulo_alt = subtitulo_alt = capitulo_alt = secao_alt = []
                 boundary_matched = True
             elif action == "flush_section":
                 flush_buffer(artigo_label_atual)
@@ -859,20 +925,36 @@ def extrair_estrutura(texto, sigla, versao, url, data_ext, config):
             if "LIVRO" in u:
                 livro = linha_clean; titulo = subtitulo = capitulo = secao = ""
                 livro_nome = titulo_nome = subtitulo_nome = capitulo_nome = secao_nome = ""
+                # PL-19 Estagio 2: reset notas_legais, controle e alteracoes por nivel
+                livro_notas = titulo_notas = subtitulo_notas = capitulo_notas = secao_notas = []
+                livro_const = titulo_const = subtitulo_const = capitulo_const = secao_const = []
+                livro_alt = titulo_alt = subtitulo_alt = capitulo_alt = secao_alt = []
                 esperando_nome_secao = "livro"
             elif "SUBTÍTULO" in u or "SUBTITULO" in u:
                 subtitulo = linha_clean; capitulo = secao = ""
                 subtitulo_nome = capitulo_nome = secao_nome = ""
+                subtitulo_notas = capitulo_notas = secao_notas = []
+                subtitulo_const = capitulo_const = secao_const = []
+                subtitulo_alt = capitulo_alt = secao_alt = []
                 esperando_nome_secao = "subtitulo"
             elif "TÍTULO" in u or "TITULO" in u:
                 titulo = linha_clean; subtitulo = capitulo = secao = ""
                 titulo_nome = subtitulo_nome = capitulo_nome = secao_nome = ""
+                titulo_notas = subtitulo_notas = capitulo_notas = secao_notas = []
+                titulo_const = subtitulo_const = capitulo_const = secao_const = []
+                titulo_alt = subtitulo_alt = capitulo_alt = secao_alt = []
                 esperando_nome_secao = "titulo"
             elif "CAPÍTULO" in u or "CAPITULO" in u:
                 capitulo = linha_clean; secao = ""
-                capitulo_nome = secao_nome = ""; esperando_nome_secao = "capitulo"
+                capitulo_nome = secao_nome = ""
+                capitulo_notas = secao_notas = []
+                capitulo_const = secao_const = []
+                capitulo_alt = secao_alt = []
+                esperando_nome_secao = "capitulo"
             elif "SEÇÃO" in u or "SECAO" in u:
-                secao = linha_clean; secao_nome = ""; esperando_nome_secao = "secao"
+                secao = linha_clean; secao_nome = ""
+                secao_notas = []; secao_const = []; secao_alt = []
+                esperando_nome_secao = "secao"
             continue
 
         # -- Nomes descritivos de secao --
@@ -892,32 +974,66 @@ def extrair_estrutura(texto, sigla, versao, url, data_ext, config):
                     numeral_extra, nome_parte = m_num.group(1), m_num.group(2)
                 else:
                     numeral_extra, nome_parte = None, linha_clean
+                # PL-19 Estagio 2: capturar notas/controle/alteracoes ANTES de limpar
+                _notas_aqui = extrair_notas_legais(nome_parte)
+                _controle_aqui = extrair_controle_constitucionalidade(nome_parte)
+                _alt_aqui = extrair_alteracoes(nome_parte, escopo=esperando_nome_secao)
                 # PL-13 Bug D: remove markers de alteracao do nome capturado
                 nome_parte = limpar_marker_hierarquia(nome_parte)
 
                 if esperando_nome_secao == "livro":
                     if numeral_extra: livro = f"{livro} {numeral_extra}"
                     livro_nome = nome_parte
+                    livro_notas = _notas_aqui
+                    livro_const = _controle_aqui
+                    livro_alt = _alt_aqui
                 elif esperando_nome_secao == "titulo":
                     if numeral_extra: titulo = f"{titulo} {numeral_extra}"
                     titulo_nome = nome_parte
+                    titulo_notas = _notas_aqui
+                    titulo_const = _controle_aqui
+                    titulo_alt = _alt_aqui
                 elif esperando_nome_secao == "subtitulo":
                     if numeral_extra: subtitulo = f"{subtitulo} {numeral_extra}"
                     subtitulo_nome = nome_parte
+                    subtitulo_notas = _notas_aqui
+                    subtitulo_const = _controle_aqui
+                    subtitulo_alt = _alt_aqui
                 elif esperando_nome_secao == "capitulo":
                     if numeral_extra: capitulo = f"{capitulo} {numeral_extra}"
                     capitulo_nome = nome_parte
+                    capitulo_notas = _notas_aqui
+                    capitulo_const = _controle_aqui
+                    capitulo_alt = _alt_aqui
                 elif esperando_nome_secao == "secao":
                     if numeral_extra: secao = f"{secao} {numeral_extra}"
                     secao_nome = nome_parte
+                    secao_notas = _notas_aqui
+                    secao_const = _controle_aqui
+                    secao_alt = _alt_aqui
                 esperando_nome_secao = None
                 continue
             elif is_nome_secao:
+                # PL-19 Estagio 2: capturar antes de limpar
+                _notas_aqui = extrair_notas_legais(linha_clean)
+                _controle_aqui = extrair_controle_constitucionalidade(linha_clean)
                 # PL-13 Bug D: remove markers de alteracao do nome capturado
                 nome_secao = limpar_marker_hierarquia(linha_clean)
-                if titulo and not titulo_nome: titulo_nome = nome_secao
-                elif capitulo and not capitulo_nome: capitulo_nome = nome_secao
-                elif secao and not secao_nome: secao_nome = nome_secao
+                if titulo and not titulo_nome:
+                    titulo_nome = nome_secao
+                    titulo_notas = _notas_aqui
+                    titulo_const = _controle_aqui
+                    titulo_alt = extrair_alteracoes(linha_clean, escopo="titulo")
+                elif capitulo and not capitulo_nome:
+                    capitulo_nome = nome_secao
+                    capitulo_notas = _notas_aqui
+                    capitulo_const = _controle_aqui
+                    capitulo_alt = extrair_alteracoes(linha_clean, escopo="capitulo")
+                elif secao and not secao_nome:
+                    secao_nome = nome_secao
+                    secao_notas = _notas_aqui
+                    secao_const = _controle_aqui
+                    secao_alt = extrair_alteracoes(linha_clean, escopo="secao")
                 continue
 
         esperando_nome_secao = None
@@ -1137,7 +1253,7 @@ def extrair_lei(session, sigla, hashes, force=False):
             "texto_limpo": f"{artigo_label} — {motivo}. Artigo ausente da versão compilada do Planalto.",
             "status": "revogado",
             "vetos_parciais": [],
-            "alteracoes": [{"tipo": "revogado", "norma": motivo.split("(")[0].strip()}] if motivo else [],
+            "alteracoes": [{"tipo": "revogado", "norma": motivo.split("(")[0].strip(), "escopo": "artigo"}] if motivo else [],
             "referencias": {"internas": [], "leis_externas": [], "constituicao": False},
             "notas_legais": [],
             "controle_constitucionalidade": [],

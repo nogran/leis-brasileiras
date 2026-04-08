@@ -800,6 +800,97 @@ class TestExtrairEstruturaHierarquia:
         assert len(bloco["controle_constitucionalidade"]) == 1
         assert bloco["controle_constitucionalidade"][0]["tipo"] == "ADI"
 
+    def test_notas_herdadas_de_capitulo_nome(self):
+        """PL-19 Estagio 2: notas_legais do nome do capitulo devem ser herdadas
+        pelos artigos sob aquele capitulo. Reproduz caso CDC Art. 60 onde
+        '(Vide Lei nº 8.656, de 1993)' estava no nome do capitulo VII."""
+        texto = (
+            "CAPÍTULO VII\n"
+            "Das Sanções Administrativas (Vide Lei nº 8.656, de 1993)\n"
+            "Art. 55. A União, os Estados e o Distrito Federal, em caráter concorrente "
+            "e nas suas respectivas áreas de atuação administrativa, baixarão normas "
+            "relativas à produção, industrialização, distribuição e consumo.\n"
+            "Art. 60. A imposição de contrapropaganda será cominada quando o fornecedor "
+            "incorrer na prática de publicidade enganosa ou abusiva, nos termos do art. 36.\n"
+        )
+        blocos = extrair_estrutura(texto, "TEST", "Lei Test", "http://test", "2026-01-01", {})
+        # Pelo menos 2 blocos: Art. 55 e Art. 60
+        assert len(blocos) >= 2
+        # Capitulo_nome deve estar LIMPO (sem o Vide)
+        for b in blocos:
+            assert "Vide" not in b["capitulo_nome"], f"capitulo_nome ainda tem Vide: {b['capitulo_nome']}"
+            assert b["capitulo_nome"] == "Das Sanções Administrativas"
+        # AMBOS os artigos devem ter notas_legais com vide_lei (herdado do capitulo)
+        for b in blocos:
+            tipos = [n["tipo"] for n in b["notas_legais"]]
+            assert "vide_lei" in tipos, f"{b['artigo']} sem vide_lei: {b['notas_legais']}"
+            # E a referencia deve ser 8.656
+            vide_leis = [n for n in b["notas_legais"] if n["tipo"] == "vide_lei"]
+            assert any("8.656" in n["referencia"] for n in vide_leis)
+
+    def test_controle_const_herdado_de_titulo(self):
+        """PL-19 Estagio 2: ADI no titulo_nome herda pros artigos."""
+        texto = (
+            "TÍTULO IV\n"
+            "Da Tributação (Vide ADI nº 2.135)\n"
+            "Art. 145. A União, os Estados, o Distrito Federal e os Municípios poderão "
+            "instituir os seguintes tributos.\n"
+        )
+        blocos = extrair_estrutura(texto, "TEST", "Lei Test", "http://test", "2026-01-01", {})
+        bloco = blocos[0]
+        assert bloco["titulo_nome"] == "Da Tributação"  # limpo
+        # ADI herdado
+        assert len(bloco["controle_constitucionalidade"]) == 1
+        assert bloco["controle_constitucionalidade"][0]["tipo"] == "ADI"
+        assert bloco["controle_constitucionalidade"][0]["numero"] == "2.135"
+
+    def test_alteracao_em_capitulo_nome_captura_com_escopo(self):
+        """PL-19 Estagio 2: '(Incluído pela Lei nº X)' em capitulo_nome
+        deve virar alteracao no artigo com escopo='capitulo'."""
+        texto = (
+            "CAPÍTULO V-A\n"
+            "DA PREVENÇÃO E DO TRATAMENTO DO SUPERENDIVIDAMENTO (Incluído pela Lei nº 14.181, de 2021)\n"
+            "Art. 54-A. Esta Seção dispõe sobre a prevenção do superendividamento da pessoa natural.\n"
+        )
+        blocos = extrair_estrutura(texto, "TEST", "Lei Test", "http://test", "2026-01-01", {})
+        bloco = blocos[0]
+        # Capitulo_nome deve estar limpo
+        assert bloco["capitulo_nome"] == "DA PREVENÇÃO E DO TRATAMENTO DO SUPERENDIVIDAMENTO"
+        # Alteracoes deve incluir o "incluido" com escopo capitulo
+        cap_alts = [a for a in bloco["alteracoes"] if a.get("escopo") == "capitulo"]
+        assert len(cap_alts) == 1
+        assert cap_alts[0]["tipo"] == "incluido"
+        assert "14.181" in cap_alts[0]["norma"]
+
+    def test_alteracao_artigo_tem_escopo_default(self):
+        """PL-19 Estagio 2: alteracoes capturadas do texto do artigo tem escopo='artigo' por default."""
+        texto = (
+            "Art. 6° (Redação dada pela Lei nº 12.741, de 2012) São direitos básicos do consumidor.\n"
+        )
+        blocos = extrair_estrutura(texto, "TEST", "Lei Test", "http://test", "2026-01-01", {})
+        bloco = blocos[0]
+        assert all(a.get("escopo") == "artigo" for a in bloco["alteracoes"])
+
+    def test_notas_resetam_em_novo_capitulo(self):
+        """Quando novo CAPITULO comeca, notas_legais do antigo NAO devem
+        herdar pros artigos do novo capitulo."""
+        texto = (
+            "CAPÍTULO I\n"
+            "Das Sanções (Vide Lei nº 8.656, de 1993)\n"
+            "Art. 1. Texto suficiente longo do artigo 1 com mais de trinta caracteres.\n"
+            "CAPÍTULO II\n"
+            "Da Outra Coisa\n"
+            "Art. 2. Texto suficiente longo do artigo 2 com mais de trinta caracteres.\n"
+        )
+        blocos = extrair_estrutura(texto, "TEST", "Lei Test", "http://test", "2026-01-01", {})
+        # Art. 1 deve ter vide_lei
+        art1 = next(b for b in blocos if b["artigo"] == "Art. 1")
+        assert any(n["tipo"] == "vide_lei" for n in art1["notas_legais"])
+        # Art. 2 NAO deve ter vide_lei (novo capitulo, reset)
+        art2 = next(b for b in blocos if b["artigo"] == "Art. 2")
+        assert all(n["tipo"] != "vide_lei" for n in art2["notas_legais"]), \
+            f"Art. 2 herdou notas do cap I: {art2['notas_legais']}"
+
     def test_inline_headers_split_e_parser_produzem_path_completo(self):
         """PL-13 Bug C (sub-bloco 2e): texto com headers inline (formato Planalto)
         passa pelo split_inline_headers e o parser captura hierarquia 4-niveis.
