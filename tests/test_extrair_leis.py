@@ -330,3 +330,32 @@ class TestHashTexto:
 
     def test_length_16(self):
         assert len(hash_texto("qualquer coisa")) == 16
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# extrair_estrutura — hierarquia (PL-13)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+from extrair_leis import extrair_estrutura
+
+
+class TestExtrairEstruturaHierarquia:
+    def test_bloco_tem_livro_nome_e_subtitulo_nome(self):
+        """PL-13 Bug A: dict do bloco precisa ter livro_nome e subtitulo_nome (sub-bloco 2a)."""
+        texto = (
+            "LIVRO I\n"
+            "Das Pessoas\n"
+            "SUBTÍTULO I\n"
+            "Disposições Preliminares\n"
+            "Art. 1° Toda pessoa é capaz de direitos e deveres na ordem civil, "
+            "e tem personalidade desde o nascimento com vida.\n"
+        )
+        blocos = extrair_estrutura(texto, "TEST", "Lei Test", "http://test", "2026-01-01", {})
+        assert len(blocos) >= 1, f"esperava ao menos 1 bloco, recebi {len(blocos)}"
+        bloco = blocos[0]
+        assert "livro_nome" in bloco, f"livro_nome ausente do dict: {sorted(bloco.keys())}"
+        assert "subtitulo_nome" in bloco, f"subtitulo_nome ausente do dict: {sorted(bloco.keys())}"
+        assert bloco["livro"] == "LIVRO I"
+        assert bloco["livro_nome"] == "Das Pessoas"
+        assert bloco["subtitulo"] == "SUBTÍTULO I"
+        assert bloco["subtitulo_nome"] == "Disposições Preliminares"

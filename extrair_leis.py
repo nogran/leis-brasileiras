@@ -499,7 +499,7 @@ def dedup_redacoes_bloco(texto: str) -> str:
 
 def extrair_estrutura(texto, sigla, versao, url, data_ext, config):
     livro = titulo = subtitulo = capitulo = secao = ""
-    livro_nome = titulo_nome = capitulo_nome = secao_nome = ""
+    livro_nome = titulo_nome = subtitulo_nome = capitulo_nome = secao_nome = ""
     artigo_label_atual = "EMENTA"
     ultimo_num_artigo = 0
     em_transitorias = False
@@ -558,8 +558,9 @@ def extrair_estrutura(texto, sigla, versao, url, data_ext, config):
                 "id": artigo_id, "lei": sigla, "versao": versao,
                 "versao_consolidada": True,
                 "artigo": f"{artigo_label}{suffix_label}",
-                "livro": livro, "titulo": titulo, "titulo_nome": titulo_nome,
-                "subtitulo": subtitulo,
+                "livro": livro, "livro_nome": livro_nome,
+                "titulo": titulo, "titulo_nome": titulo_nome,
+                "subtitulo": subtitulo, "subtitulo_nome": subtitulo_nome,
                 "capitulo": capitulo, "capitulo_nome": capitulo_nome,
                 "secao": secao, "secao_nome": secao_nome,
                 "path_hierarquico": path, "texto_limpo": parte,
@@ -605,7 +606,7 @@ def extrair_estrutura(texto, sigla, versao, url, data_ext, config):
                     em_transitorias = True
                     ultimo_num_artigo = 0
                     livro = titulo = subtitulo = capitulo = secao = ""
-                    livro_nome = titulo_nome = capitulo_nome = secao_nome = ""
+                    livro_nome = titulo_nome = subtitulo_nome = capitulo_nome = secao_nome = ""
                 boundary_matched = True
             elif action == "flush_section":
                 flush_buffer(artigo_label_atual)
@@ -644,14 +645,16 @@ def extrair_estrutura(texto, sigla, versao, url, data_ext, config):
             u = linha_clean.upper()
             if "LIVRO" in u:
                 livro = linha_clean; titulo = subtitulo = capitulo = secao = ""
-                livro_nome = titulo_nome = capitulo_nome = secao_nome = ""
+                livro_nome = titulo_nome = subtitulo_nome = capitulo_nome = secao_nome = ""
                 esperando_nome_secao = "livro"
             elif "SUBTÍTULO" in u or "SUBTITULO" in u:
                 subtitulo = linha_clean; capitulo = secao = ""
-                capitulo_nome = secao_nome = ""; esperando_nome_secao = "subtitulo"
+                subtitulo_nome = capitulo_nome = secao_nome = ""
+                esperando_nome_secao = "subtitulo"
             elif "TÍTULO" in u or "TITULO" in u:
                 titulo = linha_clean; subtitulo = capitulo = secao = ""
-                titulo_nome = capitulo_nome = secao_nome = ""; esperando_nome_secao = "titulo"
+                titulo_nome = subtitulo_nome = capitulo_nome = secao_nome = ""
+                esperando_nome_secao = "titulo"
             elif "CAPÍTULO" in u or "CAPITULO" in u:
                 capitulo = linha_clean; secao = ""
                 capitulo_nome = secao_nome = ""; esperando_nome_secao = "capitulo"
@@ -683,6 +686,9 @@ def extrair_estrutura(texto, sigla, versao, url, data_ext, config):
                 elif esperando_nome_secao == "titulo":
                     if numeral_extra: titulo = f"{titulo} {numeral_extra}"
                     titulo_nome = nome_parte
+                elif esperando_nome_secao == "subtitulo":
+                    if numeral_extra: subtitulo = f"{subtitulo} {numeral_extra}"
+                    subtitulo_nome = nome_parte
                 elif esperando_nome_secao == "capitulo":
                     if numeral_extra: capitulo = f"{capitulo} {numeral_extra}"
                     capitulo_nome = nome_parte
@@ -898,8 +904,9 @@ def extrair_lei(session, sigla, hashes, force=False):
             "id": artigo_id, "lei": sigla, "versao": versao,
             "versao_consolidada": True,
             "artigo": artigo_label,
-            "livro": "", "titulo": "", "titulo_nome": "",
-            "subtitulo": "",
+            "livro": "", "livro_nome": "",
+            "titulo": "", "titulo_nome": "",
+            "subtitulo": "", "subtitulo_nome": "",
             "capitulo": "", "capitulo_nome": "",
             "secao": "", "secao_nome": "",
             "path_hierarquico": "",
