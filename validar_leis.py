@@ -33,7 +33,8 @@ from dataclasses import dataclass, field, asdict
 
 REQUIRED_FIELDS = [
     "id", "lei", "versao", "versao_consolidada", "artigo",
-    "livro", "titulo", "titulo_nome", "subtitulo",
+    "livro", "livro_nome", "titulo", "titulo_nome",
+    "subtitulo", "subtitulo_nome",
     "capitulo", "capitulo_nome", "secao", "secao_nome",
     "path_hierarquico", "texto_limpo", "status",
     "vetos_parciais", "alteracoes", "referencias",
@@ -47,6 +48,19 @@ VALID_LEI_SIGLAS = {
     "CDC", "CLT", "CC", "CPC", "CF88", "CP", "LGPD",
     "ECA", "LI", "LMP", "LC123", "LT", "CADPOS",
 }
+
+# PL-13: leis com estrutura hierarquica de Livro (sub-bloco 4a)
+LEIS_LONGAS_COM_LIVRO = {"CC", "CPC", "CLT", "CF88"}
+
+# PL-13: leis sem hierarquia interna (sao isentas de path_hierarquico_vazio)
+LEIS_SEM_HIERARQUIA = {"CADPOS", "LT"}
+
+# PL-13: padrao pra detectar marker de alteracao em nomes hierarquicos
+_RE_MARKER_ALTERACAO = re.compile(
+    r'\(\s*(?:Inclu[ií]d|Reda[cç][aã]o\s+dada|Renumerad|Acrescentad|'
+    r'Revogad|Suprimid|Vig[eê]ncia|Nova\s+reda[cç][aã]o)',
+    re.IGNORECASE
+)
 
 # Limites para RAG
 RAG_MAX_CHUNK_CHARS = 8000    # acima disso, embedding models truncam
@@ -139,14 +153,22 @@ def validate_schema(data: list[dict], report: FileReport):
         _add(report, "FAIL", "SCHEMA", "data_formato",
              f"data_extracao='{dt}' formato inválido (esperado YYYY-MM-DD)")
 
+    # ── Campos obrigatórios (deduplica por missing-set pra nao spammar) ──
+    missing_sets = defaultdict(int)
+    missing_first_art = {}
     for i, chunk in enumerate(data):
         art = chunk.get("artigo", f"chunk[{i}]")
-
-        # ── Campos obrigatórios ──
-        missing = [f for f in REQUIRED_FIELDS if f not in chunk]
+        missing = tuple(sorted(f for f in REQUIRED_FIELDS if f not in chunk))
         if missing:
-            _add(report, "FAIL", "SCHEMA", "campo_obrigatorio",
-                 f"Campos faltando: {missing}", art)
+            missing_sets[missing] += 1
+            missing_first_art.setdefault(missing, art)
+    for missing, count in missing_sets.items():
+        _add(report, "FAIL", "SCHEMA", "campo_obrigatorio",
+             f"Campos faltando: {list(missing)} ({count} chunks)",
+             missing_first_art[missing])
+
+    for i, chunk in enumerate(data):
+        art = chunk.get("artigo", f"chunk[{i}]")
 
         # ── Tipos ──
         if not isinstance(chunk.get("referencias", {}), dict):
@@ -370,6 +392,69 @@ def validate_hierarquia(data: list[dict], report: FileReport):
         if singletons > 3:
             _add(report, "FAIL", "HIERARQUIA", "off_by_one",
                  f"Off-by-one detectado: {singletons} artigos isolados entre transições")
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # PL-13 sub-bloco 4: regras novas pra detectar bugs de hierarquia colapsada
+    # ─────────────────────────────────────────────────────────────────────────
+    lei = data[0].get("lei", "") if data else ""
+
+    # ── 4a-1: path_generico_em_massa — hierarquia colapsada ──
+    # Threshold: >30 chunks com mesmo path nao trivial = sintoma de bug
+    PATH_DUP_THRESHOLD = 30
+    path_counts = Counter(c.get("path_hierarquico", "") for c in data if c.get("path_hierarquico"))
+    for path, count in path_counts.most_common():
+        if count > PATH_DUP_THRESHOLD:
+            _add(report, "FAIL", "HIERARQUIA", "path_generico_em_massa",
+                 f"{count} artigos com mesmo path '{path[:80]}{'...' if len(path)>80 else ''}'")
+
+    # ── 4a-2: livro_ausente_em_lei_longa ──
+    # Leis com estrutura de Livro precisam ter livro populado em ao menos alguns chunks
+    if lei in LEIS_LONGAS_COM_LIVRO:
+        livros_populados = sum(1 for c in data if c.get("livro", ""))
+        if livros_populados == 0:
+            _add(report, "FAIL", "HIERARQUIA", "livro_ausente_em_lei_longa",
+                 f"lei={lei} tem estrutura de Livro mas nenhum dos {len(data)} chunks tem livro populado")
+
+    # ── 4a-3: marker_no_nome_hierarquia ──
+    # Marker de alteracao em qualquer *_nome e bug certo (sub-bloco 2c do PL-13)
+    nome_fields = ("livro_nome", "titulo_nome", "subtitulo_nome", "capitulo_nome", "secao_nome")
+    marker_count = 0
+    marker_first_art = None
+    marker_first_field = None
+    marker_first_value = None
+    for c in data:
+        for field in nome_fields:
+            val = c.get(field, "")
+            if val and _RE_MARKER_ALTERACAO.search(val):
+                marker_count += 1
+                if marker_first_art is None:
+                    marker_first_art = c["artigo"]
+                    marker_first_field = field
+                    marker_first_value = val[:80]
+                break  # 1 marker por chunk e suficiente pra contar
+    if marker_count > 0:
+        _add(report, "FAIL", "HIERARQUIA", "marker_no_nome_hierarquia",
+             f"{marker_count} chunks com marker de alteracao em campo *_nome "
+             f"(ex: {marker_first_field}=\"{marker_first_value}\")",
+             marker_first_art or "")
+
+    # ── 4b-1: path_hierarquico_vazio (INFO, isenta leis sem hierarquia) ──
+    if lei not in LEIS_SEM_HIERARQUIA:
+        path_vazio = sum(1 for c in data if not c.get("path_hierarquico", ""))
+        if path_vazio > 0:
+            _add(report, "INFO", "HIERARQUIA", "path_hierarquico_vazio",
+                 f"{path_vazio} chunks com path_hierarquico vazio")
+
+    # ── 4b-2: livro_sem_nome (simetrico ao titulo_sem_nome existente) ──
+    livros_sem_nome = defaultdict(int)
+    for c in data:
+        livro = c.get("livro", "")
+        livro_nome = c.get("livro_nome", "")
+        if livro and not livro_nome and c["artigo"] != "EMENTA":
+            livros_sem_nome[livro] += 1
+    for val, count in list(livros_sem_nome.items())[:5]:
+        _add(report, "WARN", "HIERARQUIA", "livro_sem_nome",
+             f'livro="{val}" sem livro_nome ({count} artigos)')
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
