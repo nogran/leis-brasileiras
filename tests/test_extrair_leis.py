@@ -359,3 +359,31 @@ class TestExtrairEstruturaHierarquia:
         assert bloco["livro_nome"] == "Das Pessoas"
         assert bloco["subtitulo"] == "SUBTÍTULO I"
         assert bloco["subtitulo_nome"] == "Disposições Preliminares"
+
+    def test_path_hierarquico_inclui_livro_e_subtitulo(self):
+        """PL-13 Bug B: path_hierarquico deve incluir livro e subtitulo na ordem correta (sub-bloco 2b)."""
+        texto = (
+            "LIVRO I\n"
+            "Das Pessoas\n"
+            "TÍTULO I\n"
+            "Das Pessoas Naturais\n"
+            "SUBTÍTULO I\n"
+            "Disposições Preliminares\n"
+            "CAPÍTULO I\n"
+            "Da Personalidade\n"
+            "Art. 1° Toda pessoa é capaz de direitos e deveres na ordem civil, "
+            "e tem personalidade desde o nascimento com vida.\n"
+        )
+        blocos = extrair_estrutura(texto, "TEST", "Lei Test", "http://test", "2026-01-01", {})
+        bloco = blocos[0]
+        path = bloco["path_hierarquico"]
+        # Path deve quebrar em 4 partes na ordem: LIVRO > TITULO > SUBTITULO > CAPITULO
+        parts = path.split(" > ")
+        labels = [p.split(" — ")[0] for p in parts]
+        assert labels == ["LIVRO I", "TÍTULO I", "SUBTÍTULO I", "CAPÍTULO I"], (
+            f"path errado: {path!r}"
+        )
+        assert "Das Pessoas" in path
+        assert "Das Pessoas Naturais" in path
+        assert "Disposições Preliminares" in path
+        assert "Da Personalidade" in path

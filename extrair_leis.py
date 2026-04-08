@@ -536,7 +536,13 @@ def extrair_estrutura(texto, sigla, versao, url, data_ext, config):
 
         refs = extrair_referencias(texto_limpo, artigo_label)
         path_partes = []
-        for num, nome in [(titulo, titulo_nome), (capitulo, capitulo_nome), (secao, secao_nome)]:
+        for num, nome in [
+            (livro, livro_nome),
+            (titulo, titulo_nome),
+            (subtitulo, subtitulo_nome),
+            (capitulo, capitulo_nome),
+            (secao, secao_nome),
+        ]:
             if num:
                 path_partes.append(f"{num} — {nome}" if nome else num)
         path = " > ".join(path_partes) if path_partes else ""
