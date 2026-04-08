@@ -9,6 +9,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from extrair_leis import (
     REGEX_ARTIGO,
+    REGEX_SECAO_HEADER,
+    REGEX_CONTINUACAO_HEADER,
     parse_art_num,
     classificar_linha_artigo,
     detectar_status_artigo,
@@ -330,6 +332,86 @@ class TestHashTexto:
 
     def test_length_16(self):
         assert len(hash_texto("qualquer coisa")) == 16
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# REGEX_SECAO_HEADER — header de hierarquia em linha unica
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestRegexSecaoHeader:
+    """Garante que o regex que detecta headers (LIVRO/TÍTULO/etc) funciona pros casos
+    canonicos do Planalto. Forma standalone: numeral sem nome na mesma linha."""
+
+    def test_livro_simples(self):
+        assert REGEX_SECAO_HEADER.match("LIVRO")
+
+    def test_livro_com_numeral(self):
+        assert REGEX_SECAO_HEADER.match("LIVRO I")
+
+    def test_livro_unico(self):
+        assert REGEX_SECAO_HEADER.match("LIVRO ÚNICO")
+
+    def test_titulo_com_numeral(self):
+        assert REGEX_SECAO_HEADER.match("TÍTULO XIV")
+
+    def test_subtitulo_com_numeral(self):
+        assert REGEX_SECAO_HEADER.match("SUBTÍTULO II")
+
+    def test_capitulo_simples(self):
+        assert REGEX_SECAO_HEADER.match("CAPÍTULO")
+
+    def test_capitulo_numeral_grande(self):
+        assert REGEX_SECAO_HEADER.match("CAPÍTULO XXXVII")
+
+    def test_capitulo_com_sufixo(self):
+        assert REGEX_SECAO_HEADER.match("CAPÍTULO VII-A")
+
+    def test_secao_preliminar(self):
+        assert REGEX_SECAO_HEADER.match("SEÇÃO PRELIMINAR")
+
+    def test_secao_complementar(self):
+        assert REGEX_SECAO_HEADER.match("SEÇÃO COMPLEMENTAR")
+
+    # Casos negativos — nao devem casar (vao virar buffer de artigo se nao filtrados)
+
+    def test_nao_casa_header_inline_com_nome(self):
+        """O regex NAO casa quando ha texto descritivo apos o numeral.
+        Esse caso e tratado pelo INLINE_HEADER split (sub-bloco 2e)."""
+        assert not REGEX_SECAO_HEADER.match("CAPÍTULO VII-A — DO CONDOMÍNIO EM MULTIPROPRIEDADE")
+        assert not REGEX_SECAO_HEADER.match("LIVRO I DAS PESSOAS")
+        assert not REGEX_SECAO_HEADER.match("CAPÍTULO XIV — DAS DISPOSIÇÕES FINAIS E TRANSITÓRIAS")
+
+    def test_nao_casa_artigo(self):
+        assert not REGEX_SECAO_HEADER.match("Art. 1° Toda pessoa")
+
+    def test_nao_casa_paragrafo(self):
+        assert not REGEX_SECAO_HEADER.match("§ 1° Quando ocorrer")
+
+    def test_nao_casa_palavra_avulsa(self):
+        assert not REGEX_SECAO_HEADER.match("livro contabil deste estabelecimento")
+
+
+class TestRegexContinuacaoHeader:
+    """Garante que o regex de continuacao casa numeral isolado em linha (caso de header
+    quebrado em 2 linhas no clean.txt)."""
+
+    def test_numeral_romano_simples(self):
+        assert REGEX_CONTINUACAO_HEADER.match("I")
+
+    def test_numeral_romano_com_sufixo(self):
+        assert REGEX_CONTINUACAO_HEADER.match("VII-A")
+
+    def test_unico(self):
+        assert REGEX_CONTINUACAO_HEADER.match("ÚNICO")
+
+    def test_preliminar(self):
+        assert REGEX_CONTINUACAO_HEADER.match("PRELIMINAR")
+
+    def test_nao_casa_com_texto(self):
+        assert not REGEX_CONTINUACAO_HEADER.match("I — Disposições Gerais")
+
+    def test_nao_casa_palavra(self):
+        assert not REGEX_CONTINUACAO_HEADER.match("Disposições")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

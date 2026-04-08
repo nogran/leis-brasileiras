@@ -269,6 +269,17 @@ REGEX_NOME_SECAO = re.compile(
     re.IGNORECASE
 )
 
+REGEX_SECAO_HEADER = re.compile(
+    r'^(LIVRO|SUBT[IÍ]TULO|T[IÍ]TULO|CAP[IÍ]TULO|SE[CÇ][AÃ]O)\s*'
+    r'([IVXLCDM]+(?:\s*-\s*[A-Z])?|[ÚU]NIC[OA]|PRELIMINAR|COMPLEMENTAR|ESPECIAL)?\s*$',
+    re.IGNORECASE
+)
+
+REGEX_CONTINUACAO_HEADER = re.compile(
+    r'^([IVXLCDM]+(?:\s*-\s*[A-Z])?|COMPLEMENTAR|PRELIMINAR|ESPECIAL|[ÚU]NIC[OA])\s*$',
+    re.IGNORECASE
+)
+
 
 def parse_art_num(num_str: str) -> int:
     """Converte string de numero de artigo para int.
@@ -591,16 +602,6 @@ def extrair_estrutura(texto, sigla, versao, url, data_ext, config):
                 "total_partes": len(partes) if len(partes) > 1 else None,
             })
         buffer = []
-
-    REGEX_SECAO_HEADER = re.compile(
-        r'^(LIVRO|SUBT[IÍ]TULO|T[IÍ]TULO|CAP[IÍ]TULO|SE[CÇ][AÃ]O)\s*'
-        r'([IVXLCDM]+(?:\s*-\s*[A-Z])?|[ÚU]NIC[OA]|PRELIMINAR|COMPLEMENTAR|ESPECIAL)?\s*$',
-        re.IGNORECASE
-    )
-    REGEX_CONTINUACAO_HEADER = re.compile(
-        r'^([IVXLCDM]+(?:\s*-\s*[A-Z])?|COMPLEMENTAR|PRELIMINAR|ESPECIAL|[ÚU]NIC[OA])\s*$',
-        re.IGNORECASE
-    )
 
     for linha in texto.split("\n"):
         linha_clean = linha.replace('\xa0', ' ').strip()
