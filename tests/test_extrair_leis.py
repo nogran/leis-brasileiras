@@ -238,6 +238,19 @@ class TestExtrairReferencias:
         refs = extrair_referencias(texto, "Art. 1")
         assert refs["constituicao"] is False
 
+    def test_singular_art_dentro_da_lei(self):
+        """Regex _arts_multi deve casar 'art.' singular (bug exposto pelo PL-11)."""
+        texto = "Disposto no art. 14 desta Lei."
+        refs = extrair_referencias(texto, "Art. 7")
+        assert "Art. 14" in refs["internas"]
+
+    def test_singular_art_externo_eh_filtrado(self):
+        """'art. 14 da Lei nº X' deve ir pra leis_externas, nao internas."""
+        texto = "Conforme art. 14 da Lei nº 8.078, de 1990, o consumidor..."
+        refs = extrair_referencias(texto, "Art. 7")
+        assert "Art. 14" not in refs["internas"]
+        assert any("8.078" in lei for lei in refs["leis_externas"])
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # limpar_ruido_legislativo

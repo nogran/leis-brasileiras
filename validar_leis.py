@@ -787,6 +787,13 @@ def suppress_known_issues(report: FileReport, ki: dict):
 
 
 def main():
+    if sys.platform == "win32":
+        try:
+            sys.stdout.reconfigure(encoding="utf-8")
+            sys.stderr.reconfigure(encoding="utf-8")
+        except AttributeError:
+            pass  # Python < 3.7
+
     parser = argparse.ArgumentParser(description="Validação de JSONs jurídicos")
     parser.add_argument("path", help="Arquivo .json ou diretório")
     parser.add_argument("--strict", action="store_true", help="Exit 2 em WARNs")

@@ -258,6 +258,15 @@ REGEX_NOME_SECAO = re.compile(
 )
 
 
+def parse_art_num(num_str: str) -> int:
+    """Converte string de numero de artigo para int.
+    Aceita '999', '1.000', '1.337'. Lanca ValueError se invalido."""
+    num_limpo = num_str.replace('.', '')
+    if not num_limpo.isdigit():
+        raise ValueError(f"Numero de artigo invalido: {num_str!r}")
+    return int(num_limpo)
+
+
 # --- Classificacao artigo vs citacao ---
 def classificar_linha_artigo(linha: str, num_atual: int, sufixo: str, ultimo_num: int) -> str:
     MARCADORES_CITACAO = [
@@ -401,7 +410,7 @@ def extrair_referencias(texto: str, artigo_atual: str) -> dict:
     # FIX 35: Captura multi-artigo: "arts. X, Y e Z" / "arts. X e Y" / "arts. X a Y"
     _num_re = re.compile(r'([\d\.]+(?:-[A-Z])?)')
     _arts_multi = re.compile(
-        r'\bart(?:s|igos?)\.\s*((?:[\d\.]+(?:-[A-Z])?\s*[,ea]\s*)*[\d\.]+(?:-[A-Z])?)',
+        r'\bart(?:s|igos?)?\.\s*((?:[\d\.]+(?:-[A-Z])?\s*[,ea]\s*)*[\d\.]+(?:-[A-Z])?)',
         re.IGNORECASE
     )
 
@@ -413,7 +422,8 @@ def extrair_referencias(texto: str, artigo_atual: str) -> dict:
             continue
         nums = _num_re.findall(m.group(1))
         for num in nums:
-            if num != art_num_atual:
+            num = num.rstrip('.')  # remove pontos finais (ellipsis, fim de frase)
+            if num and num != art_num_atual:
                 internas.add(f"Art. {num}")
 
     # Leis externas (inclui Emenda Constitucional)
@@ -694,9 +704,11 @@ def extrair_estrutura(texto, sigla, versao, url, data_ext, config):
         if match_art:
             num_str = match_art.group(1)
             sufixo = (match_art.group(2) or "").strip()
-            num_limpo = num_str.replace('.', '')
-            if num_limpo.isdigit():
-                num_atual = int(num_limpo)
+            try:
+                num_atual = parse_art_num(num_str)
+            except ValueError:
+                num_atual = None
+            if num_atual is not None:
                 classificacao = classificar_linha_artigo(linha_clean, num_atual, sufixo, ultimo_num_artigo)
                 if classificacao == 'novo_artigo':
                     flush_buffer(artigo_label_atual)
@@ -946,6 +958,13 @@ def extrair_lei(session, sigla, hashes, force=False):
 # =====================================================================
 
 if __name__ == "__main__":
+    if sys.platform == "win32":
+        try:
+            sys.stdout.reconfigure(encoding="utf-8")
+            sys.stderr.reconfigure(encoding="utf-8")
+        except AttributeError:
+            pass  # Python < 3.7
+
     os.makedirs("data", exist_ok=True)
     args = sys.argv[1:]
     force = "--force" in args
