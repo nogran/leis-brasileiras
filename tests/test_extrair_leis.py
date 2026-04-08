@@ -360,6 +360,43 @@ class TestExtrairEstruturaHierarquia:
         assert bloco["subtitulo"] == "SUBTÍTULO I"
         assert bloco["subtitulo_nome"] == "Disposições Preliminares"
 
+    def test_capitulo_nome_strip_marker_alteracao(self):
+        """PL-13 Bug D: nome de capitulo nao pode conter marker de alteracao (sub-bloco 2c)."""
+        texto = (
+            "CAPÍTULO\n"
+            "VII-A (Incluído pela Lei nº 13.777, de 2018) (Vigência) DO CONDOMÍNIO EM MULTIPROPRIEDADE\n"
+            "Art. 1.358-B. A multipropriedade reger-se-á pelo disposto neste Capítulo e, "
+            "de forma supletiva e subsidiária, pelas demais disposições deste Código.\n"
+        )
+        blocos = extrair_estrutura(texto, "TEST", "Lei Test", "http://test", "2026-01-01", {})
+        bloco = blocos[0]
+        assert bloco["capitulo"] == "CAPÍTULO VII-A", f"capitulo errado: {bloco['capitulo']!r}"
+        assert "Incluído" not in bloco["capitulo_nome"], (
+            f"capitulo_nome ainda tem marker: {bloco['capitulo_nome']!r}"
+        )
+        assert "Vigência" not in bloco["capitulo_nome"]
+        assert "DO CONDOMÍNIO EM MULTIPROPRIEDADE" in bloco["capitulo_nome"]
+        assert "Incluído" not in bloco["path_hierarquico"]
+        assert "Vigência" not in bloco["path_hierarquico"]
+
+    def test_limpar_marker_hierarquia(self):
+        """Unit test: helper que remove markers de alteracao de nomes hierarquicos."""
+        from extrair_leis import limpar_marker_hierarquia
+        # Marker no inicio
+        assert limpar_marker_hierarquia(
+            "(Incluído pela Lei nº 13.777, de 2018) (Vigência) DO CONDOMÍNIO EM MULTIPROPRIEDADE"
+        ) == "DO CONDOMÍNIO EM MULTIPROPRIEDADE"
+        # Marker no meio
+        assert limpar_marker_hierarquia(
+            "Dos Direitos (Redação dada pela Lei nº 14.181, de 2021) Básicos"
+        ) == "Dos Direitos Básicos"
+        # Sem marker
+        assert limpar_marker_hierarquia("Da Personalidade") == "Da Personalidade"
+        # Apenas marker
+        assert limpar_marker_hierarquia("(Vigência)") == ""
+        # Vazio
+        assert limpar_marker_hierarquia("") == ""
+
     def test_path_hierarquico_inclui_livro_e_subtitulo(self):
         """PL-13 Bug B: path_hierarquico deve incluir livro e subtitulo na ordem correta (sub-bloco 2b)."""
         texto = (

@@ -195,6 +195,18 @@ def limpar_ruido_legislativo(texto: str) -> str:
     return '\n'.join(linhas).strip()
 
 
+def limpar_marker_hierarquia(nome: str) -> str:
+    """Remove markers de alteracao legislativa de nomes hierarquicos
+    (livro_nome, titulo_nome, capitulo_nome, secao_nome).
+    Aplica os mesmos padroes de NOISE_PATTERNS e normaliza espacos."""
+    if not nome:
+        return ""
+    for pattern in NOISE_PATTERNS:
+        nome = pattern.sub('', nome)
+    nome = re.sub(r'\s+', ' ', nome).strip()
+    return nome
+
+
 # --- Hashes ---
 def carregar_hashes():
     if os.path.exists(HASHES_FILE):
@@ -685,6 +697,8 @@ def extrair_estrutura(texto, sigla, versao, url, data_ext, config):
                     numeral_extra, nome_parte = m_num.group(1), m_num.group(2)
                 else:
                     numeral_extra, nome_parte = None, linha_clean
+                # PL-13 Bug D: remove markers de alteracao do nome capturado
+                nome_parte = limpar_marker_hierarquia(nome_parte)
 
                 if esperando_nome_secao == "livro":
                     if numeral_extra: livro = f"{livro} {numeral_extra}"
@@ -704,9 +718,11 @@ def extrair_estrutura(texto, sigla, versao, url, data_ext, config):
                 esperando_nome_secao = None
                 continue
             elif is_nome_secao:
-                if titulo and not titulo_nome: titulo_nome = linha_clean
-                elif capitulo and not capitulo_nome: capitulo_nome = linha_clean
-                elif secao and not secao_nome: secao_nome = linha_clean
+                # PL-13 Bug D: remove markers de alteracao do nome capturado
+                nome_secao = limpar_marker_hierarquia(linha_clean)
+                if titulo and not titulo_nome: titulo_nome = nome_secao
+                elif capitulo and not capitulo_nome: capitulo_nome = nome_secao
+                elif secao and not secao_nome: secao_nome = nome_secao
                 continue
 
         esperando_nome_secao = None
