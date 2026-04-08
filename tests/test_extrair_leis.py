@@ -508,6 +508,19 @@ class TestSplitInlineHeaders:
         twice = split_inline_headers(once)
         assert once == twice == "CAPÍTULO I\nDa Personalidade"
 
+    def test_nao_quebra_citacao_inline_lowercase(self):
+        """PL-13 Estagio 6: 'Livro II da Parte Especial deste Código' e citacao
+        inline dentro de uma frase, NAO header. O 'da' lowercase deve impedir o split.
+        Bug encontrado em CC (36 chunks) e CPC (260 chunks)."""
+        entrada = "Livro II da Parte Especial deste Código"
+        assert split_inline_headers(entrada) == entrada
+
+    def test_nao_quebra_referencia_outra_lei(self):
+        """'Livro II, Título IV, da Lei nº 5.869' e referencia a outra lei.
+        Tem virgula apos 'II' que ja impede match, mas vale documentar."""
+        entrada = "Livro II, Título IV, da Lei nº 5.869, de 11 de janeiro de 1973"
+        assert split_inline_headers(entrada) == entrada
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # extrair_estrutura — hierarquia (PL-13)

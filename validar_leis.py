@@ -49,8 +49,11 @@ VALID_LEI_SIGLAS = {
     "ECA", "LI", "LMP", "LC123", "LT", "CADPOS",
 }
 
-# PL-13: leis com estrutura hierarquica de Livro (sub-bloco 4a)
-LEIS_LONGAS_COM_LIVRO = {"CC", "CPC", "CLT", "CF88"}
+# PL-13: leis que de fato tem estrutura hierarquica de LIVRO (sub-bloco 4a)
+# Verificado contra clean.txt apos Estagio 6: CC e CPC sao as unicas com Livros.
+# CF88, CLT, ECA, CP, etc sao "leis longas" mas nao tem estrutura de Livro
+# (so Titulos/Capitulos/Secoes).
+LEIS_LONGAS_COM_LIVRO = {"CC", "CPC"}
 
 # PL-13: leis sem hierarquia interna (sao isentas de path_hierarquico_vazio)
 LEIS_SEM_HIERARQUIA = {"CADPOS", "LT"}
@@ -399,8 +402,12 @@ def validate_hierarquia(data: list[dict], report: FileReport):
     lei = data[0].get("lei", "") if data else ""
 
     # ── 4a-1: path_generico_em_massa — hierarquia colapsada ──
-    # Threshold: >30 chunks com mesmo path nao trivial = sintoma de bug
-    PATH_DUP_THRESHOLD = 30
+    # Threshold: >50 chunks com mesmo path nao trivial = sintoma de bug.
+    # Calibrado pos-fix do PL-13: subsecoes legitimas profundas podem ter 30-45
+    # artigos (CPC tem subsecoes com 45, 34; ECA tem capitulos com 39; CLT tem 31).
+    # Bugs originais (CC 847, CPC 400, CLT 178, LC123 85, LI 91, LGPD 75)
+    # todos passam com folga em threshold 50.
+    PATH_DUP_THRESHOLD = 50
     path_counts = Counter(c.get("path_hierarquico", "") for c in data if c.get("path_hierarquico"))
     for path, count in path_counts.most_common():
         if count > PATH_DUP_THRESHOLD:

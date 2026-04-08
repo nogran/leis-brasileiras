@@ -285,7 +285,10 @@ REGEX_CONTINUACAO_HEADER = re.compile(
 INLINE_HEADER_RE = re.compile(
     r'^((?:LIVRO|SUBT[IÍ]TULO|T[IÍ]TULO|CAP[IÍ]TULO|SE[CÇ][AÃ]O)'
     r'\s+(?:[IVXLCDM]+(?:\s*-\s*[A-Z])?|[ÚU]NIC[OA]|PRELIMINAR|COMPLEMENTAR|ESPECIAL))'
-    r'\s+([A-ZÀ-Ú].+)$',
+    # PL-13: primeira letra do nome precisa ser MAIUSCULA. Inline flag (?-i:...)
+    # desabilita IGNORECASE so nesse grupo, evitando casar citacoes inline
+    # tipo "Livro II da Parte Especial deste Código" onde 'da' e lowercase.
+    r'\s+((?-i:[A-ZÀ-Ú]).+)$',
     re.MULTILINE | re.IGNORECASE
 )
 

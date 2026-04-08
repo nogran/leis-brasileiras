@@ -69,14 +69,14 @@ def issues_with_rule(report, rule):
 class TestPathGenericoEmMassa:
     """PL-13: detecta hierarquia colapsada — muitos artigos com o mesmo path."""
 
-    def test_fires_when_50_chunks_share_same_path(self):
+    def test_fires_when_60_chunks_share_same_path(self):
         chunks = [
             make_chunk(
                 id=f"test_art_{i}", artigo=f"Art. {i}",
                 capitulo="CAPÍTULO I", capitulo_nome="Disposições Gerais",
                 path_hierarquico="CAPÍTULO I — Disposições Gerais",
             )
-            for i in range(1, 51)
+            for i in range(1, 61)
         ]
         report = make_report()
         validate_hierarquia(chunks, report)
@@ -84,6 +84,19 @@ class TestPathGenericoEmMassa:
             f"regra nao disparou. Issues: {[i.rule for i in report.issues]}"
         i = issues_with_rule(report, "path_generico_em_massa")[0]
         assert i.severity == "FAIL"
+
+    def test_does_not_fire_with_45_chunks(self):
+        """45 chunks = subsecoes legitimas profundas (CPC tem isso). Nao deve disparar."""
+        chunks = [
+            make_chunk(
+                id=f"test_art_{i}", artigo=f"Art. {i}",
+                path_hierarquico="LIVRO II > TÍTULO II > CAPÍTULO IV > Seção III — Da Penhora",
+            )
+            for i in range(1, 46)
+        ]
+        report = make_report()
+        validate_hierarquia(chunks, report)
+        assert not issues_with_rule(report, "path_generico_em_massa")
 
     def test_does_not_fire_with_diverse_paths(self):
         chunks = [
