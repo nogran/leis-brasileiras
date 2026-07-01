@@ -17,7 +17,10 @@ from urllib3.util.retry import Retry
 from datetime import datetime
 import hashlib, re, json, sys, os
 
-HASHES_FILE = os.path.join(os.path.dirname(__file__), "data", "hashes.json")
+import db
+
+# Versao do parser gravada em raw_captures.parser_version (permite re-parse historico).
+PARSER_VERSION = "extrair_leis@2"
 
 
 # =====================================================================
@@ -396,17 +399,8 @@ def extrair_controle_constitucionalidade(texto: str) -> list[dict]:
 
 
 # --- Hashes ---
-def carregar_hashes():
-    if os.path.exists(HASHES_FILE):
-        with open(HASHES_FILE, encoding="utf-8") as f:
-            return json.load(f)
-    return {}
-
-def salvar_hashes(hashes):
-    os.makedirs(os.path.dirname(HASHES_FILE), exist_ok=True)
-    with open(HASHES_FILE, "w", encoding="utf-8") as f:
-        json.dump(hashes, f, ensure_ascii=False, indent=2)
-
+# O estado de idempotencia agora vive no banco (raw_captures.content_hash, Portao 1 /
+# ADR 0002). O hashes.json local foi aposentado.
 def hash_conteudo(content: bytes) -> str:
     return hashlib.sha256(content).hexdigest()
 
@@ -1112,7 +1106,7 @@ def extrair_estrutura(texto, sigla, versao, url, data_ext, config):
 #  EXTRACAO PRINCIPAL
 # =====================================================================
 
-def extrair_lei(session, sigla, hashes, force=False):
+def extrair_lei(session, sigla, force=False):
     config = LEIS_CONFIG.get(sigla)
     if not config:
         print(f"❌ Sigla desconhecida: {sigla}"); return False
@@ -1126,10 +1120,6 @@ def extrair_lei(session, sigla, hashes, force=False):
         response.raise_for_status()
     except Exception as e:
         print(f"❌ Erro na requisição: {e}"); return False
-
-    # Hash check preliminar (HTML bruto) — pula processamento se identico
-    hash_html = hash_conteudo(response.content)
-    hash_anterior = hashes.get(sigla, {}).get("hash")
 
     # Encoding
     if encoding == "utf-16" or response.content.startswith((b'\xff\xfe', b'\xfe\xff')):
@@ -1212,15 +1202,22 @@ def extrair_lei(session, sigla, hashes, force=False):
     if config.get("inline_headers", True):
         clean_text = split_inline_headers(clean_text)
 
-    # Hash check definitivo: compara texto limpo (ignora mudancas cosmeticas no HTML)
+    # PORTAO 1 (ADR 0002): content_hash = hash do TEXTO LIMPO (identidade estavel do
+    # conteudo, robusta a mudancas cosmeticas no HTML). Corta custo zero se nao mudou;
+    # senao grava a captura BRUTA (raw_html = bytes originais) e segue o parse.
     hash_atual = hash_conteudo(clean_text.encode("utf-8"))
-    if hash_atual == hash_anterior and not force:
-        print(f"⏭  {sigla} sem alterações desde {hashes[sigla]['data']} — pulando (use --force)")
-        return False
-    if hash_anterior and hash_atual != hash_anterior:
-        print(f"🔄 {sigla} ATUALIZADO desde {hashes[sigla]['data']} — re-extraindo")
-    elif not hash_anterior:
-        print(f"🆕 {sigla} — primeira extração")
+    with db.transaction() as cur:
+        hash_anterior = db.get_latest_capture_hash(cur, sigla)
+        if hash_atual == hash_anterior and not force:
+            print(f"⏭  {sigla} sem alterações (content_hash igual no banco) — pulando (use --force)")
+            return False
+        print(f"🔄 {sigla} ATUALIZADO — nova captura + re-extração" if hash_anterior
+              else f"🆕 {sigla} — primeira captura")
+        capture_id = db.insert_capture(
+            cur, law=sigla, source_url=url, http_status=response.status_code,
+            content_hash=hash_atual, raw_html=response.content,
+            encoding=encoding, parser_version=PARSER_VERSION,
+        )
 
     os.makedirs("data", exist_ok=True)
     with open(f"data/{nome_base}_{data_ext}_clean.txt", "w", encoding="utf-8") as f:
@@ -1355,10 +1352,12 @@ def extrair_lei(session, sigla, hashes, force=False):
                 bloco["hash_artigo"] = hash_texto(texto_limpo)
                 dedup_count += 1
 
+    # Anota o capture_id em cada bloco -> Portao 2 liga a versao a captura bruta.
+    for b in blocos:
+        b["capture_id"] = str(capture_id)
+
     with open(f"data/{nome_base}_{data_ext}.json", "w", encoding="utf-8") as f:
         json.dump(blocos, f, ensure_ascii=False, indent=2)
-
-    hashes[sigla] = {"hash": hash_atual, "data": data_ext, "blocos": len(blocos), "url": url}
 
     vet = sum(1 for b in blocos if b["status"] == "vetado_total")
     rev = sum(1 for b in blocos if b["status"] == "revogado")
@@ -1389,17 +1388,15 @@ if __name__ == "__main__":
     arg = siglas_args[0].upper() if siglas_args else "ALL"
 
     session = criar_sessao()
-    hashes = carregar_hashes()
 
     if arg == "ALL":
         for sigla in LEIS_CONFIG:
-            extrair_lei(session, sigla, hashes, force)
+            extrair_lei(session, sigla, force)
     elif arg in LEIS_CONFIG:
-        extrair_lei(session, arg, hashes, force)
+        extrair_lei(session, arg, force)
     else:
         print(f"❌ Argumento inválido: {arg}")
         print(f"   Siglas disponíveis: {', '.join(LEIS_CONFIG.keys())} ou ALL")
         sys.exit(1)
 
-    salvar_hashes(hashes)
     print("\n🏁 Operação concluída.")
