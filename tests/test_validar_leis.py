@@ -11,8 +11,12 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from validar_leis import (
     validate_hierarquia,
     validate_schema,
+    validate_conteudo,
+    validate_metadata,
+    validate_rag,
     FileReport,
     REQUIRED_FIELDS,
+    RAG_MAX_CHUNK_CHARS,
 )
 
 
@@ -285,3 +289,132 @@ class TestRequiredFields:
             f"esperava 1 mensagem deduplicada, recebeu {len(msgs_obrigatorio)}"
         assert "100" in msgs_obrigatorio[0].message
         assert "livro_nome" in msgs_obrigatorio[0].message
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CONTEUDO — texto, encoding, HTML, label×texto (validate_conteudo)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestValidateConteudo:
+    def test_texto_vazio_fail(self):
+        r = make_report()
+        validate_conteudo([make_chunk(texto_limpo="   ")], r)
+        assert issues_with_rule(r, "texto_vazio")
+
+    def test_null_bytes_fail(self):
+        # Regressao LMP: UTF-16 decodificado errado deixa \x00 no texto
+        r = make_report()
+        validate_conteudo([make_chunk(texto_limpo="Art. 1\x00 texto\x00")], r)
+        assert issues_with_rule(r, "null_bytes")
+
+    def test_mojibake_fail(self):
+        r = make_report()
+        validate_conteudo([make_chunk(texto_limpo="DisposiÃ§Ã£o do artigo")], r)
+        assert issues_with_rule(r, "encoding_quebrado")
+
+    def test_html_residual_fail(self):
+        r = make_report()
+        validate_conteudo([make_chunk(texto_limpo="Texto com <p>tag solta</p> aqui")], r)
+        assert issues_with_rule(r, "html_residual")
+
+    def test_entidade_html_warn(self):
+        r = make_report()
+        validate_conteudo([make_chunk(texto_limpo="Texto com &nbsp; espaco rigido")], r)
+        assert issues_with_rule(r, "entidade_html")
+
+    def test_encoding_silencioso_fail(self):
+        # Vigente, >300 chars, SEM diacriticos PT -> provavel encoding errado
+        r = make_report()
+        validate_conteudo([make_chunk(texto_limpo="palavra sem acento " * 20)], r)
+        assert issues_with_rule(r, "encoding_silencioso")
+
+    def test_label_texto_mismatch_fail(self):
+        r = make_report()
+        validate_conteudo([make_chunk(artigo="Art. 5", texto_limpo="Art. 7 conteudo divergente")], r)
+        assert issues_with_rule(r, "artigo_texto_mismatch")
+
+    def test_texto_valido_sem_fail(self):
+        r = make_report()
+        validate_conteudo([make_chunk(texto_limpo="Art. 1 São direitos do consumidor a proteção efetiva.")], r)
+        assert r.fails == 0
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# METADATA — status, vetos, alteracoes, referencias, hash (validate_metadata)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestValidateMetadata:
+    def test_alteracao_malformada_fail(self):
+        r = make_report()
+        validate_metadata([make_chunk(alteracoes=[{"tipo": "redacao"}])], r)  # falta "norma"
+        assert issues_with_rule(r, "alteracao_invalida")
+
+    def test_referencia_campo_faltante_fail(self):
+        r = make_report()
+        validate_metadata([make_chunk(referencias={"internas": [], "leis_externas": []})], r)  # falta constituicao
+        assert issues_with_rule(r, "ref_campo_faltante")
+
+    def test_referencia_tipo_errado_fail(self):
+        r = make_report()
+        validate_metadata([make_chunk(
+            referencias={"internas": "nao-e-lista", "leis_externas": [], "constituicao": False})], r)
+        assert issues_with_rule(r, "ref_tipo_internas")
+
+    def test_hash_invalido_fail(self):
+        r = make_report()
+        validate_metadata([make_chunk(hash_artigo="abc")], r)  # < 8 chars
+        assert issues_with_rule(r, "hash_invalido")
+
+    def test_url_invalida_warn(self):
+        r = make_report()
+        validate_metadata([make_chunk(url_fonte="nao-e-url")], r)
+        assert issues_with_rule(r, "url_invalida")
+
+    def test_veto_nao_detectado_warn(self):
+        r = make_report()
+        validate_metadata([make_chunk(texto_limpo="Este dispositivo (Vetado).", vetos_parciais=[])], r)
+        assert issues_with_rule(r, "veto_nao_detectado")
+
+    def test_status_divergente_entre_partes_warn(self):
+        r = make_report()
+        chunks = [
+            make_chunk(artigo="Art. 5 (Parte 1/2)", status="vigente"),
+            make_chunk(artigo="Art. 5 (Parte 2/2)", status="revogado"),
+        ]
+        validate_metadata(chunks, r)
+        assert issues_with_rule(r, "status_divergente_partes")
+
+    def test_metadata_valido_sem_fail(self):
+        r = make_report()
+        validate_metadata([make_chunk()], r)
+        assert r.fails == 0
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# RAG — tamanho de chunk e vigencia (validate_rag)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestValidateRag:
+    def test_chunk_grande_warn(self):
+        r = make_report()
+        r.total_chunks = 1
+        validate_rag([make_chunk(texto_limpo="a" * (RAG_MAX_CHUNK_CHARS + 50))], r)
+        assert issues_with_rule(r, "chunk_grande")
+
+    def test_baixa_vigencia_warn(self):
+        r = make_report()
+        r.total_chunks, r.vigentes = 10, 1   # 10% vigentes -> abaixo de 30%
+        validate_rag([make_chunk()], r)
+        assert issues_with_rule(r, "baixa_vigencia")
+
+    def test_token_estimate_sempre_info(self):
+        r = make_report()
+        r.total_chunks = 1
+        validate_rag([make_chunk()], r)
+        assert issues_with_rule(r, "token_estimate")
+
+    def test_chunk_normal_sem_warn_de_tamanho(self):
+        r = make_report()
+        r.total_chunks, r.vigentes = 1, 1
+        validate_rag([make_chunk(texto_limpo="Texto de tamanho normal para retrieval.")], r)
+        assert not issues_with_rule(r, "chunk_grande")
