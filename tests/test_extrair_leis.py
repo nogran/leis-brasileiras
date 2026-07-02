@@ -1174,3 +1174,12 @@ class TestDecodeUtf16:
         out = decode_utf16(raw)
         assert out[:1] != chr(0xFEFF)
         assert "Art. 1" in out and "Dispõe" in out
+
+    def test_stream_truncado_nao_explode(self):
+        # Planalto as vezes manda o UTF-16 truncado (numero impar de bytes). O decode
+        # estrito explodiria ('truncated data'); errors='replace' recupera o texto.
+        raw = b"\xff\xfe" + self._HTML.encode("utf-16-le") + b"\x20"  # 1 byte extra -> impar
+        assert len(raw) % 2 == 1
+        out = decode_utf16(raw)  # nao deve levantar UnicodeDecodeError
+        assert "Art. 1" in out and "Art. 2" in out
+        assert "Notificação" in out and "\x00" not in out
