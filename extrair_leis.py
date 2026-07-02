@@ -420,9 +420,13 @@ def decode_utf16(raw: bytes) -> str:
     o texto vira lixo/NUL e o parser nao acha nenhum 'Art.' (regressao da LMP). Sem BOM:
     caractere ASCII em UTF-16 tem o byte alto 0x00, entao BE se o 1o byte e 0x00, senao LE.
     Sempre remove o BOM (U+FEFF) residual do inicio."""
-    # errors='replace': o Planalto as vezes manda o stream UTF-16 truncado (numero impar
-    # de bytes / lixo no fim). O decode estrito explodiria; o BS4 antigo era leniente. Um
-    # byte truncado vira U+FFFD e os guardrails a jusante pegam qualquer corrupcao real.
+    # Planalto as vezes manda o stream UTF-16 truncado (numero impar de bytes). O ultimo
+    # byte e meia-unidade — nao forma caractere valido —, entao descarta antes de decodar
+    # pra nao virar U+FFFD no fim do texto (blemish num texto juridico). O decode estrito
+    # explodiria; errors='replace' fica como cinto pra qualquer outra corrupcao (que os
+    # guardrails a jusante pegam).
+    if len(raw) % 2:
+        raw = raw[:-1]
     if raw.startswith(b'\xff\xfe'):
         return raw.decode('utf-16-le', errors='replace').lstrip(_BOM)
     if raw.startswith(b'\xfe\xff'):

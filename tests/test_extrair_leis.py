@@ -1183,3 +1183,4 @@ class TestDecodeUtf16:
         out = decode_utf16(raw)  # nao deve levantar UnicodeDecodeError
         assert "Art. 1" in out and "Art. 2" in out
         assert "Notificação" in out and "\x00" not in out
+        assert chr(0xFFFD) not in out  # byte truncado descartado, sem char de substituicao
