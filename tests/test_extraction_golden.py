@@ -123,3 +123,23 @@ def test_extrair_lei_fluxo_completo_nao_quebra(monkeypatch, tmp_path):
     assert escritos, "extrair_lei deveria ter escrito o JSON"
     data = json.load(open(escritos[0], encoding="utf-8"))
     assert any(b["artigo"].startswith("Art.") for b in data)
+
+
+def test_parse_law_aborta_sem_artigo():
+    # guardrail: parser sem nenhum "Art. N" (encoding/HTML corrompido) -> raise
+    cfg = extrair_leis.LEIS_CONFIG["CDC"]
+    with pytest.raises(RuntimeError, match=r"sem nenhum 'Art\. N'|estrutura"):
+        extrair_leis.parse_law(
+            "Dispoe sobre teste. Texto sem qualquer estrutura de dispositivo aqui.",
+            "CDC", cfg["versao"], cfg["url"], "2026-07-02", cfg)
+
+
+def test_extrair_lei_aborta_nul_em_massa(monkeypatch, tmp_path):
+    # guardrail: NUL em massa (>0.5%) -> aborta ANTES de persistir/ingerir
+    content = b"Dispoe sobre teste. " + b"\x00" * 300 + b" Art. 1 texto"
+    monkeypatch.setattr(extrair_leis.db, "transaction", lambda *a, **k: _Tx())
+    monkeypatch.setattr(extrair_leis.db, "get_latest_capture_hash", lambda cur, sigla: None)
+    monkeypatch.setattr(extrair_leis.db, "insert_capture", lambda cur, **k: "cap-1")
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(RuntimeError, match=r"corrompida|NUL"):
+        extrair_leis.extrair_lei(_Session(content), "CDC", force=True)
