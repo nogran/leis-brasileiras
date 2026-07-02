@@ -11,6 +11,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from validar_leis import (
     validate_hierarquia,
     validate_schema,
+    validate_artigos,
     validate_conteudo,
     validate_metadata,
     validate_rag,
@@ -418,3 +419,66 @@ class TestValidateRag:
         r.total_chunks, r.vigentes = 1, 1
         validate_rag([make_chunk(texto_limpo="Texto de tamanho normal para retrieval.")], r)
         assert not issues_with_rule(r, "chunk_grande")
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ARTIGO — ids, hashes, sufixos, sequencia, partes (validate_artigos)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestValidateArtigos:
+    def test_id_duplicado_fail(self):
+        r = make_report()
+        chunks = [make_chunk(id="test_art_1", artigo="Art. 1", hash_artigo="h1"),
+                  make_chunk(id="test_art_1", artigo="Art. 2", hash_artigo="h2")]
+        validate_artigos(chunks, r)
+        assert issues_with_rule(r, "id_duplicado")
+
+    def test_hash_duplicado_warn(self):
+        r = make_report()
+        chunks = [make_chunk(id="test_art_1", artigo="Art. 1", hash_artigo="mesmohash"),
+                  make_chunk(id="test_art_2", artigo="Art. 2", hash_artigo="mesmohash")]
+        validate_artigos(chunks, r)
+        assert issues_with_rule(r, "hash_duplicado")
+
+    def test_grau_como_sufixo_O_fail(self):
+        # "Art. 5° O ..." nao pode virar sufixo -O
+        r = make_report()
+        chunks = [make_chunk(artigo="Art. 5-O", texto_limpo="Art. 5° O presente artigo dispoe sobre X")]
+        validate_artigos(chunks, r)
+        assert issues_with_rule(r, "grau_como_sufixo_O")
+
+    def test_sufixo_espacado_fail(self):
+        # "Art. 142 - O empregador" nao e sufixo -O (CLT)
+        r = make_report()
+        chunks = [make_chunk(artigo="Art. 142-O", texto_limpo="Art. 142 - O empregador e obrigado a")]
+        validate_artigos(chunks, r)
+        assert issues_with_rule(r, "sufixo_espacado")
+
+    def test_artigos_faltantes_info(self):
+        r = make_report()
+        chunks = [make_chunk(id=f"test_art_{n}", artigo=f"Art. {n}", hash_artigo=f"h{n}")
+                  for n in (1, 2, 5)]  # faltam 3 e 4
+        validate_artigos(chunks, r)
+        assert issues_with_rule(r, "artigos_faltantes")
+
+    def test_partes_descontinuas_warn(self):
+        r = make_report()
+        chunks = [
+            make_chunk(id="test_art_1a", artigo="Art. 1 (Parte 1/2)", hash_artigo="h1", parte_num=1),
+            make_chunk(id="test_art_1b", artigo="Art. 1 (Parte 2/2)", hash_artigo="h2", parte_num=3),  # deveria ser 2
+        ]
+        validate_artigos(chunks, r)
+        assert issues_with_rule(r, "partes_descontinuas")
+
+    def test_id_sem_sigla_warn(self):
+        r = make_report(lei="CDC")
+        chunks = [make_chunk(lei="CDC", id="errado_1", artigo="Art. 1")]
+        validate_artigos(chunks, r)
+        assert issues_with_rule(r, "id_sem_sigla")
+
+    def test_artigos_validos_sem_fail(self):
+        r = make_report()
+        chunks = [make_chunk(id=f"test_art_{n}", artigo=f"Art. {n}", hash_artigo=f"h{n}")
+                  for n in (1, 2, 3)]
+        validate_artigos(chunks, r)
+        assert r.fails == 0
