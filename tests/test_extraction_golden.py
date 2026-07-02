@@ -67,9 +67,59 @@ def test_parser_reproduz_json_commitado(base):
 
     clean_text = open(clean_path, encoding="utf-8").read()
     esperado = json.load(open(json_path, encoding="utf-8"))
-    obtido = extrair_leis.parse_law(
+    obtido, _stats = extrair_leis.parse_law(
         clean_text, sigla, cfg["versao"], cfg["url"], data_ext, cfg)
 
     assert _sem_capture_id(obtido) == _sem_capture_id(esperado), (
         f"{sigla}: parse_law divergiu do JSON commitado — regressao no parser "
         f"(got {len(obtido)} blocos, esperado {len(esperado)})")
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Smoke do extrair_lei COMPLETO (session+db+arquivos mockados). Cobre o fluxo fora do
+# parse_law (capture, writes, print de resumo) — teria pego o NameError 'lapides_count'
+# que o refactor deixou no print e o golden (que so testa parse_law) nao alcanca.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class _Resp:
+    status_code = 200
+
+    def __init__(self, content):
+        self.content = content
+
+    def raise_for_status(self):
+        pass
+
+
+class _Session:
+    def __init__(self, content):
+        self._content = content
+
+    def get(self, url, timeout=None):
+        return _Resp(self._content)
+
+
+class _Tx:
+    def __enter__(self):
+        return object()
+
+    def __exit__(self, *a):
+        return False
+
+
+def test_extrair_lei_fluxo_completo_nao_quebra(monkeypatch, tmp_path):
+    html = ("<html><body>O PRESIDENTE Dispõe sobre teste. "
+            "Art. 1 Primeiro artigo do teste com conteudo. "
+            "Art. 2 Segundo artigo do teste com conteudo.</body></html>")
+    monkeypatch.setattr(extrair_leis.db, "transaction", lambda *a, **k: _Tx())
+    monkeypatch.setattr(extrair_leis.db, "get_latest_capture_hash", lambda cur, sigla: None)
+    monkeypatch.setattr(extrair_leis.db, "insert_capture", lambda cur, **k: "cap-1")
+    monkeypatch.chdir(tmp_path)
+
+    ok = extrair_leis.extrair_lei(_Session(html.encode("utf-8")), "CDC", force=True)
+    assert ok is True   # nao levanta (ex: NameError no print de resumo)
+
+    escritos = glob.glob(str(tmp_path / "data" / "cdc_*.json"))
+    assert escritos, "extrair_lei deveria ter escrito o JSON"
+    data = json.load(open(escritos[0], encoding="utf-8"))
+    assert any(b["artigo"].startswith("Art.") for b in data)

@@ -1281,7 +1281,7 @@ def parse_law(clean_text, sigla, versao, url, data_ext, config):
                 bloco["texto_limpo"] = texto_limpo
                 bloco["hash_artigo"] = hash_texto(texto_limpo)
                 dedup_count += 1
-    return blocos
+    return blocos, {"lapides": lapides_count, "dedup": dedup_count}
 
 
 def extrair_lei(session, sigla, force=False):
@@ -1417,7 +1417,7 @@ def extrair_lei(session, sigla, force=False):
     with open(f"data/{nome_base}_{data_ext}_clean.txt", "w", encoding="utf-8") as f:
         f.write(clean_text)
 
-    blocos = parse_law(clean_text, sigla, versao, url, data_ext, config)
+    blocos, _stats = parse_law(clean_text, sigla, versao, url, data_ext, config)
 
     # Anota o capture_id em cada bloco -> Portao 2 liga a versao a captura bruta.
     for b in blocos:
@@ -1430,7 +1430,7 @@ def extrair_lei(session, sigla, force=False):
     rev = sum(1 for b in blocos if b["status"] == "revogado")
     vig = sum(1 for b in blocos if b["status"] == "vigente")
     print(f"✅ {sigla} → {len(blocos)} blocos")
-    print(f"   vigentes={vig}  vetados_total={vet}  revogados={rev}  lápides={lapides_count}  dedup={dedup_count}")
+    print(f"   vigentes={vig}  vetados_total={vet}  revogados={rev}  lápides={_stats['lapides']}  dedup={_stats['dedup']}")
     print(f"   com_vetos_parciais={sum(1 for b in blocos if b.get('vetos_parciais'))}"
           f"  com_alteracoes={sum(1 for b in blocos if b.get('alteracoes'))}")
     return True
