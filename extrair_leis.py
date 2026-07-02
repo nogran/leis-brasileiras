@@ -15,6 +15,7 @@ from bs4 import BeautifulSoup
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 from datetime import datetime
+import argparse
 import hashlib, re, json, sys, os
 
 import db
@@ -1381,19 +1382,24 @@ if __name__ == "__main__":
         except AttributeError:
             pass  # Python < 3.7
 
-    os.makedirs("data", exist_ok=True)
-    args = sys.argv[1:]
-    force = "--force" in args
-    siglas_args = [a for a in args if a != "--force"]
-    arg = siglas_args[0].upper() if siglas_args else "ALL"
+    parser = argparse.ArgumentParser(
+        prog="extrair_leis.py",
+        description="Portao 1 (ADR 0002): extrai + captura leis do Planalto (raw_captures + JSON).")
+    parser.add_argument("sigla", nargs="?", default="ALL",
+                        help="Sigla da lei (ex: CDC). Default: ALL (todas).")
+    parser.add_argument("--force", action="store_true",
+                        help="Re-captura mesmo com content_hash igual ao ultimo em raw_captures.")
+    args = parser.parse_args()
 
+    os.makedirs("data", exist_ok=True)
+    arg = args.sigla.upper()
     session = criar_sessao()
 
     if arg == "ALL":
         for sigla in LEIS_CONFIG:
-            extrair_lei(session, sigla, force)
+            extrair_lei(session, sigla, args.force)
     elif arg in LEIS_CONFIG:
-        extrair_lei(session, arg, force)
+        extrair_lei(session, arg, args.force)
     else:
         print(f"❌ Argumento inválido: {arg}")
         print(f"   Siglas disponíveis: {', '.join(LEIS_CONFIG.keys())} ou ALL")
