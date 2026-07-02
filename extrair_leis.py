@@ -1141,139 +1141,10 @@ def extrair_estrutura(texto, sigla, versao, url, data_ext, config):
 #  EXTRACAO PRINCIPAL
 # =====================================================================
 
-def extrair_lei(session, sigla, force=False):
-    config = LEIS_CONFIG.get(sigla)
-    if not config:
-        print(f"❌ Sigla desconhecida: {sigla}"); return False
-
-    versao, url, nome_base = config["versao"], config["url"], config["nome_base"]
-    encoding = config.get("encoding")
-    print(f"\n📥 Processando {sigla}...")
-
-    try:
-        response = session.get(url, timeout=120)
-        response.raise_for_status()
-    except Exception as e:
-        print(f"❌ Erro na requisição: {e}"); return False
-
-    # Encoding
-    if encoding == "utf-16" or response.content.startswith((b'\xff\xfe', b'\xfe\xff')):
-        # decode_utf16 resolve o endianness deterministicamente (BOM ou BE/LE sem BOM) e
-        # entrega STR pro BS4 — nunca deixar o UnicodeDammit adivinhar em UTF-16.
-        soup = BeautifulSoup(decode_utf16(response.content), "html.parser")
-    elif encoding:
-        soup = BeautifulSoup(response.content, "html.parser", from_encoding=encoding)
-    else:
-        soup = BeautifulSoup(response.content, "html.parser")
-        det = soup.original_encoding
-        det = det if det and det.lower() in ('utf-8','windows-1252','iso-8859-1','latin-1') else "windows-1252"
-        soup = BeautifulSoup(response.content, "html.parser", from_encoding=det)
-
-    data_ext = datetime.now().strftime("%Y-%m-%d")
-
-    for tag in soup(["script","style","nav","header","footer","aside","meta","link","img"]):
-        tag.decompose()
-    for tag in soup.find_all(["s","del","strike"]):
-        tag.decompose()
-    for tag in soup.find_all("a"):
-        if tag.get_text(strip=True) in ("Vigência","Regulamento","Vide","Nota","Ver",""):
-            tag.decompose()
-
-    text = soup.get_text(separator="\n")
-    text_limpo = re.sub(
-        r'^.*?(Aprova|Institui|Dispõe|O PRESIDENTE|A PRESIDENTA|'
-        r'O CONGRESSO|PREÂMBULO|Faço saber|Estabelece|Regulamenta)',
-        r'\1', text, flags=re.DOTALL | re.IGNORECASE
-    )
-
-    clean_text = "\n".join([
-        l.replace('\xa0',' ').strip() for l in text_limpo.splitlines()
-        if l.replace('\xa0',' ').strip()
-    ])
-
-    # Normaliza Art. quebrados
-    clean_text = re.sub(r'(Art\.)\s*\n\s*(\d)', r'\1 \2', clean_text, flags=re.IGNORECASE)
-    clean_text = re.sub(r'\bA\s*\n\s*rt\.\s*(\d)', r'Art. \1', clean_text)
-    clean_text = re.sub(r'(Art\.\s*\d+)\s*\n\s*(\d+)\s*\.', r'\1\2.', clean_text)
-    clean_text = re.sub(r'(Art\.)\s*\.\s*(\d)', r'\1 \2', clean_text, flags=re.IGNORECASE)
-    clean_text = re.sub(r'(Art\.\s*\d[\d.]*)\s*\n\s*o\s*\n\s*(-[A-Z])', r'\1\2', clean_text)
-    # "Art 1.636" (sem ponto) → "Art. 1.636" — Planalto CC omite o ponto em alguns artigos
-    clean_text = re.sub(r'\bArt\s+(\d)', r'Art. \1', clean_text)
-    # Quebra artigos inline: "...artigo 1.638. Art. 1.636. O pai..." → duas linhas
-    # Só capital "Art." (início de artigo), não lowercase "art." (referência)
-    clean_text = re.sub(r'(\S)\s+(Art\.\s*\d)', r'\1\n\2', clean_text)
-
-    # Merge de linhas falsas — marcadores base + boundary patterns da config
-    extra_markers = []
-    for b in config.get("boundaries", []):
-        m = re.match(r'\^?(\w+)', b["pattern"])
-        if m: extra_markers.append(m.group(1))
-    extra_pat = "|".join(extra_markers) + "|" if extra_markers else ""
-
-    linhas = clean_text.split('\n')
-    merged = []
-    for linha in linhas:
-        stripped = linha.strip()
-        if not stripped: continue
-        is_marker = bool(re.match(
-            r'^(Art\.|§|[IVXLCDM]+\s*[-–—]|[a-z]\)|'
-            r'\d+[\.\)]\s|Parágrafo\s+único|LIVRO|T[IÍ]TULO|'
-            r'CAP[IÍ]TULO|SE[CÇ][AÃ]O|SUBT[IÍ]TULO|'
-            r'PARTE\s|DISPOSIÇÕES|' + extra_pat + r'Pena\s)',
-            stripped, re.IGNORECASE
-        ))
-        if merged and not is_marker and not merged[-1].endswith((':',)):
-            merged[-1] = merged[-1] + ' ' + stripped
-        else:
-            merged.append(stripped)
-    clean_text = '\n'.join(merged)
-
-    # -- text_transforms da config (extension point pra casos especiais por lei) --
-    for tx in config.get("text_transforms", []):
-        clean_text = re.sub(tx["pattern"], tx["replace"], clean_text, flags=re.IGNORECASE | re.MULTILINE)
-
-    # -- PL-13 sub-bloco 2e: split de inline headers (default ON) --
-    # "LIVRO I DAS PESSOAS" → "LIVRO I\nDAS PESSOAS" pra que o parser de
-    # extrair_estrutura possa capturar como header standalone. Leis sem
-    # hierarquia interna desabilitam via "inline_headers": False na config.
-    if config.get("inline_headers", True):
-        clean_text = split_inline_headers(clean_text)
-
-    # Remove cauda de padding corrompido (run longo de simbolos no fim — artefato de decode
-    # de padding de espacos do Planalto; ex: 779x U+2020 no Art. 46 da LMP).
-    clean_text = strip_padding_tail(clean_text)
-
-    # PORTAO 1 (ADR 0002): content_hash = hash do TEXTO LIMPO (identidade estavel do
-    # conteudo, robusta a mudancas cosmeticas no HTML). Corta custo zero se nao mudou;
-    # senao grava a captura BRUTA (raw_html = bytes originais) e segue o parse.
-    # Guardrail: NUL (0x00) em massa == encoding decodificado errado (o texto real vira
-    # \x00+char). Abortar ALTO antes de persistir/ingerir, em vez de deixar lixo passar.
-    n_nul = clean_text.count("\x00")
-    if n_nul and n_nul / (len(clean_text) or 1) > 0.005:
-        raise RuntimeError(
-            f"{sigla}: extração corrompida — {n_nul} NUL (0x00) em {len(clean_text)} chars "
-            f"({n_nul / len(clean_text):.0%}). Encoding provavelmente errado; nada foi persistido. "
-            f"Revise decode_utf16/LEIS_CONFIG['{sigla}'] e re-extraia.")
-    if n_nul:  # poucos NUL cosméticos: limpa e segue (Postgres rejeita NUL em text)
-        clean_text = clean_text.replace("\x00", "")
-    hash_atual = hash_conteudo(clean_text.encode("utf-8"))
-    with db.transaction() as cur:
-        hash_anterior = db.get_latest_capture_hash(cur, sigla)
-        if hash_atual == hash_anterior and not force:
-            print(f"⏭  {sigla} sem alterações (content_hash igual no banco) — pulando (use --force)")
-            return False
-        print(f"🔄 {sigla} ATUALIZADO — nova captura + re-extração" if hash_anterior
-              else f"🆕 {sigla} — primeira captura")
-        capture_id = db.insert_capture(
-            cur, law=sigla, source_url=url, http_status=response.status_code,
-            content_hash=hash_atual, raw_html=response.content,
-            encoding=encoding, parser_version=PARSER_VERSION,
-        )
-
-    os.makedirs("data", exist_ok=True)
-    with open(f"data/{nome_base}_{data_ext}_clean.txt", "w", encoding="utf-8") as f:
-        f.write(clean_text)
-
+def parse_law(clean_text, sigla, versao, url, data_ext, config):
+    """clean_text -> blocos enriquecidos (extrair_estrutura + guardrail + overrides
+    do known_issues + lapides + dedup). PURA/deterministica: sem HTTP/DB/capture_id.
+    Extraida de extrair_lei pra permitir o golden test (clean.txt commitado -> JSON)."""
     blocos = extrair_estrutura(clean_text, sigla, versao, url, data_ext, config)
 
     # Guardrail: sem NENHUM artigo real "Art. N", o parser não enxergou a estrutura
@@ -1410,6 +1281,143 @@ def extrair_lei(session, sigla, force=False):
                 bloco["texto_limpo"] = texto_limpo
                 bloco["hash_artigo"] = hash_texto(texto_limpo)
                 dedup_count += 1
+    return blocos
+
+
+def extrair_lei(session, sigla, force=False):
+    config = LEIS_CONFIG.get(sigla)
+    if not config:
+        print(f"❌ Sigla desconhecida: {sigla}"); return False
+
+    versao, url, nome_base = config["versao"], config["url"], config["nome_base"]
+    encoding = config.get("encoding")
+    print(f"\n📥 Processando {sigla}...")
+
+    try:
+        response = session.get(url, timeout=120)
+        response.raise_for_status()
+    except Exception as e:
+        print(f"❌ Erro na requisição: {e}"); return False
+
+    # Encoding
+    if encoding == "utf-16" or response.content.startswith((b'\xff\xfe', b'\xfe\xff')):
+        # decode_utf16 resolve o endianness deterministicamente (BOM ou BE/LE sem BOM) e
+        # entrega STR pro BS4 — nunca deixar o UnicodeDammit adivinhar em UTF-16.
+        soup = BeautifulSoup(decode_utf16(response.content), "html.parser")
+    elif encoding:
+        soup = BeautifulSoup(response.content, "html.parser", from_encoding=encoding)
+    else:
+        soup = BeautifulSoup(response.content, "html.parser")
+        det = soup.original_encoding
+        det = det if det and det.lower() in ('utf-8','windows-1252','iso-8859-1','latin-1') else "windows-1252"
+        soup = BeautifulSoup(response.content, "html.parser", from_encoding=det)
+
+    data_ext = datetime.now().strftime("%Y-%m-%d")
+
+    for tag in soup(["script","style","nav","header","footer","aside","meta","link","img"]):
+        tag.decompose()
+    for tag in soup.find_all(["s","del","strike"]):
+        tag.decompose()
+    for tag in soup.find_all("a"):
+        if tag.get_text(strip=True) in ("Vigência","Regulamento","Vide","Nota","Ver",""):
+            tag.decompose()
+
+    text = soup.get_text(separator="\n")
+    text_limpo = re.sub(
+        r'^.*?(Aprova|Institui|Dispõe|O PRESIDENTE|A PRESIDENTA|'
+        r'O CONGRESSO|PREÂMBULO|Faço saber|Estabelece|Regulamenta)',
+        r'\1', text, flags=re.DOTALL | re.IGNORECASE
+    )
+
+    clean_text = "\n".join([
+        l.replace('\xa0',' ').strip() for l in text_limpo.splitlines()
+        if l.replace('\xa0',' ').strip()
+    ])
+
+    # Normaliza Art. quebrados
+    clean_text = re.sub(r'(Art\.)\s*\n\s*(\d)', r'\1 \2', clean_text, flags=re.IGNORECASE)
+    clean_text = re.sub(r'\bA\s*\n\s*rt\.\s*(\d)', r'Art. \1', clean_text)
+    clean_text = re.sub(r'(Art\.\s*\d+)\s*\n\s*(\d+)\s*\.', r'\1\2.', clean_text)
+    clean_text = re.sub(r'(Art\.)\s*\.\s*(\d)', r'\1 \2', clean_text, flags=re.IGNORECASE)
+    clean_text = re.sub(r'(Art\.\s*\d[\d.]*)\s*\n\s*o\s*\n\s*(-[A-Z])', r'\1\2', clean_text)
+    # "Art 1.636" (sem ponto) → "Art. 1.636" — Planalto CC omite o ponto em alguns artigos
+    clean_text = re.sub(r'\bArt\s+(\d)', r'Art. \1', clean_text)
+    # Quebra artigos inline: "...artigo 1.638. Art. 1.636. O pai..." → duas linhas
+    # Só capital "Art." (início de artigo), não lowercase "art." (referência)
+    clean_text = re.sub(r'(\S)\s+(Art\.\s*\d)', r'\1\n\2', clean_text)
+
+    # Merge de linhas falsas — marcadores base + boundary patterns da config
+    extra_markers = []
+    for b in config.get("boundaries", []):
+        m = re.match(r'\^?(\w+)', b["pattern"])
+        if m: extra_markers.append(m.group(1))
+    extra_pat = "|".join(extra_markers) + "|" if extra_markers else ""
+
+    linhas = clean_text.split('\n')
+    merged = []
+    for linha in linhas:
+        stripped = linha.strip()
+        if not stripped: continue
+        is_marker = bool(re.match(
+            r'^(Art\.|§|[IVXLCDM]+\s*[-–—]|[a-z]\)|'
+            r'\d+[\.\)]\s|Parágrafo\s+único|LIVRO|T[IÍ]TULO|'
+            r'CAP[IÍ]TULO|SE[CÇ][AÃ]O|SUBT[IÍ]TULO|'
+            r'PARTE\s|DISPOSIÇÕES|' + extra_pat + r'Pena\s)',
+            stripped, re.IGNORECASE
+        ))
+        if merged and not is_marker and not merged[-1].endswith((':',)):
+            merged[-1] = merged[-1] + ' ' + stripped
+        else:
+            merged.append(stripped)
+    clean_text = '\n'.join(merged)
+
+    # -- text_transforms da config (extension point pra casos especiais por lei) --
+    for tx in config.get("text_transforms", []):
+        clean_text = re.sub(tx["pattern"], tx["replace"], clean_text, flags=re.IGNORECASE | re.MULTILINE)
+
+    # -- PL-13 sub-bloco 2e: split de inline headers (default ON) --
+    # "LIVRO I DAS PESSOAS" → "LIVRO I\nDAS PESSOAS" pra que o parser de
+    # extrair_estrutura possa capturar como header standalone. Leis sem
+    # hierarquia interna desabilitam via "inline_headers": False na config.
+    if config.get("inline_headers", True):
+        clean_text = split_inline_headers(clean_text)
+
+    # Remove cauda de padding corrompido (run longo de simbolos no fim — artefato de decode
+    # de padding de espacos do Planalto; ex: 779x U+2020 no Art. 46 da LMP).
+    clean_text = strip_padding_tail(clean_text)
+
+    # PORTAO 1 (ADR 0002): content_hash = hash do TEXTO LIMPO (identidade estavel do
+    # conteudo, robusta a mudancas cosmeticas no HTML). Corta custo zero se nao mudou;
+    # senao grava a captura BRUTA (raw_html = bytes originais) e segue o parse.
+    # Guardrail: NUL (0x00) em massa == encoding decodificado errado (o texto real vira
+    # \x00+char). Abortar ALTO antes de persistir/ingerir, em vez de deixar lixo passar.
+    n_nul = clean_text.count("\x00")
+    if n_nul and n_nul / (len(clean_text) or 1) > 0.005:
+        raise RuntimeError(
+            f"{sigla}: extração corrompida — {n_nul} NUL (0x00) em {len(clean_text)} chars "
+            f"({n_nul / len(clean_text):.0%}). Encoding provavelmente errado; nada foi persistido. "
+            f"Revise decode_utf16/LEIS_CONFIG['{sigla}'] e re-extraia.")
+    if n_nul:  # poucos NUL cosméticos: limpa e segue (Postgres rejeita NUL em text)
+        clean_text = clean_text.replace("\x00", "")
+    hash_atual = hash_conteudo(clean_text.encode("utf-8"))
+    with db.transaction() as cur:
+        hash_anterior = db.get_latest_capture_hash(cur, sigla)
+        if hash_atual == hash_anterior and not force:
+            print(f"⏭  {sigla} sem alterações (content_hash igual no banco) — pulando (use --force)")
+            return False
+        print(f"🔄 {sigla} ATUALIZADO — nova captura + re-extração" if hash_anterior
+              else f"🆕 {sigla} — primeira captura")
+        capture_id = db.insert_capture(
+            cur, law=sigla, source_url=url, http_status=response.status_code,
+            content_hash=hash_atual, raw_html=response.content,
+            encoding=encoding, parser_version=PARSER_VERSION,
+        )
+
+    os.makedirs("data", exist_ok=True)
+    with open(f"data/{nome_base}_{data_ext}_clean.txt", "w", encoding="utf-8") as f:
+        f.write(clean_text)
+
+    blocos = parse_law(clean_text, sigla, versao, url, data_ext, config)
 
     # Anota o capture_id em cada bloco -> Portao 2 liga a versao a captura bruta.
     for b in blocos:
