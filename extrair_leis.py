@@ -409,6 +409,24 @@ def hash_texto(texto: str) -> str:
     return hashlib.sha256(texto.encode("utf-8")).hexdigest()[:16]
 
 
+_BOM = chr(0xFEFF)  # Byte Order Mark; removido do inicio do texto UTF-16
+
+
+def decode_utf16(raw: bytes) -> str:
+    """Decodifica bytes UTF-16 -> str resolvendo o endianness de forma DETERMINISTICA.
+
+    O Planalto ora serve com BOM, ora UTF-16 Big-Endian SEM BOM (mudou em 2026-07).
+    Deixar o codec 'utf-16' adivinhar sem BOM assume Little-Endian -> embaralha os bytes,
+    o texto vira lixo/NUL e o parser nao acha nenhum 'Art.' (regressao da LMP). Sem BOM:
+    caractere ASCII em UTF-16 tem o byte alto 0x00, entao BE se o 1o byte e 0x00, senao LE.
+    Sempre remove o BOM (U+FEFF) residual do inicio."""
+    if raw.startswith(b'\xff\xfe'):
+        return raw.decode('utf-16-le').lstrip(_BOM)
+    if raw.startswith(b'\xfe\xff'):
+        return raw.decode('utf-16-be').lstrip(_BOM)
+    variant = 'utf-16-be' if raw[:1] == b'\x00' else 'utf-16-le'
+    return raw.decode(variant).lstrip(_BOM)
+
 # --- HTTP ---
 def criar_sessao():
     session = requests.Session()
@@ -1124,7 +1142,9 @@ def extrair_lei(session, sigla, force=False):
 
     # Encoding
     if encoding == "utf-16" or response.content.startswith((b'\xff\xfe', b'\xfe\xff')):
-        soup = BeautifulSoup(response.content, "html.parser", from_encoding="utf-16")
+        # decode_utf16 resolve o endianness deterministicamente (BOM ou BE/LE sem BOM) e
+        # entrega STR pro BS4 — nunca deixar o UnicodeDammit adivinhar em UTF-16.
+        soup = BeautifulSoup(decode_utf16(response.content), "html.parser")
     elif encoding:
         soup = BeautifulSoup(response.content, "html.parser", from_encoding=encoding)
     else:
@@ -1206,6 +1226,16 @@ def extrair_lei(session, sigla, force=False):
     # PORTAO 1 (ADR 0002): content_hash = hash do TEXTO LIMPO (identidade estavel do
     # conteudo, robusta a mudancas cosmeticas no HTML). Corta custo zero se nao mudou;
     # senao grava a captura BRUTA (raw_html = bytes originais) e segue o parse.
+    # Guardrail: NUL (0x00) em massa == encoding decodificado errado (o texto real vira
+    # \x00+char). Abortar ALTO antes de persistir/ingerir, em vez de deixar lixo passar.
+    n_nul = clean_text.count("\x00")
+    if n_nul and n_nul / (len(clean_text) or 1) > 0.005:
+        raise RuntimeError(
+            f"{sigla}: extração corrompida — {n_nul} NUL (0x00) em {len(clean_text)} chars "
+            f"({n_nul / len(clean_text):.0%}). Encoding provavelmente errado; nada foi persistido. "
+            f"Revise decode_utf16/LEIS_CONFIG['{sigla}'] e re-extraia.")
+    if n_nul:  # poucos NUL cosméticos: limpa e segue (Postgres rejeita NUL em text)
+        clean_text = clean_text.replace("\x00", "")
     hash_atual = hash_conteudo(clean_text.encode("utf-8"))
     with db.transaction() as cur:
         hash_anterior = db.get_latest_capture_hash(cur, sigla)
@@ -1225,6 +1255,14 @@ def extrair_lei(session, sigla, force=False):
         f.write(clean_text)
 
     blocos = extrair_estrutura(clean_text, sigla, versao, url, data_ext, config)
+
+    # Guardrail: sem NENHUM artigo real "Art. N", o parser não enxergou a estrutura
+    # (ex: tudo caiu como EMENTA) — sinal de encoding/HTML corrompido. Aborta antes de
+    # gerar JSON e antes de qualquer ingestão/embedding.
+    if not any(re.match(r"Art\.\s*\d", (b.get("artigo") or "")) for b in blocos):
+        raise RuntimeError(
+            f"{sigla}: extração sem nenhum 'Art. N' ({len(blocos)} blocos) — parser não achou "
+            f"estrutura (provável encoding/HTML corrompido). JSON não foi gerado.")
 
     # Overrides manuais
     ki_path = os.path.join(os.path.dirname(__file__), "known_issues.json")

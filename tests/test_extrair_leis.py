@@ -21,6 +21,7 @@ from extrair_leis import (
     split_com_overlap,
     split_inline_headers,
     hash_texto,
+    decode_utf16,
 )
 
 
@@ -1134,3 +1135,42 @@ class TestNotasLegaisOverride:
             assert c.get("status") == "vigente", (
                 f"{art_alvo}: status mudou de vigente — esperado preservar texto original"
             )
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# decode_utf16 — regressao LMP (2026-07): Planalto passou a servir UTF-16BE SEM BOM.
+# from_encoding="utf-16" sem BOM assumia Little-Endian -> embaralhava os bytes, o texto
+# virava lixo/NUL e o parser nao achava nenhum "Art." (tudo caia como EMENTA).
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestDecodeUtf16:
+    _HTML = "<html><body>Dispõe sobre. Art. 1 Primeiro. Art. 2 Notificação.</body></html>"
+
+    def test_be_sem_bom_recupera_texto(self):
+        # Caso exato de julho: UTF-16 Big-Endian, sem BOM (byte alto 0x00 primeiro).
+        raw = self._HTML.encode("utf-16-be")
+        assert raw[:1] == b"\x00"           # sanidade: e mesmo BE sem BOM
+        out = decode_utf16(raw)
+        assert "\x00" not in out            # sem NUL residual
+        assert "Art. 1" in out and "Art. 2" in out
+        assert "Dispõe" in out and "Notificação" in out
+
+    def test_le_sem_bom_recupera_texto(self):
+        raw = self._HTML.encode("utf-16-le")
+        assert raw[:1] != b"\x00"
+        out = decode_utf16(raw)
+        assert "\x00" not in out
+        assert "Art. 1" in out and "Notificação" in out
+
+    def test_com_bom_le_remove_bom(self):
+        raw = self._HTML.encode("utf-16")   # inclui BOM (LE nesta plataforma)
+        assert raw[:2] in (b"\xff\xfe", b"\xfe\xff")
+        out = decode_utf16(raw)
+        assert out[:1] != chr(0xFEFF)          # BOM removido do inicio
+        assert "Art. 1" in out
+
+    def test_com_bom_be_remove_bom(self):
+        raw = b"\xfe\xff" + self._HTML.encode("utf-16-be")  # BOM BE explicito
+        out = decode_utf16(raw)
+        assert out[:1] != chr(0xFEFF)
+        assert "Art. 1" in out and "Dispõe" in out
