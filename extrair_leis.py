@@ -17,6 +17,7 @@ from urllib3.util.retry import Retry
 from datetime import datetime
 import argparse
 import hashlib, re, json, sys, os
+import unicodedata
 
 import db
 
@@ -441,6 +442,20 @@ def strip_padding_tail(text: str) -> str:
     espacos do Planalto. Ex.: LMP Art. 46 vinha com '...8.8.2006 *' seguido de 779x U+2020
     + U+FFFD. Ancorado no fim: dot leaders legitimos (no meio) nao sao afetados."""
     return re.sub(r'[^\w\s]{10,}\s*$', '', text).rstrip()
+
+
+def normalizar_texto(text: str) -> str:
+    """Normalizacao DETERMINISTICA e segura (camada 1 do radar de mudancas):
+      - NFC: forma canonica Unicode (mesmo texto, bytes canonicos) -> hash estavel;
+      - colapsa espaco/tab HORIZONTAIS em 1 espaco e remove espaco colado na quebra.
+    PRESERVA '\\n' (estrutura de artigo/paragrafo que o parser usa). NAO unifica traco
+    (– vs -) nem \\n-vs-espaco: sao potencialmente semanticos. A fonte fiel (bytes brutos)
+    fica em raw_captures; aqui so canonicaliza o texto ja limpo, cortando ruido cosmetico
+    que geraria versao espuria (falso alerta no radar)."""
+    text = unicodedata.normalize("NFC", text)
+    text = re.sub(r"[^\S\n]+", " ", text)   # espaco/tab horizontais -> 1 espaco
+    text = re.sub(r" ?\n ?", "\n", text)    # tira espaco colado na quebra de linha
+    return text
 
 
 # --- HTTP ---
@@ -1385,6 +1400,11 @@ def extrair_lei(session, sigla, force=False):
     # Remove cauda de padding corrompido (run longo de simbolos no fim — artefato de decode
     # de padding de espacos do Planalto; ex: 779x U+2020 no Art. 46 da LMP).
     clean_text = strip_padding_tail(clean_text)
+
+    # Normalizacao deterministica (NFC + whitespace horizontal) — corta ruido cosmetico que
+    # geraria versao espuria. Fonte fiel = raw_captures; aqui e o texto ja limpo (camada 1
+    # do radar de mudancas). Nao unifica traco nem \n-vs-espaco (potencialmente semanticos).
+    clean_text = normalizar_texto(clean_text)
 
     # PORTAO 1 (ADR 0002): content_hash = hash do TEXTO LIMPO (identidade estavel do
     # conteudo, robusta a mudancas cosmeticas no HTML). Corta custo zero se nao mudou;
