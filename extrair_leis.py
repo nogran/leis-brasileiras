@@ -1385,24 +1385,26 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         prog="extrair_leis.py",
         description="Portao 1 (ADR 0002): extrai + captura leis do Planalto (raw_captures + JSON).")
-    parser.add_argument("sigla", nargs="?", default="ALL",
-                        help="Sigla da lei (ex: CDC). Default: ALL (todas).")
+    parser.add_argument("sigla", nargs="*", metavar="SIGLA",
+                        help="Uma ou mais siglas (ex: CDC CLT) ou ALL. Vazio = todas.")
     parser.add_argument("--force", action="store_true",
                         help="Re-captura mesmo com content_hash igual ao ultimo em raw_captures.")
     args = parser.parse_args()
 
-    os.makedirs("data", exist_ok=True)
-    arg = args.sigla.upper()
-    session = criar_sessao()
-
-    if arg == "ALL":
-        for sigla in LEIS_CONFIG:
-            extrair_lei(session, sigla, args.force)
-    elif arg in LEIS_CONFIG:
-        extrair_lei(session, arg, args.force)
+    entradas = [s.upper() for s in args.sigla]
+    if not entradas or "ALL" in entradas:
+        siglas = list(LEIS_CONFIG)
     else:
-        print(f"❌ Argumento inválido: {arg}")
-        print(f"   Siglas disponíveis: {', '.join(LEIS_CONFIG.keys())} ou ALL")
-        sys.exit(1)
+        invalidas = [s for s in entradas if s not in LEIS_CONFIG]
+        if invalidas:
+            print(f"❌ Sigla(s) inválida(s): {', '.join(invalidas)}")
+            print(f"   Siglas disponíveis: {', '.join(LEIS_CONFIG.keys())} ou ALL")
+            sys.exit(1)
+        siglas = list(dict.fromkeys(entradas))   # dedup preservando ordem
+
+    os.makedirs("data", exist_ok=True)
+    session = criar_sessao()
+    for sigla in siglas:
+        extrair_lei(session, sigla, args.force)
 
     print("\n🏁 Operação concluída.")
