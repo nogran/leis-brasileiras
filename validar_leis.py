@@ -490,6 +490,13 @@ def validate_conteudo(data: list[dict], report: FileReport):
                  f"texto_limpo contém null bytes — provável UTF-16 decodificado como UTF-8", art)
             continue
 
+        # ── Caractere de substituição U+FFFD — sempre corrupção de decode (byte inválido
+        #    ou stream truncado). Ex.: LMP Art. 46 vinha com U+FFFD após cauda de padding. ──
+        if chr(0xFFFD) in texto:
+            _add(report, "FAIL", "CONTEUDO", "caractere_substituicao",
+                 "texto_limpo contém U+FFFD (byte inválido/truncado no decode)", art)
+            continue
+
         # ── Mojibake / encoding ──
         for bad in ['Ã£','Ã¡','Ã©','Ã³','Ã§','Ãº','Â°','Â§','\ufffd']:
             if bad in texto:

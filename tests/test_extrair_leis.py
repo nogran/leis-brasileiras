@@ -22,6 +22,7 @@ from extrair_leis import (
     split_inline_headers,
     hash_texto,
     decode_utf16,
+    strip_padding_tail,
 )
 
 
@@ -1184,3 +1185,27 @@ class TestDecodeUtf16:
         assert "Art. 1" in out and "Art. 2" in out
         assert "Notificação" in out and "\x00" not in out
         assert chr(0xFFFD) not in out  # byte truncado descartado, sem char de substituicao
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# strip_padding_tail — cauda de padding corrompido (regressao LMP Art. 46: 779x U+2020)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestStripPaddingTail:
+    def test_remove_cauda_de_simbolos(self):
+        txt = "Este texto nao substitui o publicado no DOU de 8.8.2006 * " + chr(0x2020) * 779 + chr(0xFFFD)
+        out = strip_padding_tail(txt)
+        assert chr(0x2020) not in out and chr(0xFFFD) not in out
+        assert out.endswith("8.8.2006 *")   # conteudo real (footnote *) preservado
+
+    def test_preserva_texto_normal(self):
+        t = "Art. 1 O consumidor tem direito à informação adequada."
+        assert strip_padding_tail(t) == t
+
+    def test_preserva_dot_leader_no_meio(self):
+        # dot leaders de tabela (CLT/CPC) sao legitimos e ficam no MEIO, nao no fim
+        t = "Contribuicao: item ..................... valor final devido"
+        assert strip_padding_tail(t) == t
+
+    def test_noop_com_pontuacao_curta_no_fim(self):
+        assert strip_padding_tail("continua a leitura ...") == "continua a leitura ..."

@@ -434,6 +434,15 @@ def decode_utf16(raw: bytes) -> str:
     variant = 'utf-16-be' if raw[:1] == b'\x00' else 'utf-16-le'
     return raw.decode(variant, errors='replace').lstrip(_BOM)
 
+
+def strip_padding_tail(text: str) -> str:
+    """Remove cauda de padding corrompido: run de 10+ simbolos (nao-letra/digito/espaco)
+    no FIM do texto — texto juridico nunca tem isso; e artefato de decode de padding de
+    espacos do Planalto. Ex.: LMP Art. 46 vinha com '...8.8.2006 *' seguido de 779x U+2020
+    + U+FFFD. Ancorado no fim: dot leaders legitimos (no meio) nao sao afetados."""
+    return re.sub(r'[^\w\s]{10,}\s*$', '', text).rstrip()
+
+
 # --- HTTP ---
 def criar_sessao():
     session = requests.Session()
@@ -1229,6 +1238,10 @@ def extrair_lei(session, sigla, force=False):
     # hierarquia interna desabilitam via "inline_headers": False na config.
     if config.get("inline_headers", True):
         clean_text = split_inline_headers(clean_text)
+
+    # Remove cauda de padding corrompido (run longo de simbolos no fim — artefato de decode
+    # de padding de espacos do Planalto; ex: 779x U+2020 no Art. 46 da LMP).
+    clean_text = strip_padding_tail(clean_text)
 
     # PORTAO 1 (ADR 0002): content_hash = hash do TEXTO LIMPO (identidade estavel do
     # conteudo, robusta a mudancas cosmeticas no HTML). Corta custo zero se nao mudou;

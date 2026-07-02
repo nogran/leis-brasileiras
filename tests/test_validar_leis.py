@@ -308,6 +308,12 @@ class TestValidateConteudo:
         validate_conteudo([make_chunk(texto_limpo="Art. 1\x00 texto\x00")], r)
         assert issues_with_rule(r, "null_bytes")
 
+    def test_caractere_substituicao_fffd_fail(self):
+        # Regressao LMP Art. 46: byte truncado/invalido vira U+FFFD
+        r = make_report()
+        validate_conteudo([make_chunk(texto_limpo="texto do artigo " + chr(0xFFFD))], r)
+        assert issues_with_rule(r, "caractere_substituicao")
+
     def test_mojibake_fail(self):
         r = make_report()
         validate_conteudo([make_chunk(texto_limpo="DisposiÃ§Ã£o do artigo")], r)
