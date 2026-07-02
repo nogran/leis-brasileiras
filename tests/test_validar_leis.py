@@ -15,6 +15,7 @@ from validar_leis import (
     validate_conteudo,
     validate_metadata,
     validate_rag,
+    validate_cross_file,
     FileReport,
     REQUIRED_FIELDS,
     RAG_MAX_CHUNK_CHARS,
@@ -488,3 +489,22 @@ class TestValidateArtigos:
                   for n in (1, 2, 3)]
         validate_artigos(chunks, r)
         assert r.fails == 0
+
+
+class TestValidateCrossFile:
+    def test_id_global_duplicado_entre_arquivos(self):
+        all_data = {"f1": [make_chunk(id="dup", lei="CDC")],
+                    "f2": [make_chunk(id="dup", lei="CP")]}
+        rep = validate_cross_file([], all_data)
+        assert issues_with_rule(rep, "id_global_duplicado")
+
+    def test_mesma_lei_em_varios_arquivos(self):
+        all_data = {"f1": [make_chunk(id="a", lei="CDC")],
+                    "f2": [make_chunk(id="b", lei="CDC")]}
+        rep = validate_cross_file([], all_data)
+        assert issues_with_rule(rep, "lei_duplicada_files")
+
+    def test_sem_problemas(self):
+        all_data = {"f1": [make_chunk(id="a", lei="CDC")],
+                    "f2": [make_chunk(id="b", lei="CP")]}
+        assert validate_cross_file([], all_data).fails == 0
