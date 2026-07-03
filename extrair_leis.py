@@ -225,6 +225,100 @@ def limpar_ruido_legislativo(texto: str) -> str:
     return '\n'.join(linhas).strip()
 
 
+# ──────────────────────────────────────────────────────────────────────────────
+# Reparo de dispositivos órfãos — rótulo sem conteúdo (bug CF88 Art. 7º XXVIII/XXIX)
+# ──────────────────────────────────────────────────────────────────────────────
+# Três mecanismos produziam um rótulo nu (alínea/inciso/§) sem texto:
+#   M1: dispositivo revogado/vetado cujo ÚNICO conteúdo é a anotação
+#       (ex: "a) (Revogada). (Redação dada pela EC nº 28, de 2000)"). O
+#       limpar_ruido_legislativo removia a anotação e sobrava "a)".
+#       -> Fix: PRESERVAR a linha LITERAL (fonte fiel; nunca compor/parafrasear).
+#   M2: resíduo de redação ANTERIOR riscada (<strike>) cujo rótulo ficou FORA do
+#       strike e vazou como "a)"/"b)" nus, sem anotação. A redação atual do mesmo
+#       dispositivo já existe logo abaixo. -> Fix: DROPAR o rótulo exatamente vazio.
+#   M3: referência cruzada quebrada em duas linhas ("...art. 165," + "§ 9º. (...)").
+#       Não é dispositivo — é continuação do caput. -> Fix: RE-JUNTAR à linha anterior.
+# NUNCA tocar "rótulo + dot-leaders" ("I - .........."): é elisão legislativa real
+# em blocos de emenda (LC123, LMP) — o teste negativo trava isso permanentemente.
+
+# Rótulo EXATAMENTE vazio: label seguido de nada (ou só de uma pontuação isolada).
+# Dot-leaders (múltiplos '.') NÃO casam -> preservados.
+_ROTULO_VAZIO_RE = re.compile(
+    r'^(?:'
+    r'[a-z]\)'                              # alínea: a) b) c)
+    r'|[IVXLCDM]{1,7}\s*[-–—]'             # inciso com traço: I - II -
+    r'|[IVXLCDM]{1,7}'                      # inciso romano isolado: I
+    r'|§\s*\d+\s*[º°o]?(?:-[A-Z])?'         # parágrafo: § 1º § 9º-A
+    r'|Parágrafo\s+único'                   # parágrafo único
+    r')\s*[.;,)\-–—]?\s*$',
+    re.IGNORECASE,
+)
+
+# Linha anterior termina numa REFERÊNCIA + vírgula (continuação de xref, não fim de frase).
+_XREF_PREV_RE = re.compile(
+    r'(?:art\.?\s*[\d.]+|§\s*\d+\s*[º°o]?|inciso\s+[IVXLCDM]+|al[íi]nea\s+[a-z])\s*,\s*$',
+    re.IGNORECASE,
+)
+# Linha atual começa com marcador de dispositivo (candidata a ser a cauda da xref).
+_XREF_CONT_START_RE = re.compile(r'^(?:§\s*\d+|[IVXLCDM]{1,7}\s*[-–—]|[a-z]\))')
+
+
+def _e_rotulo_vazio(s: str) -> bool:
+    return bool(_ROTULO_VAZIO_RE.match(s.strip()))
+
+
+def _merge_xref_continuation(linhas: list[str]) -> list[str]:
+    """M3: re-junta uma linha iniciada por marcador (§/inciso/alínea) à anterior
+    quando esta termina numa referência + vírgula (ex: '...art. 165,' + '§ 9º. (...)').
+    É continuação de referência cruzada, não um dispositivo novo."""
+    out: list[str] = []
+    for ln in linhas:
+        s = ln.strip()
+        if out and s and _XREF_CONT_START_RE.match(s) and _XREF_PREV_RE.search(out[-1]):
+            out[-1] = out[-1].rstrip() + " " + s
+        else:
+            out.append(ln)
+    return out
+
+
+def reparar_dispositivos_orfaos(texto_raw: str) -> str:
+    """Substitui limpar_ruido_legislativo no fluxo de artigo, reparando dispositivos
+    que virariam rótulo nu. Para artigos SEM órfão o resultado é IDÊNTICO a
+    limpar_ruido_legislativo (nada muda). Ver M1/M2/M3 acima.
+
+    Passo isolado e testável: recebe o texto BRUTO do buffer (anotações presentes) e
+    devolve o texto_limpo já reparado."""
+    linhas = _merge_xref_continuation(texto_raw.split("\n"))   # M3 primeiro
+
+    linhas_para_strip: list[str] = []
+    m1_literais: list[str] = []
+    for ln in linhas:
+        s = ln.strip()
+        if not s:
+            linhas_para_strip.append(ln)
+            continue
+        if _e_rotulo_vazio(s):
+            continue                                # M2: rótulo exatamente vazio -> drop
+        # M1: se o strip colapsaria a linha para um rótulo nu, a anotação removida era
+        # o único conteúdo (revogado/vetado) -> guardar o LITERAL para restaurar depois.
+        if _e_rotulo_vazio(limpar_ruido_legislativo(s)):
+            m1_literais.append(s)
+        linhas_para_strip.append(ln)
+
+    texto_limpo = limpar_ruido_legislativo("\n".join(linhas_para_strip))
+
+    if m1_literais:
+        # Restaura os literais M1 nos rótulos nus resultantes (mesma ordem — o strip
+        # preserva a ordem das linhas e M2 já foi removido, então é 1:1).
+        it = iter(m1_literais)
+        restauradas = []
+        for cl in texto_limpo.split("\n"):
+            restauradas.append(next(it) if _e_rotulo_vazio(cl) else cl)
+        texto_limpo = "\n".join(restauradas)
+
+    return texto_limpo
+
+
 def limpar_marker_hierarquia(nome: str) -> str:
     """Remove markers de alteracao legislativa de nomes hierarquicos
     (livro_nome, titulo_nome, capitulo_nome, secao_nome).
@@ -861,23 +955,32 @@ def extrair_estrutura(texto, sigla, versao, url, data_ext, config):
             + capitulo_const + secao_const + controle_artigo
         )
         status, vetos_parciais = detectar_status_artigo(texto_raw)
-        texto_limpo = limpar_ruido_legislativo(texto_raw)
+        # reparar_dispositivos_orfaos = limpar_ruido_legislativo + reparo M1/M2/M3
+        # (idêntico ao limpar_ruido para artigos sem dispositivo órfão).
+        texto_limpo = reparar_dispositivos_orfaos(texto_raw)
         if not texto_limpo:
             buffer = []; return
 
         # Strip trailing section headers que sangraram do buffer
         # (último artigo antes de TÍTULO/CAPÍTULO/SEÇÃO absorve o header seguinte)
-        texto_limpo = re.sub(
-            r'\n(?:LIVRO|SUBT[IÍ]TULO|T[IÍ]TULO|CAP[IÍ]TULO|SE[CÇ][AÃ]O)\s+.*$',
-            '', texto_limpo, flags=re.IGNORECASE
-        ).strip()
+        def _strip_headers(t):
+            return re.sub(
+                r'\n(?:LIVRO|SUBT[IÍ]TULO|T[IÍ]TULO|CAP[IÍ]TULO|SE[CÇ][AÃ]O)\s+.*$',
+                '', t, flags=re.IGNORECASE
+            ).strip()
+        texto_limpo = _strip_headers(texto_limpo)
 
         if not texto_limpo:
             buffer = []; return
         if len(texto_limpo) < 30 and status == 'vigente':
             buffer = []; return
 
-        refs = extrair_referencias(texto_limpo, artigo_label)
+        # Referências extraídas do texto SEM a anotação literal preservada pelo M1.
+        # A norma emendadora/revogadora já vive em `alteracoes` (extraída de texto_raw);
+        # deixá-la vazar para `referencias.leis_externas` criaria inconsistência com os
+        # dispositivos normais (onde a anotação é removida). Mantém `referencias`
+        # idêntico ao comportamento pré-fix — a mudança fica cirúrgica em texto_limpo/hash.
+        refs = extrair_referencias(_strip_headers(limpar_ruido_legislativo(texto_raw)), artigo_label)
         path_partes = []
         for num, nome in [
             (livro, livro_nome),
@@ -1385,6 +1488,16 @@ def extrair_lei(session, sigla, force=False):
         else:
             merged.append(stripped)
     clean_text = '\n'.join(merged)
+
+    # -- Guarda upstream (defesa em profundidade): impede que o órfão nasça no
+    # clean.txt novo. Mesmas regras M2/M3 do parse_law, aplicadas na origem:
+    #   M3: re-junta cauda de xref ("...art. 165," + "§ 9º. (...)").
+    #   M2: dropa rótulo EXATAMENTE vazio (resíduo de <strike> cujo rótulo vazou).
+    # NÃO faz strip nem M1 aqui: o clean.txt PRECISA manter a anotação literal
+    # ("a) (Revogada)...") pra que o parse_law preserve M1 depois. Dot-leaders
+    # ("I - .....") não são vazios -> preservados.
+    _linhas_guard = _merge_xref_continuation(clean_text.split('\n'))
+    clean_text = '\n'.join(l for l in _linhas_guard if not _e_rotulo_vazio(l))
 
     # -- text_transforms da config (extension point pra casos especiais por lei) --
     for tx in config.get("text_transforms", []):

@@ -508,3 +508,60 @@ class TestValidateCrossFile:
         all_data = {"f1": [make_chunk(id="a", lei="CDC")],
                     "f2": [make_chunk(id="b", lei="CP")]}
         assert validate_cross_file([], all_data).fails == 0
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ruido_residual — M1-aware (dispositivos órfãos preservados não são vazamento)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+from validar_leis import _e_linha_orfa_m1
+
+
+class TestERotuloOrfaoM1:
+    def test_rotulo_mais_so_anotacao_e_orfao(self):
+        assert _e_linha_orfa_m1("a) (Revogada). (Redação dada pela Emenda Constitucional nº 28, de 2000)")
+        assert _e_linha_orfa_m1("I - (revogado); (Redação dada pela Lei nº 13.874, de 2019)")
+        assert _e_linha_orfa_m1("Parágrafo único. (Revogado). (Redação dada pela Lei nº 13.874, de 2019)")
+
+    def test_dispositivo_com_texto_real_nao_e_orfao(self):
+        assert not _e_linha_orfa_m1("II - a educação e divulgação (Redação dada pela Lei nº 12.741, de 2012)")
+        assert not _e_linha_orfa_m1("Art. 7º São direitos dos trabalhadores urbanos e rurais.")
+
+    def test_linha_sem_rotulo_nao_e_orfao(self):
+        assert not _e_linha_orfa_m1("(Redação dada pela Lei nº 12.741, de 2012)")
+
+
+class TestRuidoResidualM1Aware:
+    """ruido_residual NÃO deve disparar quando o marcador está só numa linha órfã M1
+    (rótulo + anotação preservada de propósito), mas DEVE disparar em texto substantivo."""
+
+    def test_nao_dispara_em_dispositivo_orfao_preservado(self):
+        chunk = make_chunk(
+            artigo="Art. 7",
+            texto_limpo=(
+                "Art. 7º São direitos dos trabalhadores urbanos e rurais, além de outros.\n"
+                "XXIX - ação, quanto aos créditos resultantes das relações de trabalho.\n"
+                "a) (Revogada). (Redação dada pela Emenda Constitucional nº 28, de 2000)\n"
+                "b) (Revogada). (Redação dada pela Emenda Constitucional nº 28, de 2000)"
+            ),
+        )
+        rep = make_report()
+        validate_conteudo([chunk], rep)
+        assert not issues_with_rule(rep, "ruido_residual"), (
+            "M1 (rótulo órfão + anotação literal) não é vazamento de ruído"
+        )
+
+    def test_dispara_em_texto_substantivo_com_marcador(self):
+        """Regressão: marcador vazado em texto real (não-órfão) AINDA deve disparar."""
+        chunk = make_chunk(
+            artigo="Art. 99",
+            texto_limpo=(
+                "Art. 99. O fornecedor deve prestar informação adequada e clara "
+                "(Redação dada pela Lei nº 12.741, de 2012) sobre os produtos."
+            ),
+        )
+        rep = make_report()
+        validate_conteudo([chunk], rep)
+        assert issues_with_rule(rep, "ruido_residual"), (
+            "marcador em texto substantivo continua sendo vazamento (não pode ser suprimido)"
+        )

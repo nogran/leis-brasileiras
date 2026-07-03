@@ -471,6 +471,28 @@ def validate_hierarquia(data: list[dict], report: FileReport):
 # 4. CONTEUDO
 # ═══════════════════════════════════════════════════════════════════════════════
 
+# Dispositivo órfão M1 (ver known_issues.json > dispositivos_orfaos_reparados):
+# revogado/vetado cujo ÚNICO conteúdo é a anotação (ex: "a) (Revogada). (Redação
+# dada pela EC nº 28, de 2000)"). O extrator PRESERVA a anotação literal de propósito
+# (fonte fiel, dispositivo não omitido). A checagem de ruido_residual deve ignorar
+# essas linhas — senão flag falso-positivo em ~76 artigos e mascara vazamento real.
+_RE_ROTULO_ORFAO = re.compile(
+    r'^(?:[a-z]\)|[IVXLCDM]{1,7}\s*[-–—]|§\s*\d+\s*[º°o]?(?:-[A-Z])?|Parágrafo\s+único)',
+    re.IGNORECASE,
+)
+
+
+def _e_linha_orfa_m1(line: str) -> bool:
+    """True se a linha é 'rótulo + só anotação(ões)' (dispositivo órfão M1 preservado)."""
+    s = line.strip()
+    if not _RE_ROTULO_ORFAO.match(s):
+        return False
+    resto = _RE_ROTULO_ORFAO.sub('', s, count=1)
+    resto = re.sub(r'\([^)]*\)', '', resto)          # remove anotações entre parênteses
+    resto = re.sub(r'[\s.;,\-–—]', '', resto)          # remove pontuação/espaços residuais
+    return not resto                                    # vazio => era só rótulo + anotação
+
+
 def validate_conteudo(data: list[dict], report: FileReport):
     """Texto, encoding, tamanho, ruído, HTML, label×texto match."""
 
@@ -533,6 +555,11 @@ def validate_conteudo(data: list[dict], report: FileReport):
                  "3+ newlines consecutivas no texto", art)
 
         # ── Ruído legislativo residual ──
+        # Ignora dispositivos órfãos M1 (rótulo + só anotação, preservados de propósito):
+        # o marcador ali é conteúdo legítimo, não vazamento em texto substantivo.
+        texto_substantivo = "\n".join(
+            l for l in texto.split("\n") if not _e_linha_orfa_m1(l)
+        )
         for marker in [
             r'\(Redação dada (?:pela|pelo)',
             r'\(Incluíd[oa] (?:pela|pelo)',
@@ -540,7 +567,7 @@ def validate_conteudo(data: list[dict], report: FileReport):
             r'\(Vigência\)',
             r'\(Acrescentad[oa]',
         ]:
-            if re.search(marker, texto, re.I):
+            if re.search(marker, texto_substantivo, re.I):
                 _add(report, "WARN", "CONTEUDO", "ruido_residual",
                      f"Marcador não removido: {marker[:30]}", art)
                 break

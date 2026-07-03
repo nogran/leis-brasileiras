@@ -1209,3 +1209,213 @@ class TestStripPaddingTail:
 
     def test_noop_com_pontuacao_curta_no_fim(self):
         assert strip_padding_tail("continua a leitura ...") == "continua a leitura ..."
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# reparar_dispositivos_orfaos — bug CF88 Art. 7º XXVIII/XXIX (rótulo sem conteúdo)
+# M1: revogado/vetado só-anotação -> preserva LITERAL do Planalto
+# M2: resíduo de <strike> (rótulo nu, sem anotação) -> dropa
+# M3: xref quebrada ("...art. 165," + "§ 9º. (...)") -> re-junta
+# NUNCA tocar dot-leaders ("I - ...") = elisão legislativa real (LC123/LMP)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+from bs4 import BeautifulSoup
+
+from extrair_leis import (
+    reparar_dispositivos_orfaos,
+    _e_rotulo_vazio,
+    _merge_xref_continuation,
+)
+
+
+class TestERotuloVazio:
+    def test_alinea_vazia(self):
+        assert _e_rotulo_vazio("a)")
+        assert _e_rotulo_vazio("b)")
+
+    def test_inciso_vazio(self):
+        assert _e_rotulo_vazio("I -")
+        assert _e_rotulo_vazio("XXIX -")
+
+    def test_paragrafo_vazio(self):
+        assert _e_rotulo_vazio("§ 2º")
+        assert _e_rotulo_vazio("§ 9º.")
+        assert _e_rotulo_vazio("§ 1º -")
+
+    def test_paragrafo_unico_vazio(self):
+        assert _e_rotulo_vazio("Parágrafo único")
+        assert _e_rotulo_vazio("Parágrafo único -")
+
+    def test_com_conteudo_nao_e_vazio(self):
+        assert not _e_rotulo_vazio("a) alguma coisa")
+        assert not _e_rotulo_vazio("I - a proteção da vida")
+        assert not _e_rotulo_vazio("§ 1º É vedada a transferência")
+
+    def test_dot_leaders_nao_e_vazio(self):
+        """CRÍTICO: rótulo + dot-leaders (elisão legislativa) NÃO é rótulo vazio."""
+        assert not _e_rotulo_vazio("I - ..............................")
+        assert not _e_rotulo_vazio("II - ........... ...........")
+
+
+class TestReparoM1PreservaLiteral:
+    """M1: dispositivo revogado cujo único conteúdo é a anotação -> LITERAL do Planalto,
+    nunca paráfrase (decisão do dev 2026-07-02; ver known_issues.json)."""
+
+    def test_art7_xxix_alineas_preservam_literal(self):
+        # Texto REAL do clean.txt do CF88 (Art. 7º XXIX + alíneas revogadas por EC28)
+        raw = (
+            "XXIX - ação, quanto aos créditos resultantes das relações de trabalho, "
+            "com prazo prescricional de cinco anos para os trabalhadores urbanos e rurais, "
+            "até o limite de dois anos após a extinção do contrato de trabalho; "
+            "(Redação dada pela Emenda Constitucional nº 28, de 2000)\n"
+            "a) (Revogada). (Redação dada pela Emenda Constitucional nº 28, de 2000)\n"
+            "b) (Revogada). (Redação dada pela Emenda Constitucional nº 28, de 2000)\n"
+            "XXX - proibição de diferença de salários, de exercício de funções e de "
+            "critério de admissão por motivo de sexo, idade, cor ou estado civil;"
+        )
+        out = reparar_dispositivos_orfaos(raw)
+        # Alíneas preservadas LITERAIS (não viram "a)"/"b)" nus)
+        assert "a) (Revogada). (Redação dada pela Emenda Constitucional nº 28, de 2000)" in out
+        assert "b) (Revogada). (Redação dada pela Emenda Constitucional nº 28, de 2000)" in out
+        # Nenhum rótulo nu remanescente
+        linhas = [l.strip() for l in out.split("\n")]
+        assert "a)" not in linhas and "b)" not in linhas
+
+    def test_clt_art16_incisos_revogados_preservam_literal(self):
+        raw = (
+            "Art. 16.  A CTPS terá como identificação única do empregado o número de "
+            "inscrição no Cadastro de Pessoas Físicas (CPF). (Redação dada pela Lei nº 13.874, de 2019)\n"
+            "I - (revogado); (Redação dada pela Lei nº 13.874, de 2019)\n"
+            "II - (revogado); (Redação dada pela Lei nº 13.874, de 2019)\n"
+            "Parágrafo único. (Revogado). (Redação dada pela Lei nº 13.874, de 2019)"
+        )
+        out = reparar_dispositivos_orfaos(raw)
+        assert "I - (revogado);" in out
+        assert "II - (revogado);" in out
+        assert "Parágrafo único. (Revogado)." in out
+        # e NÃO sobra rótulo nu
+        linhas = [l.strip() for l in out.split("\n")]
+        assert "I -" not in linhas and "II -" not in linhas
+
+
+class TestReparoM2DropaOrfao:
+    """M2: rótulo exatamente vazio (resíduo de <strike>) -> removido."""
+
+    def test_art7_xxviii_orfaos_removidos(self):
+        # No clean.txt real, "a)"/"b)" nus aparecem após XXVIII (redação antiga riscada)
+        raw = (
+            "XXVIII - seguro contra acidentes de trabalho, a cargo do empregador, sem "
+            "excluir a indenização a que este está obrigado, quando incorrer em dolo ou culpa;\n"
+            "a)\n"
+            "b)\n"
+            "XXIX - ação, quanto aos créditos resultantes das relações de trabalho, com "
+            "prazo prescricional de cinco anos para os trabalhadores urbanos e rurais."
+        )
+        out = reparar_dispositivos_orfaos(raw)
+        linhas = [l.strip() for l in out.split("\n")]
+        assert "a)" not in linhas and "b)" not in linhas
+        # o conteúdo real (incisos) permanece
+        assert any(l.startswith("XXVIII - seguro contra acidentes") for l in linhas)
+        assert any(l.startswith("XXIX - ação") for l in linhas)
+
+
+class TestReparoM2NegativoDotLeaders:
+    """PERMANENTE: blocos de emenda com dot-leaders (elisão legislativa real) passam
+    INTACTOS pelo reparo. Trava contra alguém 'limpar' isso no futuro (LC123/LMP)."""
+
+    def test_lmp_emenda_cp61_dot_leaders_intactos(self):
+        raw = (
+            "“Art. 61. .................................................. .........\n"
+            "II - ............................................................ .........\n"
+            "f) com abuso de autoridade ou prevalecendo-se de relações domésticas, "
+            "de coabitação ou de hospitalidade;"
+        )
+        out = reparar_dispositivos_orfaos(raw)
+        # A linha "II - ......" NÃO pode ser removida nem alterada
+        assert any(l.strip().startswith("II -") and "...." in l for l in out.split("\n"))
+
+    def test_lc123_dot_leaders_intactos(self):
+        raw = (
+            "§ 2 o do art. 21 da Lei n o 8.212, de 24 de julho de 1991 . ..........\n"
+            "I - .................................................................. ......\n"
+            "c) aposentadoria por tempo de contribuição; ..........."
+        )
+        out = reparar_dispositivos_orfaos(raw)
+        assert any(l.strip().startswith("I -") and "...." in l for l in out.split("\n"))
+
+
+class TestReparoM3XrefMerge:
+    """M3: referência cruzada quebrada em duas linhas -> re-juntada (não é dispositivo)."""
+
+    def test_art168_xref_paragrafo_rejuntada(self):
+        raw = (
+            "Art. 168. Os recursos correspondentes às dotações orçamentárias, "
+            "destinados aos órgãos dos Poderes Legislativo e Judiciário, do Ministério "
+            "Público e da Defensoria Pública, ser-lhes-ão entregues até o dia 20 de cada "
+            "mês, em duodécimos, na forma da lei complementar a que se refere o art. 165,\n"
+            "§ 9º. (Redação dada pela Emenda Constitucional nº 45, de 2004)\n"
+            "§ 1º É vedada a transferência a fundos de recursos financeiros oriundos de "
+            "repasses duodecimais. (Incluído pela Emenda Constitucional nº 109, de 2021)"
+        )
+        out = reparar_dispositivos_orfaos(raw)
+        # xref re-juntada ao caput ("art. 165, § 9º.") — não sobra "§ 9º." isolado
+        assert "art. 165, § 9º." in out
+        assert "§ 9º." not in [l.strip() for l in out.split("\n")]
+        # o § 1º REAL permanece como dispositivo
+        assert any(l.strip().startswith("§ 1º É vedada") for l in out.split("\n"))
+
+    def test_nao_junta_paragrafo_normal(self):
+        """Não deve juntar um § que segue fim de frase normal (ponto/dois-pontos)."""
+        raw = (
+            "Art. 5º Todos são iguais perante a lei, sem distinção de qualquer natureza.\n"
+            "§ 1º As normas definidoras dos direitos e garantias fundamentais têm "
+            "aplicação imediata."
+        )
+        out = reparar_dispositivos_orfaos(raw)
+        linhas = out.split("\n")
+        assert any(l.strip().startswith("§ 1º As normas") for l in linhas)
+        # o caput NÃO absorveu o § 1º
+        assert not any("aplicação imediata" in l and l.strip().startswith("Art. 5º") for l in linhas)
+
+
+class TestReparoNaoAlteraArtigoNormal:
+    """Invariante: para artigo SEM dispositivo órfão, reparar == limpar_ruido (nada muda).
+    Garante que os ~130 dispositivos afetados são os ÚNICOS que mudam de hash."""
+
+    def test_idempotente_vs_limpar_ruido(self):
+        raw = (
+            "Art. 6º São direitos básicos do consumidor:\n"
+            "I - a proteção da vida, da saúde e da segurança;\n"
+            "II - a educação e divulgação sobre o consumo adequado dos produtos e "
+            "serviços. (Redação dada pela Lei nº 12.741, de 2012)\n"
+            "III - a informação adequada e clara sobre os diferentes produtos."
+        )
+        assert reparar_dispositivos_orfaos(raw) == limpar_ruido_legislativo(raw)
+
+
+class TestGuardaUpstreamHtmlStrikeReal:
+    """Guarda upstream: HTML REAL do Planalto (Art. 7º XXIX, alíneas antigas riscadas).
+    O strike.decompose apaga o conteúdo mas o rótulo 'a)'/'b)' vaza -> a guarda M2 dropa."""
+
+    def test_strike_orphan_vaza_e_guarda_dropa(self):
+        html = (
+            '<p><a name="art7xxixa."></a>a) '
+            '<strike>cinco anos para o trabalhador urbano, até o limite de dois anos '
+            'após a extinção do contrato;</strike><br/>&nbsp;'
+            '<a name="art7xxixb."></a>b) '
+            '<strike>até dois anos após a extinção do contrato, para o trabalhador rural;'
+            '</strike></p>'
+        )
+        soup = BeautifulSoup(html, "html.parser")
+        for tag in soup.find_all(["s", "del", "strike"]):
+            tag.decompose()
+        text = soup.get_text(separator="\n")
+        # documenta o LEAK: rótulos a)/b) sobrevivem ao strike (conteúdo apagado)
+        leak = [l.strip() for l in text.split("\n") if l.strip()]
+        assert "a)" in leak and "b)" in leak
+        # a guarda upstream (M3 merge + M2 drop) remove os rótulos vazios
+        reparado = "\n".join(
+            l for l in _merge_xref_continuation(text.split("\n")) if not _e_rotulo_vazio(l)
+        )
+        restantes = [l.strip() for l in reparado.split("\n") if l.strip()]
+        assert "a)" not in restantes and "b)" not in restantes

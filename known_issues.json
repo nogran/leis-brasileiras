@@ -1,6 +1,6 @@
 {
   "_doc": "Registro de issues verificados manualmente. O validador suprime esses INFOs. O extrator aplica os overrides.",
-  "_updated": "2026-04-08",
+  "_updated": "2026-07-03",
   "_expected_suppressions": 3,
   "_expected_suppressions_detail": "artigo_sem_titulo: CLT (Art. 1 pré-TÍTULO I) + CC (Livro Complementar Art. 2.028-2.046) + CPC (Livro Complementar Art. 1.045-1.072)",
 
@@ -120,5 +120,38 @@
         "Art. 121-A": ["Lei nº 13.968, de 2019"]
       }
     }
+  },
+
+  "dispositivos_orfaos_reparados": {
+    "_doc": "Padrao 'rotulo sem conteudo' (bug CF88 Art. 7 XXVIII/XXIX, descoberto em prod 2026-07-02). Dispositivo revogado/vetado/riscado cujo rotulo (alinea/inciso/paragrafo) aparecia nu no texto_limpo. Reparo deterministico em extrair_leis.reparar_dispositivos_orfaos (chamado por parse_law) + guarda upstream no estagio HTML/merge. Entrada documental, o extrator NAO le esta chave.",
+    "mecanismos": {
+      "M1_preserva_literal": "Dispositivo revogado/vetado cujo UNICO conteudo e a anotacao (ex: 'a) (Revogada). (Redacao dada pela EC no 28, de 2000)'). O limpar_ruido_legislativo removia a anotacao e sobrava 'a)'. Fix: PRESERVAR a linha LITERAL do Planalto (fonte fiel, nunca compor/parafrasear). ~76 artigos.",
+      "M2_dropa_orfao": "Residuo de redacao ANTERIOR riscada (<strike>) cujo rotulo ficou FORA do strike e vazou como 'a)'/'b)' nu, sem anotacao. A redacao atual do mesmo dispositivo ja existe abaixo. Fix: DROPAR o rotulo EXATAMENTE vazio. ~11-14 dispositivos.",
+      "M3_rejunta_xref": "Referencia cruzada quebrada em duas linhas ('...art. 165,' + '§ 9o. (...)'). Nao e dispositivo, e continuacao do caput. Fix: RE-JUNTAR a linha anterior. 4 artigos: CF88 Art. 159, 168, 16 (ADCT), 44 (ADCT)."
+    },
+    "excecao_permanente_dot_leaders": "NUNCA tocar 'rotulo + dot-leaders' (ex: 'I - ..............'): e elisao legislativa REAL em blocos de emenda (LC123, LMP reproduzem outra norma elidindo trechos com '...'). Coberto por teste negativo permanente em test_extrair_leis.py::TestReparoM2NegativoDotLeaders.",
+    "leis_afetadas": "CADPOS, CF88, CLT, CC, CP, CPC, ECA, LC123, LT, LGPD (82 artigos). CDC, LI, LMP inalterados.",
+    "backlog_nivel_2": "Capturar a redacao ANTERIOR riscada como registro estruturado com status proprio (habilita exibicao ~tachada~ no WhatsApp + historico de redacoes no Pro; sinergia com radar de mudancas + bitemporal). Fora do escopo deste fix."
+  },
+
+  "residuo_pontuacao_nao_tratado": {
+    "_doc": "Rotulos com residuo de PONTUACAO (nao exatamente vazios: tem '- .', ':' etc). Mesma familia do rotulo-sem-conteudo, mas a regra M2 (extrair_leis._e_rotulo_vazio) casa APENAS rotulo exatamente vazio, de proposito, pra NAO afrouxar a garantia dos dot-leaders (elisao de emenda). PRE-EXISTENTES (ja estavam na base antes do fix de 2026-07-03), NAO sao regressao. DECISAO HUMANA FUTURA — NUNCA aplicar strip automatico sem inspecionar o HTML do Planalto.",
+    "casos": [
+      {
+        "lei": "CF88",
+        "artigo": "Art. 170",
+        "linha_texto_limpo": "12/12",
+        "residuo": "§ 2º - .",
+        "contexto_anterior": "Parágrafo único. É assegurado a todos o livre exercício..."
+      },
+      {
+        "lei": "CLT",
+        "artigo": "Art. 708",
+        "linha_texto_limpo": "3/4",
+        "residuo": "b) :",
+        "contexto_anterior": "a) revogada;",
+        "contexto_posterior": "Parágrafo único - Na ausência do Presidente e do Vice-Presidente..."
+      }
+    ]
   }
 }
