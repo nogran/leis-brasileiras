@@ -565,3 +565,106 @@ class TestRuidoResidualM1Aware:
         assert issues_with_rule(rep, "ruido_residual"), (
             "marcador em texto substantivo continua sendo vazamento (não pode ser suprimido)"
         )
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# standalone_e_partes_coexistem — captura duplicada (caso real LC123 Art. 18)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestStandalonePartesCoexistem:
+    def test_dispara_quando_base_e_partes_coexistem(self):
+        """Caso real LC123 Art. 18: 'Art. 18' standalone E 'Art. 18 (Parte N/6)'
+        no mesmo JSON = captura duplicada (Planalto repete o artigo no HTML)."""
+        chunks = [
+            make_chunk(id="lc123_art_18", artigo="Art. 18",
+                       texto_limpo="Art. 18. O valor devido mensalmente pela microempresa."),
+            make_chunk(id="lc123_art_18_p1", artigo="Art. 18 (Parte 1/2)", parte_num=1,
+                       total_partes=2, texto_limpo="Art. 18. Conteudo completo parte um."),
+            make_chunk(id="lc123_art_18_p2", artigo="Art. 18 (Parte 2/2)", parte_num=2,
+                       total_partes=2, texto_limpo="Continuacao do conteudo parte dois."),
+        ]
+        rep = make_report()
+        validate_artigos(chunks, rep)
+        assert issues_with_rule(rep, "standalone_e_partes_coexistem")
+
+    def test_nao_dispara_so_partes(self):
+        """Multi-parte normal (só partes, sem standalone) é legítimo — 24 artigos na base."""
+        chunks = [
+            make_chunk(id="cc_art_5_p1", artigo="Art. 5 (Parte 1/2)", parte_num=1,
+                       total_partes=2, texto_limpo="Art. 5. Primeira parte do texto."),
+            make_chunk(id="cc_art_5_p2", artigo="Art. 5 (Parte 2/2)", parte_num=2,
+                       total_partes=2, texto_limpo="Segunda parte do texto."),
+        ]
+        rep = make_report()
+        validate_artigos(chunks, rep)
+        assert not issues_with_rule(rep, "standalone_e_partes_coexistem")
+
+    def test_nao_dispara_so_standalone(self):
+        chunks = [make_chunk(artigo="Art. 18",
+                             texto_limpo="Art. 18. Texto normal de artigo unico.")]
+        rep = make_report()
+        validate_artigos(chunks, rep)
+        assert not issues_with_rule(rep, "standalone_e_partes_coexistem")
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# texto_quebrado_letra_a_letra — kerning do Planalto (caso real LC123, 28 chunks)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestTextoQuebradoLetraALetra:
+    def test_dispara_no_texto_corrompido_real(self):
+        """Amostra REAL da LC123 Art. 18 (Parte 1/6): espaços intra-palavra."""
+        corrompido = (
+            "Art. 18. O v alor d e vido m ensa l mente p e la micro e m p r esa ou "
+            "empresa de pequ e no porte optante p e lo Simples Na c ional s e r a "
+            "d e t e rminado m ediante apli c a c a o das ali q uotas."
+        )
+        chunk = make_chunk(artigo="Art. 18 (Parte 1/6)", parte_num=1, total_partes=6,
+                           texto_limpo=corrompido)
+        rep = make_report()
+        validate_conteudo([chunk], rep)
+        assert issues_with_rule(rep, "texto_quebrado_letra_a_letra")
+
+    def test_nao_dispara_em_texto_legitimo_com_palavras_curtas(self):
+        """Português legítimo é cheio de palavras de 1-2 letras (a, e, o, de, da) —
+        vogais e bigramas NÃO contam; só consoante minúscula isolada."""
+        chunk = make_chunk(texto_limpo=(
+            "Art. 1º A lei é a norma e o juiz a aplica de ofício, e a parte a invoca "
+            "em juízo, e o réu a contesta, e o autor a defende, e a corte a confirma "
+            "de modo que a regra se impõe a todos e a ninguém escapa a sua força."
+        ))
+        rep = make_report()
+        validate_conteudo([chunk], rep)
+        assert not issues_with_rule(rep, "texto_quebrado_letra_a_letra")
+
+    def test_nao_dispara_em_citacao_de_alineas_entre_aspas(self):
+        """Falso-positivo real calibrado: CLT Art. 334 cita alíneas entre aspas."""
+        chunk = make_chunk(texto_limpo=(
+            'Art. 334. As atividades definidas nas alíneas "a" e "b" do art. 325, '
+            'e nos itens "a", "b" e "c" deste artigo, sendo privativa a do item "d", '
+            'e ainda "b" e "c" quando repetidas, e "d" de novo, e "b" mais uma vez.'
+        ))
+        rep = make_report()
+        validate_conteudo([chunk], rep)
+        assert not issues_with_rule(rep, "texto_quebrado_letra_a_letra")
+
+    def test_nao_dispara_em_abreviacao_de_numero(self):
+        """Falso-positivo real calibrado: LI Art. 90 lista 'Lei n° X' repetidas."""
+        chunk = make_chunk(texto_limpo=(
+            "Art. 90. Revogam-se: I - o Decreto n° 24.150; II - a Lei n° 6.239; "
+            "III - a Lei n° 6.649; IV - a Lei n° 6.698; V - a Lei n° 7.077; "
+            "VI - a Lei n° 7.612; VII - o Decreto n° 20.111; VIII - a Lei n° 1.300."
+        ))
+        rep = make_report()
+        validate_conteudo([chunk], rep)
+        assert not issues_with_rule(rep, "texto_quebrado_letra_a_letra")
+
+    def test_nao_dispara_em_incisos_romanos(self):
+        """Numerais romanos de inciso são MAIÚSCULOS — fora do match."""
+        chunk = make_chunk(texto_limpo=(
+            "Art. 5. São direitos: I - vida; V - lazer; X - honra; L - transporte; "
+            "C - cultura; D - dignidade; M - moradia; b) alínea normal; c) outra."
+        ))
+        rep = make_report()
+        validate_conteudo([chunk], rep)
+        assert not issues_with_rule(rep, "texto_quebrado_letra_a_letra")

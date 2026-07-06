@@ -285,6 +285,22 @@ def validate_artigos(data: list[dict], report: FileReport):
             _add(report, "WARN", "ARTIGO", "partes_descontinuas",
                  f"Partes {sorted(partes)} (esperado {expected_seq})", art_base)
 
+    # ── Standalone + partes coexistindo (mesmo artigo-base) ──
+    # Caso real (LC123 Art. 18, desde 2026-04): o Planalto traz o artigo 2x no HTML
+    # (caput limpo + corpo completo quebrado em partes) e o parser captura AMBOS —
+    # o chunk 'Art. 18' e os chunks 'Art. 18 (Parte N/M)' coexistem. RAG entrega
+    # conteudo dobrado/divergente pro LLM. Registrado em known_issues.json;
+    # elevar a FAIL quando a extracao do caso conhecido for corrigida.
+    labels_por_base = defaultdict(set)
+    for chunk in data:
+        base = re.sub(r'\s*\(Parte \d+/\d+\)', '', chunk["artigo"])
+        labels_por_base[base].add(chunk["artigo"])
+    for art_base, labels in labels_por_base.items():
+        if art_base in labels and len(labels) > 1:
+            _add(report, "WARN", "ARTIGO", "standalone_e_partes_coexistem",
+                 f"'{art_base}' existe como chunk unico E como {len(labels) - 1} partes — "
+                 f"captura duplicada do artigo (Planalto repete o artigo no HTML?)", art_base)
+
     # ── ID prefixo ──
     lei_lower = data[0].get("lei", "").lower()
     if lei_lower and data:
@@ -500,6 +516,20 @@ def _e_linha_orfa_m1(line: str) -> bool:
     return not resto                                    # vazio => era só rótulo + anotação
 
 
+# Texto quebrado letra-a-letra (kerning/spans do HTML do Planalto — caso real:
+# LC123, 28 chunks: "O v alor d e vido m ensa l mente"). Sinal de baixo
+# falso-positivo: consoante MINÚSCULA isolada não é palavra em português — em
+# texto legítimo a contagem é ~zero. Fora do match (calibrado na base inteira):
+#   - numerais romanos de inciso (MAIÚSCULOS);
+#   - alíneas "b)" e citações entre aspas ('alíneas "a" e "b"' — CLT Art. 334);
+#   - "n°"/"nº" (abreviação de número: 'Lei n° 6.239' — LI Art. 90);
+#   - compostos com hífen.
+_RE_CONSOANTE_SOLTA = re.compile(
+    r'(?<![\w\-("\'“‘])[bcdfghjklmnpqrstvwxz](?![\w\-)°º"\'”’])'
+)
+_TEXTO_QUEBRADO_MIN = 8   # consoantes soltas p/ acusar (legítimo fica em 0-2)
+
+
 def validate_conteudo(data: list[dict], report: FileReport):
     """Texto, encoding, tamanho, ruído, HTML, label×texto match."""
 
@@ -578,6 +608,16 @@ def validate_conteudo(data: list[dict], report: FileReport):
                 _add(report, "WARN", "CONTEUDO", "ruido_residual",
                      f"Marcador não removido: {marker[:30]}", art)
                 break
+
+        # ── Texto quebrado letra-a-letra (kerning do Planalto) ──
+        # Caso real: LC123 Art. 18 (partes) — embeddings viram lixo e o LLM recebe
+        # texto ilegível. WARN + known_issues enquanto o caso conhecido não é
+        # corrigido na extração; elevar a FAIL depois.
+        consoantes_soltas = _RE_CONSOANTE_SOLTA.findall(texto)
+        if len(consoantes_soltas) >= _TEXTO_QUEBRADO_MIN:
+            _add(report, "WARN", "CONTEUDO", "texto_quebrado_letra_a_letra",
+                 f"{len(consoantes_soltas)} consoantes minúsculas isoladas — texto "
+                 f"provavelmente quebrado letra-a-letra (ex: {' '.join(consoantes_soltas[:6])})", art)
 
         # ── Label × texto mismatch ──
         if art.startswith("Art."):
