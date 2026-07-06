@@ -132,3 +132,47 @@ class TestKnownAmendmentsECA:
     def test_artigos_novos_presentes(self):
         arts = _base_articles(_load("eca"))
         assert {"Art. 11-A", "Art. 89-A"} <= arts
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Caput-nu (artigo sem conteudo) — familia do reparo de dispositivos orfaos
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Texto que e SO o rotulo do artigo + pontuacao residual (ex: "Art. 384 -"), sem
+# conteudo nem anotacao de revogacao. Ver known_issues.json > caput_revogado_nu:
+# 261 REVOGADOS pre-existentes perderam a anotacao na limpeza (a redacao original
+# riscada do Planalto nao e capturada — backlog nivel 2 dos dispositivos orfaos).
+# Para vigente/vetado o mesmo padrao seria PERDA DE CONTEUDO — nunca tolerado.
+_RE_CAPUT_NU = re.compile(r'^Art\.\s*[\d.]+(?:-[A-Z])?\s*(?:[-–—.:°º]|a\s+[\d.]+\.?)*\s*$')
+
+# Ratchet: contagem ATUAL de revogados-nus por lei (extracao 2026-07-02, pos-fix
+# dos orfaos). Extracao futura pode DIMINUIR (anotacao recuperada), nunca crescer —
+# crescer significa que a limpeza passou a comer anotacao de artigo com conteudo.
+# Se um reparo legitimo reduzir a contagem, ABAIXE o teto correspondente.
+_CAPUT_NU_TETO = {
+    "cadastro_positivo": 0, "cdc": 0, "cf88": 0, "clt": 179, "codigo_civil": 65,
+    "cp": 11, "cpc": 1, "eca": 2, "lc123": 2, "lei_inquilinato": 0,
+    "lei_maria_penha": 0, "lei_terceirizacao": 0, "lgpd": 1,
+}
+
+
+def _caputs_nus(blocks, statuses):
+    return [b['artigo'] for b in blocks
+            if b.get('status') in statuses
+            and _RE_CAPUT_NU.match((b.get('texto_limpo') or '').strip())]
+
+
+@pytest.mark.parametrize("base", list(LAWS), ids=[v[0] for v in LAWS.values()])
+class TestCaputNu:
+    def test_vigente_ou_vetado_nunca_nu(self, base):
+        # HARD: artigo vigente/vetado cujo texto e so o rotulo = extracao perdeu
+        # o conteudo (mesma familia do bug CF88 Art. 7 XXVIII/XXIX de 2026-07-02).
+        nus = _caputs_nus(_load(base), ('vigente', 'vetado'))
+        assert not nus, (f"{LAWS[base][0]}: artigo vigente/vetado sem conteudo {nus[:5]}"
+                         f" — extracao perdeu o texto")
+
+    def test_revogado_nu_nao_cresce(self, base):
+        n = len(_caputs_nus(_load(base), ('revogado',)))
+        teto = _CAPUT_NU_TETO[base]
+        assert n <= teto, (f"{LAWS[base][0]}: {n} revogados-nus > teto {teto} — nova perda"
+                           f" de anotacao de revogacao na limpeza")
