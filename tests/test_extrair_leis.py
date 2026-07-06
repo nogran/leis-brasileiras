@@ -1298,6 +1298,58 @@ class TestReparoM1PreservaLiteral:
         assert "I -" not in linhas and "II -" not in linhas
 
 
+class TestReparoM1CaputRevogado:
+    """M1-CAPUT (2026-07-06): caput de artigo revogado cujo único conteúdo é a
+    anotação -> LITERAL do Planalto preservado (família caput_revogado_nu, 261
+    artigos; ver known_issues.json). Caput NUNCA é dropado (M2 não se aplica)."""
+
+    def test_caput_revogado_preserva_anotacao_literal(self):
+        # Texto REAL do clean.txt da CLT (Art. 384, revogado pela Reforma Trabalhista)
+        raw = (
+            "Art. 383 - Durante a jornada de trabalho, será concedido à empregada um "
+            "período de descanso não inferior a 1 (uma) hora nem superior a 2 (duas) horas.\n"
+            "Art. 384 - (Revogado pela Lei nº 13.467, de 2017)\n"
+            "Art. 385 - O descanso semanal será de 24 (vinte e quatro) horas consecutivas."
+        )
+        out = reparar_dispositivos_orfaos(raw)
+        assert "Art. 384 - (Revogado pela Lei nº 13.467, de 2017)" in out
+        linhas = [l.strip() for l in out.split("\n")]
+        assert "Art. 384 -" not in linhas          # caput nu não sobra
+        assert any(l.startswith("Art. 383") for l in linhas)   # vizinhos intactos
+        assert any(l.startswith("Art. 385") for l in linhas)
+
+    def test_caput_sem_anotacao_fica_como_esta(self):
+        # Caput JÁ nu no bruto (sem anotação nenhuma): nada a preservar, nada a dropar.
+        raw = (
+            "Art. 100\n"
+            "Art. 101 - Texto vigente normal do artigo seguinte."
+        )
+        out = reparar_dispositivos_orfaos(raw)
+        linhas = [l.strip() for l in out.split("\n")]
+        assert "Art. 100" in linhas                 # caput continua existindo
+        assert any(l.startswith("Art. 101") for l in linhas)
+
+    def test_caput_range_revogacao_em_bloco(self):
+        # CC "Art. 1.620. a 1.629." — revogação em bloco pela Lei 12.010/2009
+        raw = "Art. 1.620. a 1.629. (Revogados pela Lei nº 12.010, de 2009)"
+        out = reparar_dispositivos_orfaos(raw)
+        assert "(Revogados pela Lei nº 12.010, de 2009)" in out
+
+    def test_caput_vigente_com_anotacao_no_meio_nao_vira_literal(self):
+        # Artigo vigente: anotação removida normalmente, conteúdo fica.
+        raw = ("Art. 59.  A duração diária do trabalho poderá ser acrescida de horas "
+               "extras. (Redação dada pela Lei nº 13.467, de 2017)")
+        out = reparar_dispositivos_orfaos(raw)
+        assert "(Redação dada" not in out
+        assert "horas extras" in out.lower()
+
+    def test_caput_dot_leaders_de_elisao_intocado(self):
+        # Elisão legislativa em bloco de emenda (LC123/LMP): NUNCA tratar como nu.
+        raw = "Art. 2º ..............................."
+        out = reparar_dispositivos_orfaos(raw)
+        assert out.strip() == raw.strip()
+
+
 class TestReparoM2DropaOrfao:
     """M2: rótulo exatamente vazio (resíduo de <strike>) -> removido."""
 

@@ -22,7 +22,7 @@ import unicodedata
 import db
 
 # Versao do parser gravada em raw_captures.parser_version (permite re-parse historico).
-PARSER_VERSION = "extrair_leis@2"
+PARSER_VERSION = "extrair_leis@3"
 
 
 # =====================================================================
@@ -254,6 +254,23 @@ _ROTULO_VAZIO_RE = re.compile(
     re.IGNORECASE,
 )
 
+# M1-CAPUT (2026-07-06): caput de artigo cujo único conteúdo é a anotação de
+# revogação (ex: "Art. 384 - (Revogado pela Lei nº 13.467, de 2017)"). O strip
+# comia a anotação e sobrava o caput nu ("Art. 384 -") — 261 revogados na base
+# (ver known_issues.json > caput_revogado_nu). Mesmo tratamento M1: preservar a
+# linha LITERAL. NUNCA dropar caput (M2 não se aplica: o artigo precisa existir).
+# Pontuação residual limitada a {0,2} -> dot-leaders de elisão ("Art. 2º ....")
+# NÃO casam, mesma garantia permanente do M2.
+_CAPUT_NU_RE = re.compile(
+    r'^Art\.?\s*[\d.]*\d\s*[º°o]?(?:-[A-Z])?'   # rótulo: Art. 384 / Art. 130-A / Art. 5º
+    r'(?:\s*\.?\s*a\s*[\d.]*\d\.?)?'             # range de revogação em bloco: "Art. 1.620. a 1.629."
+    r'\s*[-–—.;,:]{0,2}\s*$'
+)
+
+
+def _e_caput_nu(s: str) -> bool:
+    return bool(_CAPUT_NU_RE.match(s.strip()))
+
 # Linha anterior termina numa REFERÊNCIA + vírgula (continuação de xref, não fim de frase).
 _XREF_PREV_RE = re.compile(
     r'(?:art\.?\s*[\d.]+|§\s*\d+\s*[º°o]?|inciso\s+[IVXLCDM]+|al[íi]nea\s+[a-z])\s*,\s*$',
@@ -301,7 +318,11 @@ def reparar_dispositivos_orfaos(texto_raw: str) -> str:
             continue                                # M2: rótulo exatamente vazio -> drop
         # M1: se o strip colapsaria a linha para um rótulo nu, a anotação removida era
         # o único conteúdo (revogado/vetado) -> guardar o LITERAL para restaurar depois.
-        if _e_rotulo_vazio(limpar_ruido_legislativo(s)):
+        # M1-CAPUT: idem para caput de artigo revogado ("Art. 384 - (Revogado pela...)");
+        # o guard `not _e_caput_nu(s)` deixa caputs JÁ nus no bruto (sem anotação, ou
+        # dot-leaders de elisão) passarem intactos — nada a preservar.
+        cl_linha = limpar_ruido_legislativo(s)
+        if _e_rotulo_vazio(cl_linha) or (_e_caput_nu(cl_linha) and not _e_caput_nu(s)):
             m1_literais.append(s)
         linhas_para_strip.append(ln)
 
@@ -309,11 +330,19 @@ def reparar_dispositivos_orfaos(texto_raw: str) -> str:
 
     if m1_literais:
         # Restaura os literais M1 nos rótulos nus resultantes (mesma ordem — o strip
-        # preserva a ordem das linhas e M2 já foi removido, então é 1:1).
-        it = iter(m1_literais)
+        # preserva a ordem das linhas e M2 já foi removido, então dispositivo é 1:1).
+        # Caput: restaura SÓ se o literal pendente colapsa exatamente para a linha nua
+        # (caput nu sem literal capturado — ex: dot-leaders — fica como está).
+        pend = list(m1_literais)
         restauradas = []
         for cl in texto_limpo.split("\n"):
-            restauradas.append(next(it) if _e_rotulo_vazio(cl) else cl)
+            if pend and _e_rotulo_vazio(cl):
+                restauradas.append(pend.pop(0))
+            elif pend and _e_caput_nu(cl) \
+                    and limpar_ruido_legislativo(pend[0]).strip() == cl.strip():
+                restauradas.append(pend.pop(0))
+            else:
+                restauradas.append(cl)
         texto_limpo = "\n".join(restauradas)
 
     return texto_limpo

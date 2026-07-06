@@ -135,13 +135,11 @@
   },
 
   "caput_revogado_nu": {
-    "_doc": "Artigos REVOGADOS cujo texto_limpo e so o rotulo do caput + pontuacao residual (ex: 'Art. 384 -'), sem a anotacao de revogacao. A anotacao/redacao original riscada do Planalto se perdeu na limpeza. PRE-EXISTENTES (mapeados 2026-07-06), mesma familia dos dispositivos orfaos mas em nivel de CAPUT — fora do escopo do M1 (que repara alinea/inciso/paragrafo). O status='revogado' esta correto em todos; o que falta e a anotacao literal (qual lei revogou). Captura da redacao riscada = backlog_nivel_2 de dispositivos_orfaos_reparados.",
-    "contagem_por_lei_2026-07-02": {
-      "CLT": 179, "CC": 65, "CP": 11, "CPC": 1, "ECA": 2, "LC123": 2, "LGPD": 1
-    },
-    "total": 261,
-    "invariantes_travados_por": "tests/test_law_content_regression.py::TestCaputNu — (1) vigente/vetado NUNCA nu (FAIL duro); (2) ratchet: revogados-nus por lei nao podem crescer",
-    "impacto_runtime": "ArticleLookupTool devolve o artigo com status=revogado (D-19, sem filtro); busca semantica filtra vigente por default (D-17). LLM sabe QUE esta revogado, mas nesses 261 nao sabe POR QUAL lei (alteracoes vazio na maioria)."
+    "_doc": "REPARADO 2026-07-06 (M1-CAPUT em extrair_leis._CAPUT_NU_RE / reparar_dispositivos_orfaos). Artigos REVOGADOS cujo texto_limpo era so o rotulo do caput (ex: 'Art. 384 -') porque limpar_ruido comia a anotacao de revogacao e o M1 original so cobria alinea/inciso/paragrafo. Reparo preserva a linha LITERAL do Planalto (ex: 'Art. 384 - (Revogado pela Lei no 13.467, de 2017)'). Regen parse-only hermetico dos clean.txt de 2026-07-02: 262 artigos alterados (CLT 179, CC 66 incl. range 1.620-1.629, CP 11, CPC 1, ECA 2, LC123 2, LGPD 1), zero nao-revogados tocados, zero adicoes/remocoes. Contagem pos-reparo: ZERO em todas as leis.",
+    "reparado_em": "2026-07-06",
+    "contagem_pos_reparo": 0,
+    "invariantes_travados_por": "tests/test_law_content_regression.py::TestCaputNu — (1) vigente/vetado NUNCA nu (FAIL duro); (2) ratchet em ZERO: qualquer revogado-nu novo falha. + tests/test_extrair_leis.py::TestReparoM1CaputRevogado (unit, incl. teste negativo de dot-leaders no caput)",
+    "pendente_nivel_2": "A redacao ORIGINAL riscada do Planalto continua nao capturada (so a anotacao foi recuperada). Ver dispositivos_orfaos_reparados.backlog_nivel_2."
   },
 
   "residuo_pontuacao_nao_tratado": {

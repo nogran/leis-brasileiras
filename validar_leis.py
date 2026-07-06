@@ -476,8 +476,11 @@ def validate_hierarquia(data: list[dict], report: FileReport):
 # dada pela EC nº 28, de 2000)"). O extrator PRESERVA a anotação literal de propósito
 # (fonte fiel, dispositivo não omitido). A checagem de ruido_residual deve ignorar
 # essas linhas — senão flag falso-positivo em ~76 artigos e mascara vazamento real.
+# M1-CAPUT (2026-07-06): idem para caput de artigo revogado
+# ("Art. 384 - (Revogado pela Lei nº 13.467, de 2017)") — 261 artigos na base.
 _RE_ROTULO_ORFAO = re.compile(
-    r'^(?:[a-z]\)|[IVXLCDM]{1,7}\s*[-–—]|§\s*\d+\s*[º°o]?(?:-[A-Z])?|Parágrafo\s+único)',
+    r'^(?:[a-z]\)|[IVXLCDM]{1,7}\s*[-–—]|§\s*\d+\s*[º°o]?(?:-[A-Z])?|Parágrafo\s+único'
+    r'|Art\.?\s*[\d.]*\d\s*[º°o]?(?:-[A-Z])?(?:\s*\.?\s*a\s*[\d.]*\d\.?)?)',
     re.IGNORECASE,
 )
 
@@ -489,7 +492,11 @@ def _e_linha_orfa_m1(line: str) -> bool:
         return False
     resto = _RE_ROTULO_ORFAO.sub('', s, count=1)
     resto = re.sub(r'\([^)]*\)', '', resto)          # remove anotações entre parênteses
-    resto = re.sub(r'[\s.;,\-–—]', '', resto)          # remove pontuação/espaços residuais
+    # Anotação SEM parêntese de fechamento (malformada na fonte, ex: ECA Art. 233
+    # "(Revogado pela Lei nº 9.455, de 7.4.1997 :") — mesmo caso do NOISE_PATTERN
+    # de revogação sem ')' no extrator. Só remove se corre até o fim da linha.
+    resto = re.sub(r'\([^)]*$', '', resto)
+    resto = re.sub(r'[\s.;,:\-–—]', '', resto)         # remove pontuação/espaços residuais
     return not resto                                    # vazio => era só rótulo + anotação
 
 

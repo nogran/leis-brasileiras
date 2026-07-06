@@ -139,20 +139,19 @@ class TestKnownAmendmentsECA:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 # Texto que e SO o rotulo do artigo + pontuacao residual (ex: "Art. 384 -"), sem
-# conteudo nem anotacao de revogacao. Ver known_issues.json > caput_revogado_nu:
-# 261 REVOGADOS pre-existentes perderam a anotacao na limpeza (a redacao original
-# riscada do Planalto nao e capturada — backlog nivel 2 dos dispositivos orfaos).
+# conteudo nem anotacao de revogacao. Familia caput_revogado_nu (known_issues.json):
+# 262 revogados perderam a anotacao na limpeza ate o reparo M1-CAPUT de 2026-07-06
+# (extrair_leis._CAPUT_NU_RE preserva a linha literal do Planalto). A redacao
+# original riscada continua nao capturada — backlog nivel 2 dos dispositivos orfaos.
 # Para vigente/vetado o mesmo padrao seria PERDA DE CONTEUDO — nunca tolerado.
-_RE_CAPUT_NU = re.compile(r'^Art\.\s*[\d.]+(?:-[A-Z])?\s*(?:[-–—.:°º]|a\s+[\d.]+\.?)*\s*$')
+_RE_CAPUT_NU = re.compile(r'^Art\.\s*[\d.]+(?:-[A-Z])?\s*(?:[-–—.:°º]|\.?\s*a\s+[\d.]+\.?)*\s*$')
 
-# Ratchet: contagem ATUAL de revogados-nus por lei (extracao 2026-07-02, pos-fix
-# dos orfaos). Extracao futura pode DIMINUIR (anotacao recuperada), nunca crescer —
-# crescer significa que a limpeza passou a comer anotacao de artigo com conteudo.
-# Se um reparo legitimo reduzir a contagem, ABAIXE o teto correspondente.
+# Ratchet: apos o reparo M1-CAPUT (2026-07-06) a contagem e ZERO em todas as leis.
+# Qualquer revogado-nu novo = a limpeza voltou a comer anotacao -> falha.
 _CAPUT_NU_TETO = {
-    "cadastro_positivo": 0, "cdc": 0, "cf88": 0, "clt": 179, "codigo_civil": 65,
-    "cp": 11, "cpc": 1, "eca": 2, "lc123": 2, "lei_inquilinato": 0,
-    "lei_maria_penha": 0, "lei_terceirizacao": 0, "lgpd": 1,
+    "cadastro_positivo": 0, "cdc": 0, "cf88": 0, "clt": 0, "codigo_civil": 0,
+    "cp": 0, "cpc": 0, "eca": 0, "lc123": 0, "lei_inquilinato": 0,
+    "lei_maria_penha": 0, "lei_terceirizacao": 0, "lgpd": 0,
 }
 
 
