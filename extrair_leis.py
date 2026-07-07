@@ -633,6 +633,11 @@ def criar_sessao():
 def split_com_overlap(texto: str, max_chars: int = 6000, overlap_chars: int = 400) -> list[str]:
     if len(texto) <= max_chars:
         return [texto]
+    # 2026-07-08 (2ª rodada do ANEXO da CLT): cortar num '\n' que esta perto demais
+    # do INICIO da janela produz fatia inutil (a parte 1 ficou com 30 chars, 'ANEXO
+    # Quadro a que se refere o'). '\n' util e perto do FIM; senao, corta em ESPACO —
+    # nunca no meio de palavra.
+    min_parte = max(overlap_chars * 2, 800)
     partes, inicio = [], 0
     while inicio < len(texto):
         fim = inicio + max_chars
@@ -640,10 +645,10 @@ def split_com_overlap(texto: str, max_chars: int = 6000, overlap_chars: int = 40
             partes.append(texto[inicio:].strip())
             break
         corte = texto.rfind('\n', inicio, fim)
-        if corte <= inicio:
-            # 2026-07-08: sem '\n' no trecho (linha gigante, ex: quadro do ANEXO da
-            # CLT com 24k chars), corta em ESPACO — nunca no meio de palavra.
-            corte = texto.rfind(' ', inicio, fim)
+        if corte - inicio < min_parte:
+            corte_espaco = texto.rfind(' ', inicio, fim)
+            if corte_espaco - inicio > corte - inicio:
+                corte = corte_espaco
         if corte <= inicio:
             corte = fim
         partes.append(texto[inicio:corte].strip())
@@ -1014,7 +1019,13 @@ def dedup_redacoes_bloco_ex(texto: str) -> tuple[str, list[str]]:
 #  EXTRACAO DE ESTRUTURA (config-driven)
 # =====================================================================
 
-def extrair_estrutura(texto, sigla, versao, url, data_ext, config, descartados_out=None):
+# Guard do dedup: dispositivo com sufixo-letra (§ 5o-K, 18-A, IV-B) nunca pode
+# sumir numa remocao de redacao antiga — se sumiria, o dedup do artigo e abortado.
+_DEDUP_SUFIXO_RE = re.compile(r'§\s*\d+[°ºo]?-[A-Z]|[IVXLCDM]+-[A-Z]\s*[-–—]')
+
+
+def extrair_estrutura(texto, sigla, versao, url, data_ext, config,
+                      descartados_out=None, dedup_out=None):
     livro = titulo = subtitulo = capitulo = secao = ""
     livro_nome = titulo_nome = subtitulo_nome = capitulo_nome = secao_nome = ""
     # PL-19 Estagio 2: notas_legais, controle_const e alteracoes por nivel
@@ -1107,6 +1118,28 @@ def extrair_estrutura(texto, sigla, versao, url, data_ext, config, descartados_o
         # Se já tem (ex: "Incluído pela Lei 14.181" + vetado), o veto foi nessa lei.
         if status == 'vetado_total' and not alteracoes:
             alteracoes = [{"tipo": "vetado", "norma": f"Veto na sanção — {versao}", "escopo": "artigo"}]
+
+        # 2026-07-08: dedup de redacoes no ARTIGO INTEIRO, ANTES do split
+        # (incidente LC123 Art. 18): rodando por-parte depois do split, um par
+        # duplicado (redacao velha + vigente do mesmo dispositivo) que caisse em
+        # partes DIFERENTES escapava do dedup — e a parte servia a redacao VELHA
+        # como texto vigente. No artigo inteiro o par e sempre visto junto, e as
+        # partes nunca mais sao editadas depois do corte (overlap fica integro).
+        # Guards identicos ao fluxo antigo do parse_law.
+        if config.get("dedup_redacoes"):
+            texto_dedup, removidas_dedup = dedup_redacoes_bloco_ex(texto_limpo)
+            if texto_dedup != texto_limpo:
+                sufixos_perdidos = (set(_DEDUP_SUFIXO_RE.findall(texto_limpo))
+                                    - set(_DEDUP_SUFIXO_RE.findall(texto_dedup)))
+                if sufixos_perdidos:
+                    print(f"  ⚠️  DEDUP ABORTADO {artigo_label}: perderia {sufixos_perdidos}")
+                elif len(texto_dedup.strip()) < 20:
+                    print(f"  ⚠️  DEDUP ABORTADO {artigo_label}: texto ficaria muito curto")
+                else:
+                    texto_limpo = texto_dedup
+                    if dedup_out is not None:
+                        for r in removidas_dedup:
+                            dedup_out.append({"artigo": artigo_label, "texto": r})
 
         partes = split_com_overlap(texto_limpo)
         for i, parte in enumerate(partes):
@@ -1396,8 +1429,10 @@ def parse_law(clean_text, sigla, versao, url, data_ext, config):
     stats['descartes'] carrega TODO texto removido em decisoes de dedup (dup_rotulo e
     dedup_redacoes) — nada some em silencio; extrair_lei arquiva no sidecar."""
     dup_rotulo = []
+    dedup_removidos = []
     blocos = extrair_estrutura(clean_text, sigla, versao, url, data_ext, config,
-                               descartados_out=dup_rotulo)
+                               descartados_out=dup_rotulo,
+                               dedup_out=dedup_removidos)
 
     # Guardrail: sem NENHUM artigo real "Art. N", o parser não enxergou a estrutura
     # (ex: tudo caiu como EMENTA) — sinal de encoding/HTML corrompido. Aborta antes de
@@ -1513,29 +1548,11 @@ def parse_law(clean_text, sigla, versao, url, data_ext, config):
         lapides_count += 1
 
     # -- Dedup redações (config-driven) --
-    dedup_count = 0
-    dedup_removidos = []
-    _SUFIXO_RE = re.compile(r'§\s*\d+[°ºo]?-[A-Z]|[IVXLCDM]+-[A-Z]\s*[-–—]')
-    if config.get("dedup_redacoes"):
-        for bloco in blocos:
-            texto_orig = bloco["texto_limpo"]
-            texto_limpo, removidas = dedup_redacoes_bloco_ex(texto_orig)
-            if texto_limpo != texto_orig:
-                # Sanity check: nenhum dispositivo com sufixo-letra pode sumir
-                sufixos_antes = set(_SUFIXO_RE.findall(texto_orig))
-                sufixos_depois = set(_SUFIXO_RE.findall(texto_limpo))
-                perdidos = sufixos_antes - sufixos_depois
-                if perdidos:
-                    print(f"  ⚠️  DEDUP ABORTADO {bloco['artigo']}: perderia {perdidos}")
-                    continue  # não aplica o dedup neste bloco
-                if len(texto_limpo.strip()) < 20:
-                    print(f"  ⚠️  DEDUP ABORTADO {bloco['artigo']}: texto ficaria muito curto")
-                    continue
-                bloco["texto_limpo"] = texto_limpo
-                bloco["hash_artigo"] = hash_texto(texto_limpo)
-                dedup_count += 1
-                for r in removidas:
-                    dedup_removidos.append({"artigo": bloco["artigo"], "texto": r})
+    # 2026-07-08: o dedup em si roda DENTRO de extrair_estrutura, no artigo
+    # inteiro ANTES do split (ver flush_buffer) — por-parte, um par duplicado
+    # que caisse em partes diferentes escapava (incidente LC123 Art. 18).
+    # Aqui fica so a contabilidade pro sidecar _riscadas.
+    dedup_count = len({d["artigo"] for d in dedup_removidos})
     return blocos, {"lapides": lapides_count, "dedup": dedup_count,
                     "descartes": {"dup_rotulo": dup_rotulo,
                                   "dedup_redacoes": dedup_removidos}}

@@ -2096,3 +2096,114 @@ class TestSplitComOverlapNaoDegenera:
         partes = _ex.split_com_overlap("\n".join(linhas), max_chars=3000, overlap_chars=400)
         assert len(partes) >= 2
         assert any(l in partes[1] for l in partes[0][-200:].split("\n") if l.strip())
+
+
+class TestSplitComOverlapParteMinima:
+    """BUG (CLT ANEXO, 2026-07-08, 2ª rodada): o fix da janela degenerada ainda
+    deixava a PRIMEIRA parte com 30 chars ('ANEXO Quadro a que se refere o') —
+    o único '\\n' perto do início virava o corte da parte 1. NENHUMA parte pode
+    ser fatia inútil: se o '\\n' está perto demais do início da janela, o corte
+    cai no último ESPAÇO da janela."""
+
+    def test_primeira_parte_nao_e_fatia_minuscula(self):
+        corpo = " ".join(f"palavra{i}" for i in range(2500))  # UMA linha gigante
+        texto = "ANEXO\nQuadro a que se refere o " + corpo
+        partes = _ex.split_com_overlap(texto, max_chars=6000, overlap_chars=400)
+        assert all(len(p) >= 800 for p in partes[:-1]), \
+            f"fatia inútil: {[p[:60] for p in partes if len(p) < 800]!r}"
+        assert partes[0].startswith("ANEXO")
+        assert len(partes[0]) > 4000
+
+    def test_newline_perto_do_fim_continua_sendo_o_corte(self):
+        # texto multi-linha normal: o '\n' útil (perto do fim da janela) segue
+        # sendo o ponto de corte — o fallback de espaço não muda nada aqui
+        linhas = [f"Linha {i:04d} " + "y" * 60 for i in range(200)]
+        partes = _ex.split_com_overlap("\n".join(linhas), max_chars=3000, overlap_chars=300)
+        assert len(partes) >= 3
+        for p in partes[:-1]:
+            assert p.endswith("y"), f"corte fora do fim de linha: ...{p[-25:]!r}"
+
+    def test_nada_se_perde_na_linha_gigante(self):
+        corpo = " ".join(f"palavra{i}" for i in range(2500))
+        texto = "ANEXO\nQuadro a que se refere o " + corpo
+        partes = _ex.split_com_overlap(texto, max_chars=6000, overlap_chars=400)
+        blob = " ".join(partes)
+        for i in (0, 1, 500, 1500, 2499):
+            assert f"palavra{i}" in blob
+
+
+class TestDedupAntesDoSplit:
+    """BUG (LC123 Art. 18, 2026-07-08): o dedup de redações rodava POR PARTE,
+    DEPOIS do split — um par duplicado (redação velha + vigente do mesmo §) que
+    caísse em partes DIFERENTES escapava do dedup, e uma parte servia a redação
+    VELHA como texto vigente (fragmento estale 'o entre a folha de salários...').
+    O dedup roda no artigo INTEIRO, antes do split: o par é sempre visto junto."""
+
+    CFG = {"boundaries": [], "dedup_redacoes": True}
+
+    @staticmethod
+    def _artigo_com_par_cruzando_o_split():
+        # par duplicado do § 11 posicionado em volta do corte de 6000 chars:
+        # no comportamento antigo, VELHO ficava na parte 1 e o dedup por-parte
+        # não tinha como removê-lo (o NOVO estava na parte 2).
+        linhas = ["Art. 1 Caput do artigo sintetico de teste do dedup."]
+        for i in range(1, 11):
+            linhas.append(f"§ {i} o Paragrafo {i} " + f"conteudo{i} " * 50)
+        linhas.append("§ 11 o TEXTO VELHO da redacao antiga do paragrafo onze.")
+        linhas.append("§ 11 o TEXTO NOVO vigente do paragrafo onze. " + "vigente " * 45)
+        for i in range(12, 14):
+            linhas.append(f"§ {i} o Paragrafo {i} " + f"conteudo{i} " * 50)
+        return "\n".join(linhas)
+
+    def test_redacao_velha_nao_sobrevive_em_nenhuma_parte(self):
+        dedup_out = []
+        blocos = _ex.extrair_estrutura(
+            self._artigo_com_par_cruzando_o_split(), "TST", "Lei Teste",
+            "http://teste", "2026-07-08", self.CFG, dedup_out=dedup_out)
+        partes = [b for b in blocos if b["artigo"].startswith("Art. 1")]
+        assert len(partes) >= 2, "cenário não exercitou split real"
+        todos = " ".join(b["texto_limpo"] for b in partes)
+        assert "TEXTO VELHO" not in todos, \
+            "redação velha servida como vigente (dedup escapou pelo split)"
+        assert "TEXTO NOVO" in todos
+        # nada some em silêncio: a remoção volta pro chamador (sidecar)
+        assert any("TEXTO VELHO" in d["texto"] for d in dedup_out)
+
+    def test_partes_continuam_encadeando_com_overlap(self):
+        # dedup ANTES do split => nada edita as partes depois de cortadas,
+        # logo o overlap entre partes consecutivas é sempre íntegro
+        blocos = _ex.extrair_estrutura(
+            self._artigo_com_par_cruzando_o_split(), "TST", "Lei Teste",
+            "http://teste", "2026-07-08", self.CFG, dedup_out=[])
+        partes = [b for b in blocos if b["artigo"].startswith("Art. 1")]
+        assert len(partes) >= 2
+        _n = lambda s: re.sub(r"\s+", " ", s).strip()
+        for a, b in zip(partes, partes[1:]):
+            head = _n(b["texto_limpo"])[:60]
+            assert head in _n(a["texto_limpo"]), \
+                f"{b['artigo']} não continua {a['artigo']}"
+
+    def test_parse_law_arquiva_remocoes_nos_descartes(self):
+        # contrato do sidecar _riscadas: stats['descartes']['dedup_redacoes']
+        blocos, stats = _ex.parse_law(
+            self._artigo_com_par_cruzando_o_split(), "TST", "Lei Teste",
+            "http://teste", "2026-07-08", self.CFG)
+        assert any("TEXTO VELHO" in d["texto"]
+                   for d in stats["descartes"]["dedup_redacoes"])
+        assert stats["dedup"] >= 1
+
+    def test_guard_sufixo_letra_continua_abortando(self):
+        # dedup que faria SUMIR um sufixo-letra do artigo é ABORTADO
+        # (mesmo guard do fluxo antigo, agora no artigo inteiro): o § 3o-B
+        # só existe dentro da linha que o dedup removeria
+        texto = "\n".join([
+            "Art. 1 Caput de teste do guard.",
+            "§ 2 o Redacao antiga que menciona o § 3o-B da lei.",
+            "§ 2 o Redacao vigente sem a mencao.",
+        ])
+        dedup_out = []
+        blocos = _ex.extrair_estrutura(texto, "TST", "Lei Teste", "http://teste",
+                                       "2026-07-08", self.CFG, dedup_out=dedup_out)
+        todos = " ".join(b["texto_limpo"] for b in blocos)
+        assert "Redacao antiga" in todos, "guard não abortou: § 3o-B sumiria"
+        assert dedup_out == []
