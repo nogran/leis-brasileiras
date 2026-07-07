@@ -1612,6 +1612,110 @@ class TestHtmlStageFixesLc123:
         )
 
 
+class TestDedupNaoComeIncisoVigente:
+    """BUG DE PRODUCAO (achado pela auditoria de perda total, 2026-07-07): o Planalto
+    omite o traco separador em incisos com sufixo ('I-A o Conselho...') e o regex do
+    dedup lia 'I' + traco -> prefixo 'I' igual ao inciso I REAL -> removia
+    'I - o Supremo Tribunal Federal' do Art. 92 (e o V do Art. 109) como se fosse
+    redacao antiga. Advogado perguntando 'orgaos do Judiciario' recebia lista SEM STF."""
+
+    def test_art92_inciso_I_sobrevive(self):
+        texto = (
+            "Art. 92. São órgãos do Poder Judiciário:\n"
+            "I - o Supremo Tribunal Federal;\n"
+            "I-A o Conselho Nacional de Justiça; (Incluído pela Emenda Constitucional nº 45, de 2004)\n"
+            "II - o Superior Tribunal de Justiça;\n"
+            "II-A - o Tribunal Superior do Trabalho; (Incluído pela Emenda Constitucional nº 92, de 2016)\n"
+            "III - os Tribunais Regionais Federais e Juízes Federais;"
+        )
+        out = _ex.dedup_redacoes_bloco(texto)
+        assert "I - o Supremo Tribunal Federal;" in out, "dedup comeu o STF do Art. 92!"
+        assert "I-A o Conselho Nacional" in out
+        assert "II-A - o Tribunal Superior do Trabalho" in out
+
+    def test_art109_inciso_V_sobrevive(self):
+        texto = (
+            "Art. 109. Aos juízes federais compete processar e julgar:\n"
+            "V - os crimes previstos em tratado ou convenção internacional, quando, "
+            "iniciada a execução no País, o resultado tenha ou devesse ter ocorrido no estrangeiro;\n"
+            "V-A as causas relativas a direitos humanos a que se refere o § 5º deste artigo; "
+            "(Incluído pela Emenda Constitucional nº 45, de 2004)\n"
+            "VI - os crimes contra a organização do trabalho;"
+        )
+        out = _ex.dedup_redacoes_bloco(texto)
+        assert "V - os crimes previstos em tratado" in out, "dedup comeu o inciso V do Art. 109!"
+        assert "V-A as causas relativas" in out
+
+    def test_dedup_legitimo_continua_funcionando(self):
+        """Regressão: duplicata REAL de redação (mesmo prefixo, velha+nova) segue dedupada."""
+        texto = (
+            "Art. 10. Texto do caput do artigo décimo desta lei.\n"
+            "§ 1º Redação antiga do parágrafo primeiro que foi substituída depois.\n"
+            "§ 1º Redação nova do parágrafo primeiro dada por lei posterior. (Redação dada pela Lei nº 9.999, de 2020)\n"
+            "§ 2º Parágrafo segundo intacto."
+        )
+        out = _ex.dedup_redacoes_bloco(texto)
+        assert "Redação antiga" not in out
+        assert "Redação nova" in out
+        assert "§ 2º Parágrafo segundo" in out
+
+
+class TestDescartesArquivados:
+    """2026-07-07: NADA é descartado silenciosamente. Toda remoção de dedup
+    (redações antigas) e de dedup-por-rótulo (promulgação CLT, 2ª lista de
+    SIGNATÁRIOS CF88) volta em stats['descartes'] pro arquivamento no sidecar."""
+
+    def test_dedup_ex_devolve_removidas(self):
+        texto = (
+            "Art. 10. Caput do artigo décimo com texto suficiente.\n"
+            "§ 1º Redação antiga substituída por lei posterior aqui.\n"
+            "§ 1º Redação nova vigente do parágrafo. (Redação dada pela Lei nº 9.999, de 2020)"
+        )
+        novo, removidas = _ex.dedup_redacoes_bloco_ex(texto)
+        assert "Redação antiga" not in novo
+        assert removidas == ["§ 1º Redação antiga substituída por lei posterior aqui."]
+
+    def test_dup_rotulo_arquiva_o_menor(self):
+        """Dois blocos com o MESMO rótulo (caso real: CLT Art. 1 da promulgação vs
+        Art. 1 do corpo): o maior fica, o menor vai pro descartados_out."""
+        texto = (
+            "Art. 1º Fica aprovada a Consolidação das Leis do Trabalho.\n"
+            "Art. 2º Este decreto-lei entra em vigor na data de sua publicação oficial.\n"
+            "Art. 1º - Esta Consolidação estatui as normas que regulam as relações "
+            "individuais e coletivas de trabalho, nela previstas, em todo o território "
+            "nacional, com as exceções expressamente consignadas em lei.\n"
+        )
+        descartados = []
+        blocos = _ex.extrair_estrutura(texto, "TEST", "Lei Test", "http://t",
+                                       "2026-07-07", {}, descartados_out=descartados)
+        art1 = next(b for b in blocos if b["artigo"] == "Art. 1")
+        assert "Esta Consolidação estatui" in art1["texto_limpo"]      # maior venceu
+        assert any(d["artigo"] == "Art. 1" and "Fica aprovada" in d["texto"]
+                   for d in descartados), "promulgação descartada NÃO foi arquivada"
+
+    def test_parse_law_expoe_descartes_nas_stats(self):
+        texto = (
+            "Art. 10. Caput do artigo décimo com texto bem suficiente aqui.\n"
+            "§ 1º Redação antiga substituída por outra lei posterior.\n"
+            "§ 1º Redação nova vigente dada por lei posterior mesmo. (Redação dada pela Lei nº 9.999, de 2020)"
+        )
+        cfg = {"versao": "Lei Test", "url": "http://t", "nome_base": "t",
+               "dedup_redacoes": True}
+        blocos, stats = _ex.parse_law(texto, "CDC", cfg["versao"], cfg["url"],
+                                      "2026-07-07", cfg)
+        assert "descartes" in stats
+        dr = stats["descartes"]["dedup_redacoes"]
+        assert any("Redação antiga" in d["texto"] for d in dr)
+        assert all(set(d) == {"artigo", "texto"} for d in dr)
+
+    def test_retrocompat_extrair_estrutura_sem_out(self):
+        """Chamada antiga (sem descartados_out) continua funcionando igual."""
+        blocos = _ex.extrair_estrutura(
+            "Art. 1º Texto do artigo primeiro com tamanho suficiente aqui.",
+            "TEST", "Lei Test", "http://t", "2026-07-07", {})
+        assert len(blocos) == 1
+
+
 class TestHarvestRedacoesRiscadas:
     """Nível 2 F1: colheita das redações RISCADAS (histórico de redações).
     NÃO altera clean_text — é leitura paralela dos mesmos bytes."""

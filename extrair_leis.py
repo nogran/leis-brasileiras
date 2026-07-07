@@ -912,8 +912,13 @@ def extrair_referencias(texto: str, artigo_atual: str) -> dict:
 
 
 # --- Dedup de redações (config-driven, roda pós-extração) ---
+# 2026-07-07: o traco separador do ramo ROMANO exige espaco/fim depois — o Planalto
+# omite o traco em incisos com sufixo ('I-A o Conselho...') e sem o lookahead o regex
+# lia 'I' + '-' (o hifen do sufixo!) -> prefixo 'I' igual ao inciso I REAL -> o dedup
+# removia 'I - o Supremo Tribunal Federal' (CF88 Art. 92) e o V do Art. 109 como se
+# fossem redacao antiga. Travado por TestDedupNaoComeIncisoVigente.
 _DEDUP_PREFIX_RE = re.compile(
-    r'^(\s*(?:[IVXLCDM]+(?:-[A-Z])?\s*[-–—]|§\s*\d+\s*[°ºo]?(?:-[A-Z])?\s*[-–—.\s]|Parágrafo\s+único|[a-z]\)))'
+    r'^(\s*(?:[IVXLCDM]+(?:-[A-Z])?\s*[-–—](?=\s|$)|§\s*\d+\s*[°ºo]?(?:-[A-Z])?\s*[-–—.\s]|Parágrafo\s+único|[a-z]\)))'
 )
 _DEDUP_HIERARCHY_RE = re.compile(r'^\s*(§\s*\d+|Parágrafo\s+único)', re.IGNORECASE)
 _DEDUP_PARA_RE = re.compile(r'^§\s*\d+')
@@ -927,11 +932,19 @@ def _norm_prefix(prefix: str) -> str:
     return _DEDUP_NORM_RE.sub('', prefix)
 
 def dedup_redacoes_bloco(texto: str) -> str:
-    """Remove redações antigas de texto_limpo.
-    Regra: mesmo prefixo na mesma hierarquia → última ocorrência é vigente."""
+    """Remove redações antigas de texto_limpo (wrapper compatível — ver _ex)."""
+    novo, _removidas = dedup_redacoes_bloco_ex(texto)
+    return novo
+
+
+def dedup_redacoes_bloco_ex(texto: str) -> tuple[str, list[str]]:
+    """Remove redações antigas de texto_limpo E DEVOLVE o que removeu.
+    Regra: mesmo prefixo na mesma hierarquia → última ocorrência é vigente.
+    NADA é descartado silenciosamente (2026-07-07): as linhas removidas voltam ao
+    chamador para arquivamento no sidecar _riscadas.json (histórico de redações)."""
     lines = texto.split('\n')
     if len(lines) < 2:
-        return texto
+        return texto, []
     prefixes = [None] * len(lines)
     norm_prefixes = [None] * len(lines)
     for i, line in enumerate(lines):
@@ -957,15 +970,17 @@ def dedup_redacoes_bloco(texto: str) -> str:
             if not is_para:
                 break
     if not to_remove:
-        return texto
-    return '\n'.join(line for idx, line in enumerate(lines) if idx not in to_remove)
+        return texto, []
+    removidas = [lines[idx] for idx in sorted(to_remove)]
+    return ('\n'.join(line for idx, line in enumerate(lines) if idx not in to_remove),
+            removidas)
 
 
 # =====================================================================
 #  EXTRACAO DE ESTRUTURA (config-driven)
 # =====================================================================
 
-def extrair_estrutura(texto, sigla, versao, url, data_ext, config):
+def extrair_estrutura(texto, sigla, versao, url, data_ext, config, descartados_out=None):
     livro = titulo = subtitulo = capitulo = secao = ""
     livro_nome = titulo_nome = subtitulo_nome = capitulo_nome = secao_nome = ""
     # PL-19 Estagio 2: notas_legais, controle_const e alteracoes por nivel
@@ -1307,12 +1322,20 @@ def extrair_estrutura(texto, sigla, versao, url, data_ext, config):
 
     flush_buffer(artigo_label_atual)
 
-    # Dedup
+    # Dedup por rotulo: mantém o bloco de MAIOR texto por label. 2026-07-07: os
+    # descartados NAO somem em silêncio — vão pra descartados_out (arquivados no
+    # sidecar _riscadas.json). Casos reais: artigos de promulgação da CLT (Art. 1/2
+    # do decreto-lei) e a 2ª lista de SIGNATÁRIOS da CF88 (corpo vs ADCT).
     vistos = {}
     for b in blocos:
         chave = b["artigo"]
         if chave not in vistos or len(b["texto_limpo"]) > len(vistos[chave]["texto_limpo"]):
+            if chave in vistos and descartados_out is not None:
+                descartados_out.append({"artigo": chave,
+                                        "texto": vistos[chave]["texto_limpo"]})
             vistos[chave] = b
+        elif descartados_out is not None:
+            descartados_out.append({"artigo": chave, "texto": b["texto_limpo"]})
     return list(vistos.values())
 
 
@@ -1323,8 +1346,12 @@ def extrair_estrutura(texto, sigla, versao, url, data_ext, config):
 def parse_law(clean_text, sigla, versao, url, data_ext, config):
     """clean_text -> blocos enriquecidos (extrair_estrutura + guardrail + overrides
     do known_issues + lapides + dedup). PURA/deterministica: sem HTTP/DB/capture_id.
-    Extraida de extrair_lei pra permitir o golden test (clean.txt commitado -> JSON)."""
-    blocos = extrair_estrutura(clean_text, sigla, versao, url, data_ext, config)
+    Extraida de extrair_lei pra permitir o golden test (clean.txt commitado -> JSON).
+    stats['descartes'] carrega TODO texto removido em decisoes de dedup (dup_rotulo e
+    dedup_redacoes) — nada some em silencio; extrair_lei arquiva no sidecar."""
+    dup_rotulo = []
+    blocos = extrair_estrutura(clean_text, sigla, versao, url, data_ext, config,
+                               descartados_out=dup_rotulo)
 
     # Guardrail: sem NENHUM artigo real "Art. N", o parser não enxergou a estrutura
     # (ex: tudo caiu como EMENTA) — sinal de encoding/HTML corrompido. Aborta antes de
@@ -1441,11 +1468,12 @@ def parse_law(clean_text, sigla, versao, url, data_ext, config):
 
     # -- Dedup redações (config-driven) --
     dedup_count = 0
+    dedup_removidos = []
     _SUFIXO_RE = re.compile(r'§\s*\d+[°ºo]?-[A-Z]|[IVXLCDM]+-[A-Z]\s*[-–—]')
     if config.get("dedup_redacoes"):
         for bloco in blocos:
             texto_orig = bloco["texto_limpo"]
-            texto_limpo = dedup_redacoes_bloco(texto_orig)
+            texto_limpo, removidas = dedup_redacoes_bloco_ex(texto_orig)
             if texto_limpo != texto_orig:
                 # Sanity check: nenhum dispositivo com sufixo-letra pode sumir
                 sufixos_antes = set(_SUFIXO_RE.findall(texto_orig))
@@ -1460,7 +1488,11 @@ def parse_law(clean_text, sigla, versao, url, data_ext, config):
                 bloco["texto_limpo"] = texto_limpo
                 bloco["hash_artigo"] = hash_texto(texto_limpo)
                 dedup_count += 1
-    return blocos, {"lapides": lapides_count, "dedup": dedup_count}
+                for r in removidas:
+                    dedup_removidos.append({"artigo": bloco["artigo"], "texto": r})
+    return blocos, {"lapides": lapides_count, "dedup": dedup_count,
+                    "descartes": {"dup_rotulo": dup_rotulo,
+                                  "dedup_redacoes": dedup_removidos}}
 
 
 def _make_soup(content: bytes, config: dict) -> BeautifulSoup:
@@ -1750,12 +1782,26 @@ def extrair_lei(session, sigla, force=False):
     # fluxo de ingestao de artigos (filtrado por '_riscadas' nos consumidores) — sera
     # ingerido pela F2 (tabela prior_redactions).
     riscadas = harvest_redacoes_riscadas(response.content, sigla, config)
+    # NADA descartado em silencio: remocoes do dedup (redacoes antigas nao-riscadas)
+    # e do dedup por rotulo (ex: promulgacao da CLT, 2a lista de SIGNATARIOS) tambem
+    # sao arquivadas no MESMO sidecar, com fonte_marcacao propria.
+    for fonte, items in _stats.get("descartes", {}).items():
+        for d in items:
+            riscadas.append({
+                "artigo_base": re.sub(r' \(Parte \d+/\d+\)$', '', d["artigo"]),
+                "dispositivo": "",
+                "texto": d["texto"],
+                "fonte_marcacao": fonte,          # 'dedup_redacoes' | 'dup_rotulo'
+                "hash": hash_texto(d["texto"]),
+                "ordem": len(riscadas) + 1,
+            })
     with open(f"data/{nome_base}_{data_ext}_riscadas.json", "w", encoding="utf-8") as f:
         json.dump({"lei": sigla, "versao": versao, "data_extracao": data_ext,
                    "capture_id": str(capture_id), "url_fonte": url,
                    "total": len(riscadas), "riscadas": riscadas},
                   f, ensure_ascii=False, indent=2)
-    print(f"   redacoes riscadas colhidas: {len(riscadas)}")
+    print(f"   redacoes historicas arquivadas: {len(riscadas)} "
+          f"(riscadas + dedup + dup_rotulo)")
 
     vet = sum(1 for b in blocos if b["status"] == "vetado_total")
     rev = sum(1 for b in blocos if b["status"] == "revogado")
