@@ -1441,35 +1441,28 @@ def parse_law(clean_text, sigla, versao, url, data_ext, config):
     return blocos, {"lapides": lapides_count, "dedup": dedup_count}
 
 
-def extrair_lei(session, sigla, force=False):
-    config = LEIS_CONFIG.get(sigla)
-    if not config:
-        print(f"❌ Sigla desconhecida: {sigla}"); return False
+def html_to_clean_text(content: bytes, sigla: str, config: dict) -> str:
+    """Estagio HTML -> clean_text do Portao 1, como funcao PURA/deterministica:
+    bytes crus do Planalto -> texto limpo pronto pro parse_law. Sem HTTP/DB/arquivo.
+    Extraida de extrair_lei pra permitir o golden HTML->clean.txt (fixtures de HTML
+    cru commitadas em tests/fixtures/) — era o UNICO estagio sem teste, onde moraram
+    os bugs do <strike> (CF88 a/b), kerning e riscado-CSS (LC123).
 
-    versao, url, nome_base = config["versao"], config["url"], config["nome_base"]
+    Levanta RuntimeError se o decode produzir NUL em massa (guardrail de encoding)."""
     encoding = config.get("encoding")
-    print(f"\n📥 Processando {sigla}...")
-
-    try:
-        response = session.get(url, timeout=120)
-        response.raise_for_status()
-    except Exception as e:
-        print(f"❌ Erro na requisição: {e}"); return False
 
     # Encoding
-    if encoding == "utf-16" or response.content.startswith((b'\xff\xfe', b'\xfe\xff')):
+    if encoding == "utf-16" or content.startswith((b'\xff\xfe', b'\xfe\xff')):
         # decode_utf16 resolve o endianness deterministicamente (BOM ou BE/LE sem BOM) e
         # entrega STR pro BS4 — nunca deixar o UnicodeDammit adivinhar em UTF-16.
-        soup = BeautifulSoup(decode_utf16(response.content), "html.parser")
+        soup = BeautifulSoup(decode_utf16(content), "html.parser")
     elif encoding:
-        soup = BeautifulSoup(response.content, "html.parser", from_encoding=encoding)
+        soup = BeautifulSoup(content, "html.parser", from_encoding=encoding)
     else:
-        soup = BeautifulSoup(response.content, "html.parser")
+        soup = BeautifulSoup(content, "html.parser")
         det = soup.original_encoding
         det = det if det and det.lower() in ('utf-8','windows-1252','iso-8859-1','latin-1') else "windows-1252"
-        soup = BeautifulSoup(response.content, "html.parser", from_encoding=det)
-
-    data_ext = datetime.now().strftime("%Y-%m-%d")
+        soup = BeautifulSoup(content, "html.parser", from_encoding=det)
 
     for tag in soup(["script","style","nav","header","footer","aside","meta","link","img"]):
         tag.decompose()
@@ -1571,6 +1564,28 @@ def extrair_lei(session, sigla, force=False):
             f"Revise decode_utf16/LEIS_CONFIG['{sigla}'] e re-extraia.")
     if n_nul:  # poucos NUL cosméticos: limpa e segue (Postgres rejeita NUL em text)
         clean_text = clean_text.replace("\x00", "")
+    return clean_text
+
+
+def extrair_lei(session, sigla, force=False):
+    config = LEIS_CONFIG.get(sigla)
+    if not config:
+        print(f"❌ Sigla desconhecida: {sigla}"); return False
+
+    versao, url, nome_base = config["versao"], config["url"], config["nome_base"]
+    encoding = config.get("encoding")
+    print(f"\n📥 Processando {sigla}...")
+
+    try:
+        response = session.get(url, timeout=120)
+        response.raise_for_status()
+    except Exception as e:
+        print(f"❌ Erro na requisição: {e}"); return False
+
+    data_ext = datetime.now().strftime("%Y-%m-%d")
+
+    # Estagio HTML -> clean_text (funcao pura, coberta pelo golden de fixtures)
+    clean_text = html_to_clean_text(response.content, sigla, config)
     hash_atual = hash_conteudo(clean_text.encode("utf-8"))
     with db.transaction() as cur:
         hash_anterior = db.get_latest_capture_hash(cur, sigla)
