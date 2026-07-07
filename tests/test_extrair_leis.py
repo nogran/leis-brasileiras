@@ -1612,6 +1612,111 @@ class TestHtmlStageFixesLc123:
         )
 
 
+class TestHarvestRedacoesRiscadas:
+    """Nível 2 F1: colheita das redações RISCADAS (histórico de redações).
+    NÃO altera clean_text — é leitura paralela dos mesmos bytes."""
+
+    CFG = {"versao": "Lei Teste", "url": "http://t", "nome_base": "t"}
+
+    def test_colhe_strike_tag_com_atribuicao_por_contexto(self):
+        """Dispositivo interno riscado (sem 'Art. N' próprio) herda o artigo do
+        contexto anterior não-riscado — caso real CF88 Art. 7º XXIX antigo."""
+        html = (
+            '<p>Art. 7º São direitos dos trabalhadores urbanos e rurais:</p>'
+            '<p><strike>XXIX - ação, quanto a créditos resultantes das relações de '
+            'trabalho, com prazo prescricional de:</strike></p>'
+        )
+        out = _ex.harvest_redacoes_riscadas(html.encode("utf-8"), "TEST", self.CFG)
+        assert len(out) == 1
+        r = out[0]
+        assert r["artigo_base"] == "Art. 7"
+        assert r["dispositivo"].startswith("XXIX")
+        assert "prazo prescricional" in r["texto"]
+        assert r["fonte_marcacao"] == "strike_tag"
+
+    def test_colhe_css_line_through_artigo_inteiro(self):
+        """Artigo inteiro riscado via CSS (caso real CADPOS Art. 11) — atribui a si."""
+        html = (
+            '<p><span style="text-decoration:line-through">Art. 11. Desde que '
+            'autorizados pelo cadastrado, os prestadores de serviços continuados '
+            'poderão fornecer informação sobre adimplemento.</span></p>'
+        )
+        out = _ex.harvest_redacoes_riscadas(html.encode("utf-8"), "TEST", self.CFG)
+        assert len(out) == 1
+        assert out[0]["artigo_base"] == "Art. 11"
+        assert out[0]["fonte_marcacao"] == "css_line_through"
+
+    def test_kerning_dentro_do_riscado_e_desfeito(self):
+        """O riscado da LC123 também tem kerning — o texto colhido sai LEGÍVEL."""
+        html = (
+            '<p><span style="text-decoration:line-through">Art. 18. O '
+            '<span style="letter-spacing:.1pt">v</span>alor '
+            'd<span style="letter-spacing:.1pt">e</span>vido mensalmente pela '
+            'microempresa comercial.</span></p>'
+        )
+        out = _ex.harvest_redacoes_riscadas(html.encode("utf-8"), "TEST", self.CFG)
+        assert len(out) == 1
+        assert "valor devido mensalmente" in out[0]["texto"]
+        assert "v alor" not in out[0]["texto"]
+
+    def test_riscado_aninhado_colhe_so_a_raiz(self):
+        """<strike> dentro de bloco riscado por CSS não vira item duplicado."""
+        html = ('<p><span style="text-decoration:line-through">Art. 5. Texto velho '
+                'com <strike>trecho interno</strike> aninhado no mesmo bloco.</span></p>')
+        out = _ex.harvest_redacoes_riscadas(html.encode("utf-8"), "TEST", self.CFG)
+        assert len(out) == 1
+        assert "trecho interno" in out[0]["texto"]
+
+    def test_nao_altera_clean_text(self):
+        """INVARIANTE: colher riscadas não muda em NADA o clean_text (dois passes
+        independentes sobre os mesmos bytes)."""
+        html = ('<p>Art. 1. Texto vigente da lei que permanece.</p>'
+                '<p><strike>Art. 1. Redacao velha riscada.</strike></p>')
+        raw = html.encode("utf-8")
+        antes = _ex.html_to_clean_text(raw, "TEST", self.CFG)
+        _ex.harvest_redacoes_riscadas(raw, "TEST", self.CFG)
+        depois = _ex.html_to_clean_text(raw, "TEST", self.CFG)
+        assert antes == depois
+        assert "Redacao velha" not in antes
+
+    # ── Casos REAIS das fixtures (HTML cru do Planalto commitado) ──
+
+    @staticmethod
+    def _fixture(base):
+        import gzip
+        p = os.path.join(os.path.dirname(__file__), "fixtures", "html", f"{base}.htm.gz")
+        with gzip.open(p, "rb") as f:
+            return f.read()
+
+    def test_fixture_cf88_art7_alinea_antiga(self):
+        """CF88: alínea antiga do Art. 7º XXIX ('cinco anos para o trabalhador
+        urbano') riscada em <strike> — o histórico que motivou tudo."""
+        out = _ex.harvest_redacoes_riscadas(
+            self._fixture("cf88"), "CF88", _ex.LEIS_CONFIG["CF88"])
+        assert len(out) > 100                       # CF88 tem 773 <strike>
+        alvo = [r for r in out if "cinco anos para o trabalhador urbano" in r["texto"]]
+        assert alvo, "redação antiga da alínea a) do Art. 7º XXIX não colhida"
+        assert alvo[0]["artigo_base"] == "Art. 7"
+
+    def test_fixture_lc123_art18_redacao_antiga_legivel(self):
+        """LC123: redação antiga do Art. 18 (riscada via CSS) colhida LEGÍVEL."""
+        out = _ex.harvest_redacoes_riscadas(
+            self._fixture("lc123"), "LC123", _ex.LEIS_CONFIG["LC123"])
+        alvo = [r for r in out if r["artigo_base"] == "Art. 18"
+                and "valor devido mensalmente" in r["texto"]]
+        assert alvo, "redação antiga do Art. 18 não colhida"
+        assert all("v alor" not in r["texto"] for r in alvo), "kerning não desfeito"
+
+    def test_fixture_cadpos_art11_texto_integral(self):
+        """CADPOS: Art. 11 revogado (riscado inteiro via CSS) — o texto que SUMIU do
+        compilado vive no histórico."""
+        out = _ex.harvest_redacoes_riscadas(
+            self._fixture("cadastro_positivo"), "CADPOS", _ex.LEIS_CONFIG["CADPOS"])
+        alvo = [r for r in out if r["artigo_base"] == "Art. 11"]
+        assert alvo, "Art. 11 riscado não colhido"
+        assert "prestadores de serviços continuados" in alvo[0]["texto"]
+
+
 class TestGuardaUpstreamHtmlStrikeReal:
     """Guarda upstream: HTML REAL do Planalto (Art. 7º XXIX, alíneas antigas riscadas).
     O strike.decompose apaga o conteúdo mas o rótulo 'a)'/'b)' vaza -> a guarda M2 dropa."""

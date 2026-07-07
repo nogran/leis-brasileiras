@@ -1463,6 +1463,23 @@ def parse_law(clean_text, sigla, versao, url, data_ext, config):
     return blocos, {"lapides": lapides_count, "dedup": dedup_count}
 
 
+def _make_soup(content: bytes, config: dict) -> BeautifulSoup:
+    """Decodifica os bytes do Planalto num BeautifulSoup — logica de encoding UNICA,
+    compartilhada por html_to_clean_text e harvest_redacoes_riscadas (divergencia de
+    encoding entre os dois caminhos seria bug silencioso)."""
+    encoding = config.get("encoding")
+    if encoding == "utf-16" or content.startswith((b'\xff\xfe', b'\xfe\xff')):
+        # decode_utf16 resolve o endianness deterministicamente (BOM ou BE/LE sem BOM) e
+        # entrega STR pro BS4 — nunca deixar o UnicodeDammit adivinhar em UTF-16.
+        return BeautifulSoup(decode_utf16(content), "html.parser")
+    if encoding:
+        return BeautifulSoup(content, "html.parser", from_encoding=encoding)
+    soup = BeautifulSoup(content, "html.parser")
+    det = soup.original_encoding
+    det = det if det and det.lower() in ('utf-8','windows-1252','iso-8859-1','latin-1') else "windows-1252"
+    return BeautifulSoup(content, "html.parser", from_encoding=det)
+
+
 def html_to_clean_text(content: bytes, sigla: str, config: dict) -> str:
     """Estagio HTML -> clean_text do Portao 1, como funcao PURA/deterministica:
     bytes crus do Planalto -> texto limpo pronto pro parse_law. Sem HTTP/DB/arquivo.
@@ -1471,20 +1488,7 @@ def html_to_clean_text(content: bytes, sigla: str, config: dict) -> str:
     os bugs do <strike> (CF88 a/b), kerning e riscado-CSS (LC123).
 
     Levanta RuntimeError se o decode produzir NUL em massa (guardrail de encoding)."""
-    encoding = config.get("encoding")
-
-    # Encoding
-    if encoding == "utf-16" or content.startswith((b'\xff\xfe', b'\xfe\xff')):
-        # decode_utf16 resolve o endianness deterministicamente (BOM ou BE/LE sem BOM) e
-        # entrega STR pro BS4 — nunca deixar o UnicodeDammit adivinhar em UTF-16.
-        soup = BeautifulSoup(decode_utf16(content), "html.parser")
-    elif encoding:
-        soup = BeautifulSoup(content, "html.parser", from_encoding=encoding)
-    else:
-        soup = BeautifulSoup(content, "html.parser")
-        det = soup.original_encoding
-        det = det if det and det.lower() in ('utf-8','windows-1252','iso-8859-1','latin-1') else "windows-1252"
-        soup = BeautifulSoup(content, "html.parser", from_encoding=det)
+    soup = _make_soup(content, config)
 
     for tag in soup(["script","style","nav","header","footer","aside","meta","link","img"]):
         tag.decompose()
@@ -1605,6 +1609,97 @@ def html_to_clean_text(content: bytes, sigla: str, config: dict) -> str:
     return clean_text
 
 
+# ──────────────────────────────────────────────────────────────────────────────
+# Nivel 2 — F1: colheita de redacoes RISCADAS (historico de redacoes)
+# ──────────────────────────────────────────────────────────────────────────────
+# O Planalto exibe redacoes SUPERADAS riscadas (tags <s>/<del>/<strike> ou CSS
+# text-decoration:line-through) na pagina compilada. O html_to_clean_text as REMOVE
+# do texto vigente (correto); esta funcao as COLHE num registro estruturado paralelo
+# — base propria de historico de redacoes ("qual era a redacao anterior?"), sem
+# depender da disponibilidade futura do Planalto. NAO altera clean_text (golden
+# prova): e um segundo passe de leitura sobre os mesmos bytes.
+# Cobertura honesta: so o que o Planalto riscou NA COMPILADA. Dispositivo revogado
+# sem texto riscado (ex: CLT 384, so anotacao) NAO tem redacao anterior aqui — essa
+# vem da fase futura de captura das paginas de texto original.
+
+_RE_DISPOSITIVO_RISCADO = re.compile(
+    r'^(Art\.?\s*[\d.]+(?:\s*[º°o])?(?:-[A-Z])?|ANEXO(?:\s+[IVXLCDM]+)?'
+    r'|§\s*\d+\s*[º°o]?(?:-[A-Z])?|[IVXLCDM]{1,7}\s*[-–—]|[a-z]\)|Parágrafo\s+único)',
+)
+
+
+def _e_riscado(tag) -> bool:
+    """True se o elemento esta riscado: tag de strike OU CSS line-through."""
+    if tag.name in ("s", "del", "strike"):
+        return True
+    style = tag.get("style") or ""
+    return bool(_RE_CSS_LINE_THROUGH.search(style))
+
+
+def harvest_redacoes_riscadas(content: bytes, sigla: str, config: dict) -> list[dict]:
+    """Colhe TODO conteudo riscado do HTML cru, em ordem de documento, atribuido ao
+    artigo-base. PURA/deterministica (mesmo _make_soup do clean_text). Retorna lista:
+    {artigo_base, dispositivo, texto, fonte_marcacao, hash, ordem}."""
+    soup = _make_soup(content, config)
+    for tag in soup(["script", "style", "nav", "header", "footer", "aside",
+                     "meta", "link", "img"]):
+        tag.decompose()
+    # Kerning tambem existe DENTRO do riscado (LC123): desfaz antes de ler.
+    for tag in soup.find_all(style=_RE_CSS_LETTER_SPACING):
+        tag.unwrap()
+    soup.smooth()
+
+    out = []
+    artigo_atual = ""
+    _re_art_texto = re.compile(r'\bArt\.?\s*(\d[\d.]*(?:-[A-Z])?)')
+
+    def _colhe(el):
+        texto = re.sub(r'[ \t\xa0]+', ' ', el.get_text(separator=' ')).strip()
+        texto = normalizar_texto(texto).strip()
+        if len(texto) < 3:                                 # riscado vazio/anchor-only
+            return
+        m_disp = _RE_DISPOSITIVO_RISCADO.match(texto)
+        dispositivo = m_disp.group(1).strip() if m_disp else ""
+        m_art = re.match(r'Art\.?\s*(\d[\d.]*(?:-[A-Z])?)', texto)
+        if m_art:                                          # riscado E o proprio artigo
+            artigo_base = f"Art. {m_art.group(1).rstrip('.')}"
+        elif texto.upper().startswith("ANEXO"):
+            m_anx = re.match(r'(ANEXO(?:\s+[IVXLCDM]+)?)', texto, re.IGNORECASE)
+            artigo_base = m_anx.group(1).upper()
+        else:
+            artigo_base = artigo_atual                     # dispositivo interno: contexto
+        out.append({
+            "artigo_base": artigo_base,
+            "dispositivo": dispositivo,
+            "texto": texto,
+            "fonte_marcacao": "strike_tag" if el.name in ("s", "del", "strike")
+                              else "css_line_through",
+            "hash": hash_texto(texto),
+            "ordem": len(out) + 1,
+        })
+
+    def _walk(el):
+        # Passe UNICO em ordem de documento (O(n)): texto nao-riscado atualiza o
+        # artigo de contexto; bloco riscado e colhido na raiz e NAO descido
+        # (aninhados contam uma vez so).
+        nonlocal artigo_atual
+        for child in el.children:
+            if getattr(child, "name", None):               # Tag
+                if _e_riscado(child):
+                    _colhe(child)
+                    continue
+                _walk(child)
+            else:                                          # NavigableString (vigente)
+                last = None
+                for last in _re_art_texto.finditer(str(child)):
+                    pass                                   # ultimo 'Art. N' do node
+                if last:
+                    artigo_atual = f"Art. {last.group(1).rstrip('.')}"
+
+    _walk(soup)
+    return out
+
+
 def extrair_lei(session, sigla, force=False):
     config = LEIS_CONFIG.get(sigla)
     if not config:
@@ -1650,6 +1745,17 @@ def extrair_lei(session, sigla, force=False):
 
     with open(f"data/{nome_base}_{data_ext}.json", "w", encoding="utf-8") as f:
         json.dump(blocos, f, ensure_ascii=False, indent=2)
+
+    # Nivel 2 F1: sidecar de redacoes RISCADAS (historico de redacoes). Nao entra no
+    # fluxo de ingestao de artigos (filtrado por '_riscadas' nos consumidores) — sera
+    # ingerido pela F2 (tabela prior_redactions).
+    riscadas = harvest_redacoes_riscadas(response.content, sigla, config)
+    with open(f"data/{nome_base}_{data_ext}_riscadas.json", "w", encoding="utf-8") as f:
+        json.dump({"lei": sigla, "versao": versao, "data_extracao": data_ext,
+                   "capture_id": str(capture_id), "url_fonte": url,
+                   "total": len(riscadas), "riscadas": riscadas},
+                  f, ensure_ascii=False, indent=2)
+    print(f"   redacoes riscadas colhidas: {len(riscadas)}")
 
     vet = sum(1 for b in blocos if b["status"] == "vetado_total")
     rev = sum(1 for b in blocos if b["status"] == "revogado")

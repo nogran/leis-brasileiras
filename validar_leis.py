@@ -1036,7 +1036,8 @@ def main():
                        for f in os.listdir(args.path)
                        if f.endswith(".json") and not f.startswith("hashes")
                        and f != "known_issues.json"
-                       and "_questions" not in f)
+                       and "_questions" not in f
+                       and "_riscadas" not in f)   # sidecar de redacoes riscadas (schema proprio)
     elif os.path.isfile(args.path):
         files = [args.path]
     else:
