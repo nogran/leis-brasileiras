@@ -2061,3 +2061,38 @@ class TestVerificarIntegridadeFiltraSidecars:
         assert not eh_arquivo_de_lei("cdc_2026-04-05_questions.json")
         assert not eh_arquivo_de_lei("hashes.json")
         assert not eh_arquivo_de_lei("cf88_2026-07-07_clean.txt")
+
+
+class TestSplitComOverlapNaoDegenera:
+    """BUG (CLT ANEXO, 2026-07-08): quadro do anexo é UMA linha gigante; o único
+    '\n' fica perto do início e `max(inicio+1, corte-overlap)` virava avanço de
+    1 char/iteração — 30 partes-fantasma deslizantes ('ANEXO Quadro...' perdendo
+    uma letra por parte, algumas idênticas entre si)."""
+
+    def test_linha_gigante_nao_gera_partes_fantasma(self):
+        # palavras VARIADAS: corpus repetido ('palavra '*N) gera janelas de conteúdo
+        # idêntico por construção e invalidaria o check de unicidade
+        corpo = " ".join(f"palavra{i}" for i in range(2500))
+        texto = "ANEXO\nQuadro a que se refere o\n" + corpo
+        partes = _ex.split_com_overlap(texto, max_chars=6000, overlap_chars=400)
+        assert len(partes) < 10, f"janela degenerou: {len(partes)} partes"
+        assert len(set(partes)) == len(partes), "partes idênticas (janela deslizante)"
+        assert all(len(p) >= 15 for p in partes), \
+            f"parte-fantasma minúscula: {[p for p in partes if len(p) < 15]!r}"
+        # nada se perde: o conteúdo integral é reconstituível
+        assert "Quadro a que se refere o" in partes[0]
+
+    def test_corte_sem_newline_cai_no_espaco(self):
+        """Sem '\n' no trecho, corta em ESPAÇO — nunca no meio de palavra."""
+        texto = ("palavra " * 3000).strip()
+        partes = _ex.split_com_overlap(texto, max_chars=6000, overlap_chars=400)
+        assert len(partes) >= 2
+        for p in partes[:-1]:
+            assert p.endswith("palavra"), f"corte no meio de palavra: ...{p[-20:]!r}"
+
+    def test_overlap_normal_preservado(self):
+        """Regressão: texto multi-linha normal mantém o overlap de sempre."""
+        linhas = [f"Linha {i:04d} " + "x" * 50 for i in range(120)]
+        partes = _ex.split_com_overlap("\n".join(linhas), max_chars=3000, overlap_chars=400)
+        assert len(partes) >= 2
+        assert any(l in partes[1] for l in partes[0][-200:].split("\n") if l.strip())

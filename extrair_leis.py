@@ -641,9 +641,18 @@ def split_com_overlap(texto: str, max_chars: int = 6000, overlap_chars: int = 40
             break
         corte = texto.rfind('\n', inicio, fim)
         if corte <= inicio:
+            # 2026-07-08: sem '\n' no trecho (linha gigante, ex: quadro do ANEXO da
+            # CLT com 24k chars), corta em ESPACO — nunca no meio de palavra.
+            corte = texto.rfind(' ', inicio, fim)
+        if corte <= inicio:
             corte = fim
         partes.append(texto[inicio:corte].strip())
-        inicio = max(inicio + 1, corte - overlap_chars)
+        # 2026-07-08: overlap so quando ha avanco real. Quando o unico '\n' fica
+        # perto do INICIO, `corte - overlap` recuava e a janela avancava 1 char por
+        # iteracao — 30 partes-fantasma deslizantes ('ANEXO Quadro...' perdendo uma
+        # letra por parte) no ANEXO da CLT. Sem avanco: pula direto pro corte.
+        proximo = corte - overlap_chars
+        inicio = proximo if proximo > inicio else corte + 1
     return [p for p in partes if p]
 
 

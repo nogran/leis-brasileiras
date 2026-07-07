@@ -706,3 +706,34 @@ class TestRatchetMaisRecente:
         rep.issues.append(Issue("WARN", "CONTEUDO", "texto_quebrado_letra_a_letra", "x", "Art. 1"))
         aplicar_ratchet(rep, is_latest=False)
         assert rep.issues[0].severity == "WARN"
+
+
+class TestLinhaOrfaM1ComMarkerSolto:
+    """CF88 Art. 76 (ADCT): linha M1 restaurada LITERAL termina com marker sem
+    parênteses ('... de 2016) Produção de efeitos'). É anotação, não conteúdo —
+    a linha continua órfã-M1 e ruido_residual NÃO pode disparar nela."""
+
+    def test_producao_de_efeitos_solto_e_anotacao(self):
+        from validar_leis import _e_linha_orfa_m1
+        assert _e_linha_orfa_m1(
+            "§ 1º (Revogado). (Redação dada pela Emenda constitucional nº 93, "
+            "de 2016) Produção de efeitos")
+        assert _e_linha_orfa_m1(
+            "§ 3º (Revogado). (Redação dada pela Emenda constitucional nº 93, "
+            "de 2016) Produção de efeitos")
+
+    def test_conteudo_real_apos_anotacao_nao_e_orfa(self):
+        from validar_leis import _e_linha_orfa_m1
+        assert not _e_linha_orfa_m1(
+            "§ 1º O benefício será revisto. (Redação dada pela Lei nº 9.999, de 2020)")
+
+    def test_ruido_residual_nao_dispara_no_art76_adct(self):
+        chunk = make_chunk(artigo="Art. 76 (ADCT)", texto_limpo=(
+            "Art. 76. São desvinculados de órgão, fundo ou despesa.\n"
+            "§ 1º (Revogado). (Redação dada pela Emenda constitucional nº 93, "
+            "de 2016) Produção de efeitos\n"
+            "§ 2º Texto vigente do parágrafo segundo aqui presente normal."
+        ))
+        rep = make_report()
+        validate_conteudo([chunk], rep)
+        assert not issues_with_rule(rep, "ruido_residual")

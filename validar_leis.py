@@ -547,6 +547,11 @@ def _e_linha_orfa_m1(line: str) -> bool:
     # "(Revogado pela Lei nº 9.455, de 7.4.1997 :") — mesmo caso do NOISE_PATTERN
     # de revogação sem ')' no extrator. Só remove se corre até o fim da linha.
     resto = re.sub(r'\([^)]*$', '', resto)
+    # Markers SOLTOS (sem parênteses) na cauda da linha M1 — a linha e restaurada
+    # LITERAL pelo extrator e pode terminar em 'Produção de efeitos'/'Vigência'
+    # (CF88 Art. 76 ADCT §§ 1º/3º). São anotação, não conteúdo.
+    resto = re.sub(r'(?:Produ[çc][ãa]o\s+de\s+efeitos?|Vig[êe]ncia)\s*\.?\s*$', '',
+                   resto, flags=re.IGNORECASE)
     resto = re.sub(r'[\s.;,:\-–—]', '', resto)         # remove pontuação/espaços residuais
     return not resto                                    # vazio => era só rótulo + anotação
 
