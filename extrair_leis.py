@@ -124,8 +124,16 @@ LEIS_CONFIG = {
         "url": "https://www.planalto.gov.br/ccivil_03/leis/lcp/lcp123.htm",
         "nome_base": "lc123",
         "dedup_redacoes": True,
+        # 2026-07-07: headers de anexo da LC123 tem CAUDA ("ANEXO I DA LEI
+        # COMPLEMENTAR Nº 123, DE...") — o pattern antigo exigia fim-de-linha apos
+        # o numeral e NUNCA casava: as tabelas de aliquotas do Simples caiam
+        # DENTRO do Art. 89. Pattern estrito + case-SENSITIVE: o corpo da lei tem
+        # 12 linhas iniciando com "Anexo(s) ... desta Lei Complementar" (referencias)
+        # que um ^ANEXO\b IGNORECASE transformaria em boundaries falsos engolindo
+        # artigos inteiros (Art. 28/56/77).
         "boundaries": [
-            {"pattern": r"^ANEXO(?:\s+[IVXLCDM]+(?:-[A-Z])?|\s+[ÚU]NICO|\s+\d+)?\s*$", "action": "anexo"},
+            {"pattern": r"^ANEXO\s+[IVXLCDM]+(?:-[A-Z])?\s+DA LEI COMPLEMENTAR\b",
+             "action": "anexo", "ignorecase": False},
         ],
     },
     "LT": {
@@ -542,6 +550,12 @@ def hash_conteudo(content: bytes) -> str:
 def hash_texto(texto: str) -> str:
     return hashlib.sha256(texto.encode("utf-8")).hexdigest()[:16]
 
+
+# CSS do Planalto tratado no estagio HTML (html_to_clean_text):
+#   line-through   = riscado (mesma semantica do <strike>) -> decompose
+#   letter-spacing = kerning que corta palavra no meio -> unwrap + smooth
+_RE_CSS_LINE_THROUGH = re.compile(r'line-through', re.IGNORECASE)
+_RE_CSS_LETTER_SPACING = re.compile(r'letter-spacing', re.IGNORECASE)
 
 _BOM = chr(0xFEFF)  # Byte Order Mark; removido do inicio do texto UTF-16
 
@@ -967,10 +981,14 @@ def extrair_estrutura(texto, sigla, versao, url, data_ext, config):
     blocos, buffer = [], []
     esperando_nome_secao = None
 
-    # Compila boundaries da config
+    # Compila boundaries da config. "ignorecase": False permite pattern case-SENSITIVE:
+    # headers de secao do Planalto sao MAIUSCULOS, e IGNORECASE fazia referencias do
+    # corpo ("Anexos I a V desta Lei Complementar" iniciando linha) dispararem boundary
+    # falso que engolia artigos inteiros (LC123, 12 gatilhos falsos).
     boundaries = []
     for b in config.get("boundaries", []):
-        boundaries.append({**b, "_re": re.compile(b["pattern"], re.IGNORECASE)})
+        flags = re.IGNORECASE if b.get("ignorecase", True) else 0
+        boundaries.append({**b, "_re": re.compile(b["pattern"], flags)})
 
     def flush_buffer(artigo_label):
         nonlocal buffer
@@ -1110,7 +1128,11 @@ def extrair_estrutura(texto, sigla, versao, url, data_ext, config):
                     )
                     artigo_label_atual = m_anexo.group(1).strip().upper() if m_anexo else "ANEXO"
                     ultimo_num_artigo = 999999
-                    buffer = []
+                    # A PROPRIA linha do header entra no buffer: o merge cola o
+                    # conteudo do anexo na linha do header quando a tabela nao
+                    # comeca com marcador (LC123 ANEXO I: tabela inteira na mesma
+                    # linha — descartar a linha = perder o anexo).
+                    buffer = [linha_clean]
                     boundary_matched = True
             if boundary_matched:
                 break
@@ -1468,9 +1490,25 @@ def html_to_clean_text(content: bytes, sigla: str, config: dict) -> str:
         tag.decompose()
     for tag in soup.find_all(["s","del","strike"]):
         tag.decompose()
+    # Redacao riscada via CSS (text-decoration:line-through) — MESMA semantica do
+    # <strike>, que o Planalto usa de forma intercambiavel. Caso real: LC123 Art. 18,
+    # redacao antiga riscada por CSS vazava como texto "vigente limpo" no RAG
+    # (LC123 1.224 marcas; CADPOS 27, CLT 10, CF88 7, CPC 5).
+    for tag in soup.find_all(style=_RE_CSS_LINE_THROUGH):
+        if not tag.decomposed:
+            tag.decompose()
     for tag in soup.find_all("a"):
         if tag.get_text(strip=True) in ("Vigência","Regulamento","Vide","Nota","Ver",""):
             tag.decompose()
+
+    # Spans de KERNING (letter-spacing) cortam PALAVRAS no meio no HTML do Planalto
+    # ("d<span style='letter-spacing:.1pt'>e</span>vido"); com get_text(separator)
+    # virava "d e vido" — 28 chunks ilegiveis na LC123 (tabelas do Simples), a
+    # dose menor em CF88/LGPD. unwrap SO desses spans + smooth() funde os text
+    # nodes de volta em palavras inteiras. Tags de bloco seguem gerando quebra.
+    for tag in soup.find_all(style=_RE_CSS_LETTER_SPACING):
+        tag.unwrap()
+    soup.smooth()
 
     text = soup.get_text(separator="\n")
     text_limpo = re.sub(

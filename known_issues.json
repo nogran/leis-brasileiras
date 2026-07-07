@@ -36,6 +36,9 @@
     },
     "LC123": {
       "72": "Revogado pela LC nº 155/2016 (não exige mais ME/EPP no nome empresarial)"
+    },
+    "CADPOS": {
+      "11": "Revogado pela Lei Complementar nº 166/2019 (fornecimento de dados por prestadores de serviços continuados — água, esgoto, eletricidade, gás e telecomunicações). No Planalto o artigo inteiro está riscado via CSS line-through (rótulo dentro do riscado), então some do texto compilado após o fix de 2026-07-07"
     }
   },
 

@@ -1503,6 +1503,115 @@ class TestReparoNaoAlteraArtigoNormal:
         assert reparar_dispositivos_orfaos(raw) == limpar_ruido_legislativo(raw)
 
 
+import extrair_leis as _ex
+
+
+class TestHtmlStageFixesLc123:
+    """Camada 2 (2026-07-07): os 3 mecanismos do HTML do Planalto que corrompiam a
+    LC123 (e, em dose menor, CF88/LGPD/CADPOS/CLT/CPC). Snippets REAIS do HTML."""
+
+    def test_kerning_letter_spacing_nao_fatia_palavra(self):
+        """Spans de letter-spacing cortam palavras no meio; get_text(separator)
+        virava 'v alor d e vido'. Snippet real do caput do Art. 18 da LC123."""
+        html = (
+            '<p><font size="2"><a name="art18.."></a>'
+            'Art. 18. &nbsp;O <span style="letter-spacing:.1pt">v</span>alor '
+            'd<span style="letter-spacing:.1pt">e</span>vido'
+            '<span style="letter-spacing:1.15pt">\n</span>'
+            '<span style="letter-spacing:-.1pt">m</span>ensalmente pela microempresa'
+            '</font></p>'
+        )
+        out = _ex.html_to_clean_text(html.encode("utf-8"), "LC123",
+                                     _ex.LEIS_CONFIG["LC123"])
+        assert "valor devido mensalmente" in out, f"palavras fatiadas: {out!r}"
+        assert "v alor" not in out and "d e vido" not in out
+
+    def test_riscado_via_css_line_through_e_removido(self):
+        """Redação antiga riscada via CSS (text-decoration:line-through) tem a MESMA
+        semântica do <strike> e deve ser removida igual — era ela que vazava como
+        'Art. 18 standalone limpo' (texto SUPERADO servido como vigente no RAG)."""
+        html = (
+            '<p><span style="text-decoration:line-through"><font size="2">'
+            '<a name="art18."></a>Art.&nbsp;18.&nbsp; O valor devido mensalmente pela '
+            'microempresa ou empresa de pequeno porte, optante pelo Simples Nacional, '
+            'sera determinado mediante aplicacao das aliquotas constantes da tabela'
+            '</font></span></p>'
+            '<p><font size="2">Art. 19. Texto vigente que deve permanecer no resultado '
+            'porque nao esta riscado de forma alguma.</font></p>'
+        )
+        out = _ex.html_to_clean_text(html.encode("utf-8"), "LC123",
+                                     _ex.LEIS_CONFIG["LC123"])
+        assert "aliquotas constantes da tabela" not in out, "redacao riscada por CSS vazou"
+        assert "Texto vigente que deve permanecer" in out
+
+    def test_strike_tag_continua_removido(self):
+        """Regressão: o decompose de <strike> (tag) continua funcionando junto."""
+        html = ('<p><strike>Art. 17. Redacao velha em tag strike.</strike></p>'
+                '<p>Art. 18. Redacao atual em paragrafo normal.</p>')
+        out = _ex.html_to_clean_text(html.encode("utf-8"), "LC123",
+                                     _ex.LEIS_CONFIG["LC123"])
+        assert "Redacao velha" not in out
+        assert "Redacao atual" in out
+
+    @staticmethod
+    def _anexo_pats():
+        """Compila os boundaries de anexo EXATAMENTE como o engine (flags da config)."""
+        cfg = _ex.LEIS_CONFIG["LC123"]
+        return [re.compile(b["pattern"], re.IGNORECASE if b.get("ignorecase", True) else 0)
+                for b in cfg["boundaries"] if b["action"] == "anexo"]
+
+    def test_boundary_anexo_lc123_casa_header_com_cauda(self):
+        """Headers de anexo da LC123 têm cauda ('ANEXO I DA LEI COMPLEMENTAR Nº...')
+        e o boundary antigo exigia fim-de-linha após o numeral — nunca casava e as
+        tabelas de alíquotas caíam DENTRO do Art. 89."""
+        pats = self._anexo_pats()
+        assert pats, "LC123 sem boundary de anexo"
+        # headers REAIS do clean.txt (o 'Nº' vira 'N o' na extração)
+        for header in [
+            "ANEXO I DA LEI COMPLEMENTAR N o 123, DE 14 DE DEZEMBRO DE 2006 (Redação dada...)",
+            "ANEXO IV DA LEI COMPLEMENTAR N o 123, DE 14 DE DEZEMBRO DE 2006",
+        ]:
+            assert any(p.match(header) for p in pats), f"não casou header real: {header!r}"
+
+    def test_boundary_anexo_nao_dispara_em_referencia_do_corpo(self):
+        """PERMANENTE (bug encontrado na calibração com dado real): o corpo da LC123
+        tem 12 linhas iniciando com 'Anexo(s) ... desta Lei Complementar' (referências,
+        case misto). Um boundary IGNORECASE dispararia ali e ENGOLIRIA artigos inteiros
+        (Art. 28/56/77 caíram dentro de chunks 'ANEXO V')."""
+        pats = self._anexo_pats()
+        for ref in [
+            "Anexos I a V desta Lei Complementar, sobre a base de cálculo",
+            "Anexo II desta Lei Complementar. .",
+            "Anexo III desta Lei Complementar as seguintes atividades",
+            "Anexos I, II, III, IV e V desta Lei Complementar. (Redação dada...)",
+            "anexo iv da lei complementar",
+        ]:
+            assert not any(p.match(ref) for p in pats), f"referência disparou boundary: {ref!r}"
+
+    def test_anexo_vira_chunk_proprio_e_preserva_conteudo_da_linha(self):
+        """Com o boundary correto: anexo NÃO fica dentro do último artigo E o conteúdo
+        colado na linha do header (efeito do merge) é PRESERVADO no chunk do anexo."""
+        texto = (
+            "Art. 89. Terao sua vigencia iniciada conforme disposto nesta Lei "
+            "Complementar, respeitados os prazos regulamentares aplicaveis.\n"
+            "ANEXO I DA LEI COMPLEMENTAR N o 123, DE 14 DE DEZEMBRO DE 2006 "
+            "Aliquotas e Partilha do Simples Nacional com receita bruta anual de "
+            "1a Faixa ate 180.000,00 4,00%\n"
+        )
+        cfg = _ex.LEIS_CONFIG["LC123"]
+        blocos = _ex.extrair_estrutura(texto, "LC123", "LC 123/2006",
+                                       "http://t", "2026-07-07", cfg)
+        art89 = next(b for b in blocos if b["artigo"].startswith("Art. 89"))
+        assert "Aliquotas e Partilha" not in art89["texto_limpo"], (
+            "anexo continua engolido pelo Art. 89"
+        )
+        anexo = next((b for b in blocos if b["artigo"].startswith("ANEXO I")), None)
+        assert anexo is not None, "chunk ANEXO I não foi criado"
+        assert "1a Faixa ate 180.000,00" in anexo["texto_limpo"], (
+            "conteúdo colado na linha do header foi descartado"
+        )
+
+
 class TestGuardaUpstreamHtmlStrikeReal:
     """Guarda upstream: HTML REAL do Planalto (Art. 7º XXIX, alíneas antigas riscadas).
     O strike.decompose apaga o conteúdo mas o rótulo 'a)'/'b)' vaza -> a guarda M2 dropa."""
