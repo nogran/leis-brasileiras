@@ -12,16 +12,21 @@ REQUIRED_FIELDS_V3 = [
 VALID_STATUS = {"vigente", "vetado_total", "revogado"}
 
 
+def eh_arquivo_de_lei(nome: str) -> bool:
+    """True so para os JSONs de ARTIGOS ({lei}_{data}.json). Exclui hashes.json,
+    perguntas e o sidecar _riscadas.json (historico de redacoes — schema proprio,
+    2026-07-08: os 13 'erros' fantasmas vinham de tentar le-lo como artigos)."""
+    return (nome.endswith(".json")
+            and not nome.startswith("hashes")
+            and "_questions" not in nome
+            and "_riscadas" not in nome)
+
+
 def verificar_integridade():
     print("Auditoria de Integridade Justina RAG (v3)\n")
 
     arquivos_json = sorted(glob.glob("data/*.json"))
-    # Exclui hashes.json e arquivos de perguntas
-    arquivos_json = [
-        f for f in arquivos_json
-        if not os.path.basename(f).startswith("hashes")
-        and "_questions" not in os.path.basename(f)
-    ]
+    arquivos_json = [f for f in arquivos_json if eh_arquivo_de_lei(os.path.basename(f))]
 
     if not arquivos_json:
         print("Nenhum arquivo JSON encontrado na pasta data/.")

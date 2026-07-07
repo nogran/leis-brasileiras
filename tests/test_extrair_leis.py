@@ -2036,3 +2036,26 @@ class TestGuardaUpstreamHtmlStrikeReal:
         )
         restantes = [l.strip() for l in reparado.split("\n") if l.strip()]
         assert "a)" not in restantes and "b)" not in restantes
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# verificar_integridade — filtro de arquivos (2026-07-08)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+from verificar_integridade import eh_arquivo_de_lei
+
+
+class TestVerificarIntegridadeFiltraSidecars:
+    """Os 13 'erros' fantasmas de 2026-07-08: verificar_integridade tentava ler o
+    sidecar _riscadas.json como JSON de artigos. TODO consumidor de {lei}_*.json
+    DEVE filtrar _riscadas/_questions/hashes."""
+
+    def test_aceita_json_de_lei(self):
+        assert eh_arquivo_de_lei("cf88_2026-07-07.json")
+        assert eh_arquivo_de_lei("lc123_2026-07-07.json")
+
+    def test_rejeita_sidecars_e_auxiliares(self):
+        assert not eh_arquivo_de_lei("cf88_2026-07-07_riscadas.json")
+        assert not eh_arquivo_de_lei("cdc_2026-04-05_questions.json")
+        assert not eh_arquivo_de_lei("hashes.json")
+        assert not eh_arquivo_de_lei("cf88_2026-07-07_clean.txt")
