@@ -203,19 +203,29 @@ NOISE_PATTERNS = [
     re.compile(r'\(Suprimid[oa]s?\s+[^)]{0,200}\)',                   re.IGNORECASE | re.DOTALL),
     re.compile(r'\(Restaurad[oa]s?\s+[^)]{0,200}\)',                  re.IGNORECASE | re.DOTALL),
     re.compile(r'\(Express[ãa]o\s+substitu[ií]d[oa]\s+[^)]{0,200}\)', re.IGNORECASE | re.DOTALL),
-    re.compile(r'\(Revogad[oa]s?\)\s*[.;,]?',                         re.IGNORECASE),
-    re.compile(r'\(Suprimid[oa]s?\)\s*[.;,]?',                        re.IGNORECASE),
-    re.compile(r'\(Redação\s+dada\s+(?:pela|pelo|ao)\s+[^)]*?\bde\s+[\d./]*\d{4}[:\s.]*',  re.IGNORECASE | re.DOTALL),
-    re.compile(r'\(Incluíd[oa]s?\s+(?:pela|pelo|ao)\s+[^)]*?\bde\s+[\d./]*\d{4}[:\s.]*',   re.IGNORECASE | re.DOTALL),
-    re.compile(r'\(Revogad[oa]s?\s+[^)]*?\bde\s+[\d./]*\d{4}[:\s.]*',                      re.IGNORECASE | re.DOTALL),
-    re.compile(r'\(Acrescentad[oa]s?\s+[^)]*?\bde\s+[\d./]*\d{4}[:\s.]*',                   re.IGNORECASE | re.DOTALL),
-    re.compile(r'\n\s*Vigência\s*\n',      re.IGNORECASE),
+    # 2026-07-07 bug A (LC123 Art. 17): o sufixo destes padroes NUNCA pode consumir
+    # '\n' — engolir a quebra cola o rotulo orfao na linha seguinte, a linha mesclada
+    # deixa de ser "rotulo nu" e o M1 nao restaura o literal (perda de (REVOGADO)).
+    # Por isso whitespace HORIZONTAL ([^\S\n]) em todos os sufixos abaixo.
+    re.compile(r'\(Revogad[oa]s?\)[^\S\n]*[.;,]?',                    re.IGNORECASE),
+    re.compile(r'\(Suprimid[oa]s?\)[^\S\n]*[.;,]?',                   re.IGNORECASE),
+    re.compile(r'\(Redação\s+dada\s+(?:pela|pelo|ao)\s+[^)]*?\bde\s+[\d./]*\d{4}(?:[:.]|[^\S\n])*',  re.IGNORECASE | re.DOTALL),
+    re.compile(r'\(Incluíd[oa]s?\s+(?:pela|pelo|ao)\s+[^)]*?\bde\s+[\d./]*\d{4}(?:[:.]|[^\S\n])*',   re.IGNORECASE | re.DOTALL),
+    re.compile(r'\(Revogad[oa]s?\s+[^)]*?\bde\s+[\d./]*\d{4}(?:[:.]|[^\S\n])*',                      re.IGNORECASE | re.DOTALL),
+    re.compile(r'\(Acrescentad[oa]s?\s+[^)]*?\bde\s+[\d./]*\d{4}(?:[:.]|[^\S\n])*',                   re.IGNORECASE | re.DOTALL),
+    # Linha standalone 'Vigência': remover SEM consumir as quebras (lookaround) — o
+    # sub de '\n...\n' por '' colava a linha anterior com a seguinte (mesma familia A).
+    re.compile(r'(?<=\n)[^\S\n]*Vigência[^\S\n]*(?=\n)',      re.IGNORECASE),
     re.compile(r'\(Vigência\)',             re.IGNORECASE),
-    re.compile(r'\n\s*\(Vigência\)\s*\n',  re.IGNORECASE),
+    re.compile(r'(?<=\n)[^\S\n]*\(Vigência\)[^\S\n]*(?=\n)',  re.IGNORECASE),
     # PL-19 B-07: markers cross-reference que pollunavam *_nome (CDC Art. 60, CLT etc)
     re.compile(r'\(Vide\s+[^)]{0,200}\)',                  re.IGNORECASE | re.DOTALL),
     re.compile(r'\(Regulamento[^)]{0,100}\)',              re.IGNORECASE),
-    re.compile(r'\(Produ[çc][ãa]o\s+de\s+efeitos?\)',     re.IGNORECASE),
+    re.compile(r'\(\s?Produ[çc][ãa]o\s+de\s+efeitos?[^\S\n]*\)', re.IGNORECASE),
+    # 2026-07-07 bug B: marker 'Produção de efeito' SEM parenteses no fim da linha
+    # (padrao LC 155/2016: '...de 2016)      Produção de efeito'). 218 ocorrencias
+    # vazavam pro texto_limpo (LC123 182, CF88 18, CC 14, CLT 4).
+    re.compile(r'[^\S\n]*Produ[çc][ãa]o[^\S\n]+de[^\S\n]+efeitos?\.?[^\S\n]*$', re.IGNORECASE | re.MULTILINE),
 ]
 
 def limpar_ruido_legislativo(texto: str) -> str:

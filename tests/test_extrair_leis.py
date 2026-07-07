@@ -1350,6 +1350,64 @@ class TestReparoM1CaputRevogado:
         assert out.strip() == raw.strip()
 
 
+class TestNoisePreservaQuebraDeLinha:
+    """Bug A (2026-07-07, LC123 Art. 17): sufixo de NOISE_PATTERN consumia o '\\n'
+    apos a anotacao nua, colando o rotulo orfao na linha seguinte — a linha mesclada
+    ('I - II - III - ...') nao e mais rotulo nu e o M1 descartava os literais em
+    silencio. Os padroes de ruido NUNCA podem consumir quebra de linha."""
+
+    def test_bloco_de_incisos_revogados_preserva_literais(self):
+        # Trecho REAL do clean.txt da LC123 (Art. 17: 26 incisos revogados em bloco)
+        raw = (
+            "§ 1 As vedações relativas a exercício de atividades previstas no caput.\n"
+            "I - (REVOGADO)\n"
+            "II - (REVOGADO)\n"
+            "III - (REVOGADO)\n"
+            "XXII - (VETADO);\n"
+            "XXIII - (REVOGADO)\n"
+            "XXVIII - (VETADO).\n"
+            "§ 2 o Também poderá optar pelo Simples Nacional."
+        )
+        out = reparar_dispositivos_orfaos(raw)
+        linhas = [l.strip() for l in out.split("\n")]
+        assert "I - (REVOGADO)" in linhas
+        assert "II - (REVOGADO)" in linhas
+        assert "III - (REVOGADO)" in linhas
+        assert "XXIII - (REVOGADO)" in linhas
+        assert "XXII - (VETADO);" in linhas          # veto fica intacto
+        # nenhuma linha com rotulos mesclados
+        assert not any(re.search(r'(?:\b[IVXL]{1,6} - ){2,}', l) for l in linhas)
+
+    def test_vigencia_standalone_nao_cola_linhas(self):
+        raw = ("Art. 10. Texto do artigo.\n"
+               "Vigência\n"
+               "Parágrafo único. Continuação normal.")
+        out = limpar_ruido_legislativo(raw)
+        linhas = [l.strip() for l in out.split("\n")]
+        assert "Art. 10. Texto do artigo." in linhas
+        assert any(l.startswith("Parágrafo único.") for l in linhas)
+        assert not any("artigo. Parágrafo" in l for l in linhas)   # nao mesclou
+
+
+class TestNoiseProducaoDeEfeito:
+    """Bug B (2026-07-07): marker 'Produção de efeito' SEM parenteses (padrao
+    LC 155/2016) vazava pro texto_limpo — 218 ocorrencias na base."""
+
+    def test_marker_no_fim_da_linha_removido(self):
+        raw = ("§ 1 o -B. Os percentuais efetivos de cada tributo serão calculados. "
+               "(Incluído pela Lei Complementar nº 155, de 2016)      Produção de efeito\n"
+               "I - o percentual efetivo máximo destinado ao ISS será de 5%;")
+        out = limpar_ruido_legislativo(raw)
+        assert "Produção de efeito" not in out
+        assert "percentuais efetivos" in out
+        assert "ISS" in out
+
+    def test_frase_normativa_com_produzira_efeitos_intacta(self):
+        # Texto normativo legitimo (verbo no meio da frase) nao pode ser tocado.
+        raw = "Art. 5. A decisão produzirá efeitos a partir da publicação."
+        assert limpar_ruido_legislativo(raw) == raw
+
+
 class TestReparoM2DropaOrfao:
     """M2: rótulo exatamente vazio (resíduo de <strike>) -> removido."""
 

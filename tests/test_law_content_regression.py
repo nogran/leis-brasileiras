@@ -161,6 +161,41 @@ def _caputs_nus(blocks, statuses):
             and _RE_CAPUT_NU.match((b.get('texto_limpo') or '').strip())]
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# Ruido de limpeza — invariantes de qualidade do texto_limpo (bugs A/B de 2026-07-07)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Bug A: NOISE_PATTERN consumia '\n' e colava rotulos orfaos ("I - II - III - ...").
+_RE_ROTULOS_MESCLADOS = re.compile(r'(?:\b[IVXL]{1,6} - ){3,}')
+# Bug B: marker 'Produção de efeito' sem parenteses vazava pro texto_limpo.
+# Ratchet: residual conhecido pos-fix (2026-07-07) sao ocorrencias DENTRO de
+# literais M1 restaurados fielmente (a anotacao e o conteudo preservado) e de
+# itens de emenda mesclados — CF88 2, LC123 8. Nao pode CRESCER.
+_RE_PRODUCAO_EFEITO = re.compile(r'Produ[çc][ãa]o de efeitos?\s*$', re.IGNORECASE | re.MULTILINE)
+_PRODUCAO_EFEITO_TETO = {
+    "cadastro_positivo": 0, "cdc": 0, "cf88": 2, "clt": 0, "codigo_civil": 0,
+    "cp": 0, "cpc": 0, "eca": 0, "lc123": 8, "lei_inquilinato": 0,
+    "lei_maria_penha": 0, "lei_terceirizacao": 0, "lgpd": 0,
+}
+
+
+@pytest.mark.parametrize("base", list(LAWS), ids=[v[0] for v in LAWS.values()])
+class TestRuidoLimpeza:
+    def test_sem_rotulos_mesclados(self, base):
+        blocks = _load(base)
+        maus = [b['artigo'] for b in blocks
+                if _RE_ROTULOS_MESCLADOS.search(b.get('texto_limpo') or '')]
+        assert not maus, (f"{LAWS[base][0]}: rotulos de incisos mesclados em {maus[:5]}"
+                          f" — NOISE_PATTERN voltou a consumir quebra de linha (bug A)")
+
+    def test_producao_de_efeito_nao_cresce(self, base):
+        blocks = _load(base)
+        n = sum(len(_RE_PRODUCAO_EFEITO.findall(b.get('texto_limpo') or '')) for b in blocks)
+        teto = _PRODUCAO_EFEITO_TETO[base]
+        assert n <= teto, (f"{LAWS[base][0]}: {n} 'Producao de efeito' vazados > teto {teto}"
+                           f" (bug B regrediu). Se reparo legitimo reduzir, ABAIXE o teto.")
+
+
 @pytest.mark.parametrize("base", list(LAWS), ids=[v[0] for v in LAWS.values()])
 class TestCaputNu:
     def test_vigente_ou_vetado_nunca_nu(self, base):
