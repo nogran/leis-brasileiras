@@ -1660,6 +1660,195 @@ class TestDedupNaoComeIncisoVigente:
         assert "§ 2º Parágrafo segundo" in out
 
 
+class TestSplitInlineNaoCortaCitacaoNoFimDaFrase:
+    """BUG (auditoria, 2026-07-07): a citação capitalizada no FIM da frase
+    ('...o desconto a que se refere o Art. 582.') era cortada pelo splitter de
+    artigos inline — o § único do CLT Art. 583 era truncado e nascia um bloco
+    'Art. 582' espúrio. Split só quando há CONTEÚDO após o número."""
+
+    def test_citacao_no_fim_da_frase_nao_e_cortada(self):
+        html = ('<p>Art. 583. O recolhimento da contribuição sindical será efetuado.</p>'
+                '<p>Parágrafo único. O empregador deixará de efetuar, no salário do '
+                'contribuinte, o desconto a que se refere o Art. 582.</p>'
+                '<p>Art. 584. Texto do artigo seguinte com conteúdo suficiente.</p>')
+        cfg = {"versao": "x", "url": "x", "nome_base": "x"}
+        clean = _ex.html_to_clean_text(html.encode("utf-8"), "TEST", cfg)
+        assert "o desconto a que se refere o Art. 582." in clean.replace("\n", " ")
+        # e a citação NÃO virou linha própria (que o parser leria como artigo novo)
+        assert "\nArt. 582.\n" not in clean + "\n"
+
+    def test_artigo_inline_real_continua_splitado(self):
+        """Regressão: artigo REAL embutido na linha (CC 'Art. 1.636. O pai...')
+        continua sendo separado."""
+        html = ('<p>texto anterior do artigo 1.635 terminando aqui. '
+                'Art. 1.636. O pai ou a mãe que contrai novas núpcias não perde o '
+                'poder familiar quanto aos filhos do relacionamento anterior.</p>')
+        cfg = {"versao": "x", "url": "x", "nome_base": "x"}
+        clean = _ex.html_to_clean_text(html.encode("utf-8"), "TEST", cfg)
+        assert "\nArt. 1.636. O pai" in clean, f"split inline regrediu: {clean!r}"
+
+
+class TestAnotacaoSemParenteseNaoComeTextoVigente:
+    """BUG (auditoria, 2026-07-07): anotação do Planalto SEM ')' de fechamento
+    ('(Redação dada pelo Decreto-lei nº 1.535, de 13.4.1977' + quebra) fazia o
+    NOISE pattern fechado ([^)]{0,200} + DOTALL) atravessar linhas e engolir texto
+    VIGENTE até o próximo ')' — CLT Art. 139 perdia '§ 1º - As férias poderão ser
+    gozadas em 2 (dois' e LC123 Art. 44 o §1º do empate em licitação."""
+
+    def test_clt139_paragrafo_sobrevive_a_anotacao_sem_fechamento(self):
+        raw = (
+            "Art. 139 - Poderão ser concedidas férias coletivas. "
+            "(Redação dada pelo Decreto-lei nº 1.535, de 13.4.1977\n"
+            "§ 1º - As férias poderão ser gozadas em 2 (dois) períodos anuais desde "
+            "que nenhum deles seja inferior a 10 (dez) dias corridos.\n"
+        )
+        out = _ex.limpar_ruido_legislativo(raw)
+        assert "gozadas em 2 (dois) períodos anuais" in out, (
+            "NOISE atravessou a quebra de linha e comeu o § vigente"
+        )
+        assert "Redação dada" not in out          # a anotação em si continua removida
+
+    def test_vide_sem_fechamento_nao_come_paragrafo(self):
+        raw = (
+            "Art. 44. Nas licitações será assegurada preferência. "
+            "(Vide Lei nº 14.133, de 2021\n"
+            "§ 1º Entende-se por empate aquelas situações em que as propostas sejam "
+            "iguais ou até 10% (dez por cento) superiores à proposta mais bem classificada.\n"
+        )
+        out = _ex.limpar_ruido_legislativo(raw)
+        assert "10% (dez por cento) superiores à proposta" in out
+        assert "(Vide" not in out
+
+    def test_anotacao_fechada_na_mesma_linha_continua_removida(self):
+        raw = ("Texto do artigo. (Redação dada pela Lei nº 12.741, de 2012) "
+               "continuação do texto vigente.")
+        out = _ex.limpar_ruido_legislativo(raw)
+        assert "(Redação dada" not in out
+        assert "continuação do texto vigente" in out
+
+
+class TestBoundaryTransitoriasCaseSensitive:
+    """BUG (auditoria): citação em texto corrido 'Ato das Disposições Constitucionais
+    Transitórias, será cobrada...' (CF88 ADCT Art. 84) disparava o boundary do ADCT
+    (IGNORECASE) no MEIO da lei — a linha era consumida e a numeração resetada.
+    O header real é MAIÚSCULO."""
+
+    def test_citacao_do_adct_em_texto_nao_dispara_boundary(self):
+        cfg = _ex.LEIS_CONFIG["CF88"]
+        pats = [(b, re.compile(b["pattern"],
+                               re.IGNORECASE if b.get("ignorecase", True) else 0))
+                for b in cfg["boundaries"] if b["action"] == "transitorias"]
+        assert pats
+        citacao = "Ato das Disposições Constitucionais Transitórias, será cobrada até 31 de dezembro de 2004."
+        header = "ATO DAS DISPOSIÇÕES CONSTITUCIONAIS TRANSITÓRIAS"
+        for b, p in pats:
+            assert not p.match(citacao), "citação em texto corrido disparou o boundary do ADCT"
+            assert p.match(header), "header real do ADCT deixou de casar"
+
+
+class TestNomeSecaoSemDestinoCaiNoBuffer:
+    """BUG (auditoria): linha estilo nome-de-seção ('Disposições Finais e
+    Transitórias' — ECA) sem NENHUM header pendente era consumida pelo continue e
+    sumia. Sem destino de hierarquia, o texto cai no buffer do artigo (nada se perde)."""
+
+    def test_disposicoes_sem_header_pendente_sobrevive(self):
+        texto = (
+            "TÍTULO VII\n"
+            "Dos Crimes e Das Infrações Administrativas\n"
+            "Art. 5. Texto do artigo quinto com conteúdo suficiente aqui presente.\n"
+            "Disposições Finais e Transitórias\n"
+            "Art. 6. Texto do artigo sexto com conteúdo suficiente aqui presente.\n"
+        )
+        blocos = _ex.extrair_estrutura(texto, "TEST", "Lei Test", "http://t", "x", {})
+        todo = " ".join(b["texto_limpo"] for b in blocos)
+        assert "Disposições Finais e Transitórias" in todo, (
+            "linha nome-de-seção sem destino foi engolida"
+        )
+
+
+class TestInlineHeaderComMarkerENomeMinusculo:
+    """BUG (auditoria): CP CAPÍTULO V vem como 'CAPÍTULO V (Incluído pela Lei
+    12.550. de 2011) das fraudes em certames...' — nome MINÚSCULO após o marker.
+    Sem split, a linha sangrava pro artigo anterior e o strip de header a matava.
+    Com marker presente, o header é genuíno: split acontece mesmo com nome lowercase."""
+
+    def test_split_com_marker_e_nome_minusculo(self):
+        entrada = ("CAPÍTULO V (Incluído pela Lei 12.550. de 2011) das fraudes em "
+                   "certames de interesse público (Incluído pela Lei 12.550. de 2011)")
+        out = _ex.split_inline_headers(entrada)
+        assert out.startswith("CAPÍTULO V\n"), f"não splitou: {out!r}"
+        assert "das fraudes em certames" in out
+
+    def test_sem_marker_nome_minusculo_continua_protegido(self):
+        """Regressão PL-13: citação 'Livro II da Parte Especial deste Código' NÃO
+        pode splitar (não tem marker)."""
+        entrada = "Livro II da Parte Especial deste Código"
+        assert _ex.split_inline_headers(entrada) == entrada
+
+
+class TestHeaderStripNaoComeTextoVigente:
+    """BUG (auditoria de perda total, 2026-07-07): a quebra de linha do Planalto no
+    meio de frase ('...a / título de multa compensatória.') fazia a linha começar com
+    'título' e o strip de trailing-headers (IGNORECASE) apagava DELA ATÉ O FIM do
+    chunk — CC Art. 740 §3 mutilado; CPC/LT 'Livro I da Parte...' idem. Headers
+    reais do Planalto são MAIÚSCULOS."""
+
+    def test_titulo_minusculo_no_meio_do_artigo_sobrevive(self):
+        texto = (
+            "Art. 4. O passageiro tem direito a rescindir o contrato de transporte.\n"
+            "§ 3º Nas hipóteses previstas neste artigo, o transportador terá direito "
+            "de reter até cinco por cento da importância a ser restituída ao passageiro, a\n"
+            "título de multa compensatória.\n"
+        )
+        blocos = _ex.extrair_estrutura(texto, "TEST", "Lei Test", "http://t", "x", {})
+        b = next(b for b in blocos if b["artigo"] == "Art. 4")
+        assert "título de multa compensatória" in b["texto_limpo"], (
+            "strip de header comeu texto vigente do artigo!"
+        )
+
+    def test_livro_citacao_inline_sobrevive(self):
+        texto = (
+            "Art. 5. Ao entrar em vigor este Código, aplicar-se-ão as disposições do\n"
+            "Livro I da Parte Especial deste Código aos processos pendentes.\n"
+        )
+        blocos = _ex.extrair_estrutura(texto, "TEST", "Lei Test", "http://t", "x", {})
+        b = next(b for b in blocos if b["artigo"] == "Art. 5")
+        assert "Livro I da Parte Especial" in b["texto_limpo"]
+
+    def test_header_maiusculo_sangrado_continua_stripado(self):
+        """Regressão: header REAL (maiúsculo) que sangrou pro buffer segue removido."""
+        texto = (
+            "Art. 5. Texto do artigo quinto com conteúdo suficiente aqui presente.\n"
+            "TÍTULO II\n"
+        )
+        blocos = _ex.extrair_estrutura(texto, "TEST", "Lei Test", "http://t", "x", {})
+        b = next(b for b in blocos if b["artigo"] == "Art. 5")
+        assert "TÍTULO II" not in b["texto_limpo"]
+
+
+class TestFlushSectionPreservaConteudoDaLinha:
+    """BUG (auditoria, 2026-07-07): o merge cola os nomes dos constituintes na própria
+    linha 'Brasília, 5 de outubro de 1988...' e a action flush_section DESCARTAVA a
+    linha — as ~250 linhas de SIGNATÁRIOS da CF88 sumiam por completo."""
+
+    def test_signatarios_na_linha_do_boundary_sao_capturados(self):
+        cfg = {"versao": "x", "url": "x", "nome_base": "x", "boundaries": [
+            {"pattern": r"^Brasília\s*,\s*\d+\s+de\s+\w+\s+de\s+\d{4}",
+             "action": "flush_section", "label": "SIGNATÁRIOS"},
+        ]}
+        texto = (
+            "Art. 250. Com o objetivo de assegurar recursos, texto do último artigo.\n"
+            "Brasília, 5 de outubro de 1988. - Abigail Feitosa - Acival Gomes - "
+            "Adauto Pereira - Ademir Andrade - Adroaldo Streck - Adylson Motta.\n"
+        )
+        blocos = _ex.extrair_estrutura(texto, "TEST", "Lei Test", "http://t", "x", cfg)
+        sig = next((b for b in blocos if b["artigo"] == "SIGNATÁRIOS"), None)
+        assert sig is not None, "chunk SIGNATÁRIOS não criado"
+        assert "Abigail Feitosa" in sig["texto_limpo"], (
+            "nomes grudados na linha do boundary foram descartados"
+        )
+
+
 class TestDescartesArquivados:
     """2026-07-07: NADA é descartado silenciosamente. Toda remoção de dedup
     (redações antigas) e de dedup-por-rótulo (promulgação CLT, 2ª lista de

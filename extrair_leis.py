@@ -53,8 +53,12 @@ LEIS_CONFIG = {
                 "label": "SIGNATÁRIOS",
             },
             {
+                # 2026-07-07: case-SENSITIVE — a citação em texto corrido 'Ato das
+                # Disposições Constitucionais Transitórias, será cobrada...' (ADCT
+                # Art. 84) disparava o boundary no meio da lei com IGNORECASE.
                 "pattern": r"^ATO DAS DISPOSIÇÕES CONSTITUCIONAIS TRANSITÓRIAS",
                 "action": "transitorias",
+                "ignorecase": False,
             },
             {
                 # Signatários do ADCT (DEPOIS do ADCT)
@@ -160,15 +164,15 @@ LEIS_CONFIG = {
 
 # --- Alteracoes legislativas ---
 ALTERACAO_PATTERNS = [
-    (re.compile(r'\(Redação dada (?:pela|pelo|ao)\s+(.+?)\)',       re.IGNORECASE | re.DOTALL), "redacao_dada"),
-    (re.compile(r'\(Incluíd[oa]s? (?:pela|pelo|ao)\s+(.+?)\)',     re.IGNORECASE | re.DOTALL), "incluido"),
-    (re.compile(r'\(Renumerad[oa]s?\s+(?:pela|pelo|ao)\s+(.+?)\)', re.IGNORECASE | re.DOTALL), "renumerado"),
-    (re.compile(r'\(Acrescentad[oa]s?\s+(?:pela|pelo|ao)\s+(.+?)\)', re.IGNORECASE | re.DOTALL), "acrescentado"),
-    (re.compile(r'\(Nova redação\s+(?:pela|pelo|ao)\s+(.+?)\)',     re.IGNORECASE | re.DOTALL), "nova_redacao"),
+    (re.compile(r'\(Redação dada (?:pela|pelo|ao)\s+([^)\n]+?)\)',       re.IGNORECASE | re.DOTALL), "redacao_dada"),
+    (re.compile(r'\(Incluíd[oa]s? (?:pela|pelo|ao)\s+([^)\n]+?)\)',     re.IGNORECASE | re.DOTALL), "incluido"),
+    (re.compile(r'\(Renumerad[oa]s?\s+(?:pela|pelo|ao)\s+([^)\n]+?)\)', re.IGNORECASE | re.DOTALL), "renumerado"),
+    (re.compile(r'\(Acrescentad[oa]s?\s+(?:pela|pelo|ao)\s+([^)\n]+?)\)', re.IGNORECASE | re.DOTALL), "acrescentado"),
+    (re.compile(r'\(Nova redação\s+(?:pela|pelo|ao)\s+([^)\n]+?)\)',     re.IGNORECASE | re.DOTALL), "nova_redacao"),
     # PL-19 B-04: 3 markers que estavam perdidos no texto mas nao eram capturados
-    (re.compile(r'\(Suprimid[oa]s?\s+(?:pela|pelo|ao)\s+(.+?)\)',  re.IGNORECASE | re.DOTALL), "suprimido"),
-    (re.compile(r'\(Restaurad[oa]s?\s+(?:pela|pelo|ao)\s+(.+?)\)', re.IGNORECASE | re.DOTALL), "restaurado"),
-    (re.compile(r'\(Express[ãa]o\s+substitu[ií]d[oa]\s+(?:pela|pelo|ao)\s+(.+?)\)', re.IGNORECASE | re.DOTALL), "expressao_substituida"),
+    (re.compile(r'\(Suprimid[oa]s?\s+(?:pela|pelo|ao)\s+([^)\n]+?)\)',  re.IGNORECASE | re.DOTALL), "suprimido"),
+    (re.compile(r'\(Restaurad[oa]s?\s+(?:pela|pelo|ao)\s+([^)\n]+?)\)', re.IGNORECASE | re.DOTALL), "restaurado"),
+    (re.compile(r'\(Express[ãa]o\s+substitu[ií]d[oa]\s+(?:pela|pelo|ao)\s+([^)\n]+?)\)', re.IGNORECASE | re.DOTALL), "expressao_substituida"),
 ]
 
 def extrair_alteracoes(texto: str, escopo: str = "artigo") -> list[dict]:
@@ -201,33 +205,42 @@ def _dedup_alteracoes(alts):
 
 
 # --- Ruido legislativo ---
+# 2026-07-07: [^)\n] (nao atravessa quebra de linha). Anotacao legitima ja foi COLADA
+# numa linha so pelo merge; anotacao SEM ')' de fechamento (quirk do Planalto, ex:
+# '(Redação dada pelo Decreto-lei nº 1.535, de 13.4.1977' na CLT) fazia o [^)]+DOTALL
+# atravessar linhas e ENGOLIR TEXTO VIGENTE ate o proximo ')' — CLT Art. 139 perdia
+# o § 1º das ferias coletivas; LC123 Art. 44 o § 1º do empate em licitacao. As
+# anotacoes unclosed continuam cobertas pelos patterns proprios (mais abaixo).
 NOISE_PATTERNS = [
-    re.compile(r'\(Redação\s+dada\s+(?:pela|pelo|ao)[^)]{0,200}\)',  re.IGNORECASE | re.DOTALL),
-    re.compile(r'\(Incluíd[oa]s?\s+(?:pela|pelo|ao)[^)]{0,200}\)',   re.IGNORECASE | re.DOTALL),
-    re.compile(r'\(Revogad[oa]s?\s+[^)]{0,200}\)',                    re.IGNORECASE | re.DOTALL),
-    re.compile(r'\(Acrescentad[oa]s?\s+[^)]{0,200}\)',                re.IGNORECASE | re.DOTALL),
-    re.compile(r'\(Nova\s+redação\s+[^)]{0,200}\)',                   re.IGNORECASE | re.DOTALL),
-    re.compile(r'\(Renumerad[oa]s?\s+[^)]{0,200}\)',                  re.IGNORECASE | re.DOTALL),
-    re.compile(r'\(Suprimid[oa]s?\s+[^)]{0,200}\)',                   re.IGNORECASE | re.DOTALL),
-    re.compile(r'\(Restaurad[oa]s?\s+[^)]{0,200}\)',                  re.IGNORECASE | re.DOTALL),
-    re.compile(r'\(Express[ãa]o\s+substitu[ií]d[oa]\s+[^)]{0,200}\)', re.IGNORECASE | re.DOTALL),
+    re.compile(r'\(Redação\s+dada\s+(?:pela|pelo|ao)[^)\n]{0,200}\)',  re.IGNORECASE),
+    re.compile(r'\(Incluíd[oa]s?\s+(?:pela|pelo|ao)[^)\n]{0,200}\)',   re.IGNORECASE),
+    re.compile(r'\(Revogad[oa]s?\s+[^)\n]{0,200}\)',                    re.IGNORECASE),
+    re.compile(r'\(Acrescentad[oa]s?\s+[^)\n]{0,200}\)',                re.IGNORECASE),
+    re.compile(r'\(Nova\s+redação\s+[^)\n]{0,200}\)',                   re.IGNORECASE),
+    re.compile(r'\(Renumerad[oa]s?\s+[^)\n]{0,200}\)',                  re.IGNORECASE),
+    re.compile(r'\(Suprimid[oa]s?\s+[^)\n]{0,200}\)',                   re.IGNORECASE),
+    re.compile(r'\(Restaurad[oa]s?\s+[^)\n]{0,200}\)',                  re.IGNORECASE),
+    re.compile(r'\(Express[ãa]o\s+substitu[ií]d[oa]\s+[^)\n]{0,200}\)', re.IGNORECASE),
     # 2026-07-07 bug A (LC123 Art. 17): o sufixo destes padroes NUNCA pode consumir
     # '\n' — engolir a quebra cola o rotulo orfao na linha seguinte, a linha mesclada
     # deixa de ser "rotulo nu" e o M1 nao restaura o literal (perda de (REVOGADO)).
     # Por isso whitespace HORIZONTAL ([^\S\n]) em todos os sufixos abaixo.
     re.compile(r'\(Revogad[oa]s?\)[^\S\n]*[.;,]?',                    re.IGNORECASE),
     re.compile(r'\(Suprimid[oa]s?\)[^\S\n]*[.;,]?',                   re.IGNORECASE),
-    re.compile(r'\(Redação\s+dada\s+(?:pela|pelo|ao)\s+[^)]*?\bde\s+[\d./]*\d{4}(?:[:.]|[^\S\n])*',  re.IGNORECASE | re.DOTALL),
-    re.compile(r'\(Incluíd[oa]s?\s+(?:pela|pelo|ao)\s+[^)]*?\bde\s+[\d./]*\d{4}(?:[:.]|[^\S\n])*',   re.IGNORECASE | re.DOTALL),
-    re.compile(r'\(Revogad[oa]s?\s+[^)]*?\bde\s+[\d./]*\d{4}(?:[:.]|[^\S\n])*',                      re.IGNORECASE | re.DOTALL),
-    re.compile(r'\(Acrescentad[oa]s?\s+[^)]*?\bde\s+[\d./]*\d{4}(?:[:.]|[^\S\n])*',                   re.IGNORECASE | re.DOTALL),
+    re.compile(r'\(Redação\s+dada\s+(?:pela|pelo|ao)\s+[^)\n]*?\bde\s+[\d./]*\d{4}(?:[:.]|[^\S\n])*',  re.IGNORECASE | re.DOTALL),
+    re.compile(r'\(Incluíd[oa]s?\s+(?:pela|pelo|ao)\s+[^)\n]*?\bde\s+[\d./]*\d{4}(?:[:.]|[^\S\n])*',   re.IGNORECASE | re.DOTALL),
+    re.compile(r'\(Revogad[oa]s?\s+[^)\n]*?\bde\s+[\d./]*\d{4}(?:[:.]|[^\S\n])*',                      re.IGNORECASE | re.DOTALL),
+    re.compile(r'\(Acrescentad[oa]s?\s+[^)\n]*?\bde\s+[\d./]*\d{4}(?:[:.]|[^\S\n])*',                   re.IGNORECASE | re.DOTALL),
     # Linha standalone 'Vigência': remover SEM consumir as quebras (lookaround) — o
     # sub de '\n...\n' por '' colava a linha anterior com a seguinte (mesma familia A).
     re.compile(r'(?<=\n)[^\S\n]*Vigência[^\S\n]*(?=\n)',      re.IGNORECASE),
     re.compile(r'\(Vigência\)',             re.IGNORECASE),
     re.compile(r'(?<=\n)[^\S\n]*\(Vigência\)[^\S\n]*(?=\n)',  re.IGNORECASE),
     # PL-19 B-07: markers cross-reference que pollunavam *_nome (CDC Art. 60, CLT etc)
-    re.compile(r'\(Vide\s+[^)]{0,200}\)',                  re.IGNORECASE | re.DOTALL),
+    re.compile(r'\(Vide\s+[^)\n]{0,200}\)',                  re.IGNORECASE),
+    # Vide SEM ')' de fechamento (quirk do Planalto — LC123 Art. 44 '(Vide Lei nº
+    # 14.133, de 2021' + quebra): remove ate o ano, sem atravessar a linha.
+    re.compile(r'\(Vide\s+[^)\n]*?\bde\s+[\d./]*\d{4}(?:[:.]|[^\S\n])*', re.IGNORECASE),
     re.compile(r'\(Regulamento[^)]{0,100}\)',              re.IGNORECASE),
     re.compile(r'\(\s?Produ[çc][ãa]o\s+de\s+efeitos?[^\S\n]*\)', re.IGNORECASE),
     # 2026-07-07 bug B: marker 'Produção de efeito' SEM parenteses no fim da linha
@@ -670,19 +683,31 @@ REGEX_CONTINUACAO_HEADER = re.compile(
 INLINE_HEADER_RE = re.compile(
     r'^((?:LIVRO|SUBT[IÍ]TULO|T[IÍ]TULO|CAP[IÍ]TULO|SE[CÇ][AÃ]O)'
     r'\s+(?:[IVXLCDM]+(?:\s*-\s*[A-Z])?|[ÚU]NIC[OA]|PRELIMINAR|COMPLEMENTAR|ESPECIAL))'
-    r'((?:\s*\([^)]+\))*)'  # markers opcionais entre numeral e nome (capturado em \2)
     # PL-13: primeira letra do nome precisa ser MAIUSCULA. Inline flag (?-i:...)
     # desabilita IGNORECASE so nesse grupo, evitando casar citacoes inline
     # tipo "Livro II da Parte Especial deste Código" onde 'da' e lowercase.
-    r'\s+((?-i:[A-ZÀ-Ú]).+)$',
+    # 2026-07-07: COM marker '(...)' presente o header e genuino e o nome pode ser
+    # minusculo (CP 'CAPÍTULO V (Incluído pela Lei 12.550...) das fraudes em
+    # certames...') — sem o split, a linha sangrava pro artigo anterior e o strip
+    # de header a matava. Dois ramos: com-marker (nome livre) | sem-marker (nome
+    # exige maiuscula).
+    r'(?:((?:\s*\([^)]+\))+)\s+(.+)'
+    r'|()\s+((?-i:[A-ZÀ-Ú]).+))$',
     re.MULTILINE | re.IGNORECASE
 )
 
 
+def _inline_header_groups(m: re.Match) -> tuple[str, str, str]:
+    """Normaliza os grupos dos dois ramos do INLINE_HEADER_RE:
+    (header, markers, nome)."""
+    header = m.group(1)
+    if m.group(2) is not None:          # ramo com-marker
+        return header, m.group(2).strip(), m.group(3)
+    return header, (m.group(4) or '').strip(), m.group(5)
+
+
 def _split_inline_repl(m: re.Match) -> str:
-    header_part = m.group(1)
-    marker_part = (m.group(2) or '').strip()
-    name_part = m.group(3)
+    header_part, marker_part, name_part = _inline_header_groups(m)
     # Markers vao pra linha 2 (junto com o nome) pra que extrair_alteracoes /
     # extrair_notas_legais consigam captura-los como pertencentes ao escopo do
     # capitulo/titulo, e limpar_marker_hierarquia depois remova do nome final.
@@ -1034,11 +1059,15 @@ def extrair_estrutura(texto, sigla, versao, url, data_ext, config, descartados_o
             buffer = []; return
 
         # Strip trailing section headers que sangraram do buffer
-        # (último artigo antes de TÍTULO/CAPÍTULO/SEÇÃO absorve o header seguinte)
+        # (último artigo antes de TÍTULO/CAPÍTULO/SEÇÃO absorve o header seguinte).
+        # 2026-07-07: MAIÚSCULAS APENAS — headers reais do Planalto são uppercase;
+        # com IGNORECASE, a quebra de linha no meio de frase ('...a / título de multa
+        # compensatória.') casava como header e o strip apagava DALI ATÉ O FIM do
+        # chunk (CC Art. 740 §3 mutilado; CPC/LT 'Livro I da Parte...' idem).
         def _strip_headers(t):
             return re.sub(
                 r'\n(?:LIVRO|SUBT[IÍ]TULO|T[IÍ]TULO|CAP[IÍ]TULO|SE[CÇ][AÃ]O)\s+.*$',
-                '', t, flags=re.IGNORECASE
+                '', t
             ).strip()
         texto_limpo = _strip_headers(texto_limpo)
 
@@ -1132,7 +1161,10 @@ def extrair_estrutura(texto, sigla, versao, url, data_ext, config, descartados_o
             elif action == "flush_section":
                 flush_buffer(artigo_label_atual)
                 artigo_label_atual = b.get("label", "SEÇÃO")
-                buffer = []
+                # 2026-07-07: a PROPRIA linha do boundary entra no buffer — o merge
+                # cola conteudo nela (CF88: os ~250 nomes de SIGNATARIOS grudados na
+                # linha 'Brasília, 5 de outubro de 1988...'); descarta-la = perder tudo.
+                buffer = [linha_clean]
                 boundary_matched = True
             elif action == "anexo":
                 if ultimo_num_artigo > 0:
@@ -1280,17 +1312,22 @@ def extrair_estrutura(texto, sigla, versao, url, data_ext, config, descartados_o
                     titulo_notas = _notas_aqui
                     titulo_const = _controle_aqui
                     titulo_alt = extrair_alteracoes(linha_clean, escopo="titulo")
+                    continue
                 elif capitulo and not capitulo_nome:
                     capitulo_nome = nome_secao
                     capitulo_notas = _notas_aqui
                     capitulo_const = _controle_aqui
                     capitulo_alt = extrair_alteracoes(linha_clean, escopo="capitulo")
+                    continue
                 elif secao and not secao_nome:
                     secao_nome = nome_secao
                     secao_notas = _notas_aqui
                     secao_const = _controle_aqui
                     secao_alt = extrair_alteracoes(linha_clean, escopo="secao")
-                continue
+                    continue
+                # 2026-07-07: linha estilo nome-de-secao SEM header pendente (ECA
+                # 'Disposições Finais e Transitórias') NAO pode sumir — cai no
+                # buffer do artigo (fall-through; nada se perde).
 
         esperando_nome_secao = None
 
@@ -1567,8 +1604,12 @@ def html_to_clean_text(content: bytes, sigla: str, config: dict) -> str:
     # "Art 1.636" (sem ponto) → "Art. 1.636" — Planalto CC omite o ponto em alguns artigos
     clean_text = re.sub(r'\bArt\s+(\d)', r'Art. \1', clean_text)
     # Quebra artigos inline: "...artigo 1.638. Art. 1.636. O pai..." → duas linhas
-    # Só capital "Art." (início de artigo), não lowercase "art." (referência)
-    clean_text = re.sub(r'(\S)\s+(Art\.\s*\d)', r'\1\n\2', clean_text)
+    # Só capital "Art." (início de artigo), não lowercase "art." (referência).
+    # 2026-07-07: NAO cortar citação capitalizada no FIM da frase ('...o desconto a
+    # que se refere o Art. 582.') — sem conteúdo após o número não é início de
+    # artigo; o corte truncava o § único do CLT 583 e criava bloco 582 espúrio.
+    clean_text = re.sub(r'(\S)\s+(Art\.\s*\d)(?![\d.]*\s*[ºo°]?\s*\.?\s*(?:\n|$))',
+                        r'\1\n\2', clean_text)
 
     # Merge de linhas falsas — marcadores base + boundary patterns da config
     extra_markers = []
