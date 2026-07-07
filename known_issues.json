@@ -1,8 +1,8 @@
 {
   "_doc": "Registro de issues verificados manualmente. O validador suprime esses INFOs. O extrator aplica os overrides.",
-  "_updated": "2026-07-06",
-  "_expected_suppressions": 9,
-  "_expected_suppressions_detail": "artigo_sem_titulo em 3 leis (CLT Art. 1 pré-TÍTULO I + CC Livro Complementar Art. 2.028-2.046 + CPC Livro Complementar Art. 1.045-1.072), × 3 versões de data commitadas (2026-04-08, 2026-07-02 e 2026-07-06) = 9.",
+  "_updated": "2026-07-07",
+  "_expected_suppressions_per_file": {"clt": 1, "codigo_civil": 1, "cpc": 1},
+  "_expected_suppressions_detail": "artigo_sem_titulo: 1 INFO suprimido POR SNAPSHOT DATADO de CLT (Art. 1 pré-TÍTULO I), CC (Livro Complementar 2.028-2.046) e CPC (Livro Complementar 1.045-1.072). O validador calcula o esperado dinamicamente (per_file × nº de arquivos datados da base) — o contador fixo antigo quebrava a cada extração nova.",
 
   "artigos_faltantes_verificados": {
     "_doc": "Artigos ausentes da versão compilada do Planalto — revogados por lei, removidos do texto, ou não recepcionados pela CF88.",

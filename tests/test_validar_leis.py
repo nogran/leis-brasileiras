@@ -668,3 +668,41 @@ class TestTextoQuebradoLetraALetra:
         rep = make_report()
         validate_conteudo([chunk], rep)
         assert not issues_with_rule(rep, "texto_quebrado_letra_a_letra")
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Ratchet (2026-07-07): FAIL na extração mais recente, WARN no histórico
+# ═══════════════════════════════════════════════════════════════════════════════
+
+from validar_leis import arquivos_mais_recentes, aplicar_ratchet, RATCHET_FAIL_RULES, Issue
+
+
+class TestRatchetMaisRecente:
+    def test_arquivos_mais_recentes_por_base(self):
+        files = ["data/lc123_2026-04-08.json", "data/lc123_2026-07-07.json",
+                 "data/cdc_2026-07-02.json", "data/cdc_2026-07-07.json",
+                 "data/sem_data_padrao.json"]
+        rec = arquivos_mais_recentes(files)
+        assert "data/lc123_2026-07-07.json" in rec
+        assert "data/lc123_2026-04-08.json" not in rec
+        assert "data/cdc_2026-07-07.json" in rec
+        assert "data/sem_data_padrao.json" in rec   # fora do padrão => ratchet vale
+
+    def test_ratchet_eleva_warn_para_fail_no_mais_recente(self):
+        rep = make_report()
+        rep.issues.append(Issue("WARN", "CONTEUDO", "texto_quebrado_letra_a_letra", "x", "Art. 1"))
+        rep.issues.append(Issue("WARN", "ARTIGO", "standalone_e_partes_coexistem", "x", "Art. 2"))
+        rep.issues.append(Issue("WARN", "CONTEUDO", "texto_curto", "x", "Art. 3"))  # fora do ratchet
+        aplicar_ratchet(rep, is_latest=True)
+        sev = {i.rule: i.severity for i in rep.issues}
+        assert sev["texto_quebrado_letra_a_letra"] == "FAIL"
+        assert sev["standalone_e_partes_coexistem"] == "FAIL"
+        assert sev["texto_curto"] == "WARN"           # regras fora do ratchet intactas
+
+    def test_ratchet_nao_toca_historico(self):
+        """Snapshot antigo (não-mais-recente) mantém WARN — histórico legítimo
+        não pode reprovar o CI pra sempre."""
+        rep = make_report()
+        rep.issues.append(Issue("WARN", "CONTEUDO", "texto_quebrado_letra_a_letra", "x", "Art. 1"))
+        aplicar_ratchet(rep, is_latest=False)
+        assert rep.issues[0].severity == "WARN"

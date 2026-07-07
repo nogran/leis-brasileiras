@@ -116,6 +116,41 @@ class FileReport:
 def _add(report, severity, category, rule, message, artigo=""):
     report.issues.append(Issue(severity, category, rule, message, artigo))
 
+
+# ── Ratchet (2026-07-07): regras que ficam FAIL na extracao mais RECENTE de cada
+# lei. A base nova NAO pode regredir para texto quebrado/duplicado (Camada 2 do fix
+# LC123 zerou os casos), mas os snapshots HISTORICOS em data/ (datas antigas, texto
+# pre-fix) permanecem WARN — historico legitimo nao pode reprovar o CI pra sempre.
+RATCHET_FAIL_RULES = {"texto_quebrado_letra_a_letra", "standalone_e_partes_coexistem"}
+
+_DATE_FILE_RE = re.compile(r'^(.+?)_(\d{4}-\d{2}-\d{2})\.json$')
+
+
+def arquivos_mais_recentes(files: list[str]) -> set[str]:
+    """Do conjunto de arquivos datados ({base}_{YYYY-MM-DD}.json), o MAIS recente de
+    cada base. Arquivo fora do padrao de data e tratado como recente (ratchet vale)."""
+    latest: dict[str, tuple[str, str]] = {}
+    extras: set[str] = set()
+    for fp in files:
+        m = _DATE_FILE_RE.match(os.path.basename(fp))
+        if not m:
+            extras.add(fp)
+            continue
+        base, date = m.group(1), m.group(2)
+        if base not in latest or date > latest[base][0]:
+            latest[base] = (date, fp)
+    return {fp for _, fp in latest.values()} | extras
+
+
+def aplicar_ratchet(report: FileReport, is_latest: bool) -> None:
+    """Eleva WARN->FAIL das RATCHET_FAIL_RULES quando o arquivo e a extracao mais
+    recente da sua lei."""
+    if not is_latest:
+        return
+    for i in report.issues:
+        if i.rule in RATCHET_FAIL_RULES and i.severity == "WARN":
+            i.severity = "FAIL"
+
 def _art_num(artigo_str: str) -> int | None:
     """Extrai número inteiro do label de artigo. Retorna None se não conseguir."""
     m = re.match(r'Art\.\s*([\d.]+)', artigo_str)
@@ -1014,6 +1049,7 @@ def main():
 
     reports, all_data = [], {}
     total_suppressed = 0
+    recentes = arquivos_mais_recentes(files)
     for fp in files:
         result = validate_file(fp)
         if isinstance(result, tuple):
@@ -1021,6 +1057,7 @@ def main():
             all_data[os.path.basename(fp)] = data
         else:
             report = result
+        aplicar_ratchet(report, fp in recentes)
         if ki:
             s = suppress_known_issues(report, ki)
             if s:
@@ -1048,7 +1085,18 @@ def main():
     print(f"  {tfc} FAILs · {twc} WARNs · {ti} issues total")
     if total_suppressed:
         print(f"  📋 {total_suppressed} INFOs suprimidos (known_issues)")
-        expected = ki.get("_expected_suppressions")
+        # Esperado DINAMICO: supressoes por arquivo-base × quantos snapshots datados
+        # daquela base foram validados. O contador fixo antigo quebrava a cada
+        # extracao nova (3 leis × N datas cresce com o historico).
+        per_file = ki.get("_expected_suppressions_per_file")
+        if per_file:
+            expected = 0
+            for f in files:
+                m = _DATE_FILE_RE.match(os.path.basename(f))
+                if m:
+                    expected += per_file.get(m.group(1), 0)
+        else:
+            expected = ki.get("_expected_suppressions")
         if expected is not None and total_suppressed != expected:
             print(f"  ⚠️  Esperado {expected} suprimidos, obteve {total_suppressed} — investigar!")
     print(f"{'═'*70}")
