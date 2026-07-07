@@ -1116,7 +1116,9 @@ class TestNotasLegaisOverride:
             os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
             "data"
         )
-        clt_files = sorted(glob.glob(os.path.join(data_dir, "clt_*.json")))
+        from verificar_integridade import eh_arquivo_de_lei
+        clt_files = sorted(f for f in glob.glob(os.path.join(data_dir, "clt_*.json"))
+                           if eh_arquivo_de_lei(os.path.basename(f)))
         if not clt_files:
             import pytest
             pytest.skip("CLT JSON nao extraido — pular teste")
