@@ -1247,7 +1247,15 @@ def extrair_estrutura(texto, sigla, versao, url, data_ext, config,
             (secao, secao_nome),
         ]:
             if num:
-                path_partes.append(f"{num} — {nome}" if nome else num)
+                # Sob capture_epigrafe (CP/CLT) a rubrica marginal do 1º artigo vem colada no
+                # nome do nível (PEEK mantém *_nome INTEIRO, risco zero de truncar dispositivo)
+                # e já está capturada em `epigrafe`. Aqui limpamos SÓ o breadcrumb de exibição
+                # (path_hierarquico) pra a rubrica não sair duas vezes na ficha do Modo Técnico
+                # (grudada na linha "Hierarquia" + como título "Art. 129 — Lesão corporal").
+                # _split_heading_rubrica é no-op quando não há transição CAIXA-ALTA→Title, então
+                # só apara rubrica real; os campos *_nome crus seguem grudados (invariante PEEK).
+                nome_path = _split_heading_rubrica(nome)[0] if (capture_epigrafe and nome) else nome
+                path_partes.append(f"{num} — {nome_path}" if nome_path else num)
         path = " > ".join(path_partes) if path_partes else ""
 
         # Enriquece vetado_total: se alteracoes está vazio, registra a norma de origem.

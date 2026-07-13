@@ -180,6 +180,21 @@ class TestEpigrafeExtraction:
         assert "Homicídio simples" in b["Art. 129"]["texto_limpo"]
         assert "Feminicídio" in b["Art. 121"]["texto_limpo"]
 
+    def test_path_hierarquico_limpa_a_rubrica_grudada(self):
+        # O breadcrumb de EXIBIÇÃO (path_hierarquico) é limpo da rubrica grudada — ela já vive
+        # no campo `epigrafe`. Sem isso, a rubrica sairia DUAS vezes na ficha do Modo Técnico:
+        # grudada na linha "Hierarquia" + como título "Art. 129 — Lesão corporal".
+        b = _extrair(_TEXTO_CP, _CFG_ON)
+        assert b["Art. 129"]["path_hierarquico"] == "CAPÍTULO II — DAS LESÕES CORPORAIS"
+        assert "Lesão corporal" not in b["Art. 129"]["path_hierarquico"]
+        # o campo CRU capitulo_nome continua grudado (invariante PEEK — não truncamos a fonte)
+        assert "Lesão corporal" in b["Art. 129"]["capitulo_nome"]
+
+    def test_path_hierarquico_intacto_sem_capture_epigrafe(self):
+        # Sem capture_epigrafe (leis Title-case), NÃO tocamos no path — comportamento inalterado.
+        b = _extrair(_TEXTO_CP, _CFG_OFF)
+        assert b["Art. 129"]["path_hierarquico"] == "CAPÍTULO II — DAS LESÕES CORPORAIS Lesão corporal"
+
     def test_sub_rubrica_dentro_do_artigo_permanece_no_texto(self):
         # 'Diminuição de pena' precede um `§`, não um `Art. N` — sub-rubrica interna, fica
         # no texto e NÃO vira epígrafe (só o rabo, última linha do buffer, é lido).
