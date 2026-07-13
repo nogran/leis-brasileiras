@@ -164,6 +164,16 @@ LEIS_CONFIG = {
         # Lei sem hierarquia interna (sem LIVRO/TÍTULO/CAPÍTULO/SEÇÃO).
         "inline_headers": False,
     },
+    "L9099": {
+        # Lei dos Juizados Especiais Cíveis e Criminais. Ancora a AÇÃO PENAL da lesão
+        # corporal leve (Art. 88 = condicionada à representação) — regra que a Justina
+        # respondia de conhecimento geral por não ter artigo na base (ver roadmap Fase 2,
+        # gap achado no caso irmão/filha/genro, 2026-07-13).
+        "versao": "Lei 9.099/1995",
+        "url": "https://www.planalto.gov.br/ccivil_03/leis/l9099.htm",
+        "nome_base": "lei_juizados_especiais",
+        "dedup_redacoes": True,
+    },
 }
 
 

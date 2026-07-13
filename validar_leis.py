@@ -47,7 +47,7 @@ VALID_STATUS = {"vigente", "vetado_total", "revogado"}
 
 VALID_LEI_SIGLAS = {
     "CDC", "CLT", "CC", "CPC", "CF88", "CP", "LGPD",
-    "ECA", "LI", "LMP", "LC123", "LT", "CADPOS",
+    "ECA", "LI", "LMP", "LC123", "LT", "CADPOS", "L9099",
 }
 
 # PL-13: leis que de fato tem estrutura hierarquica de LIVRO (sub-bloco 4a)

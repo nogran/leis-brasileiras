@@ -30,7 +30,7 @@ LAWS = {
     "cadastro_positivo": "CADPOS", "cdc": "CDC", "cf88": "CF88", "clt": "CLT",
     "codigo_civil": "CC", "cp": "CP", "cpc": "CPC", "eca": "ECA", "lc123": "LC123",
     "lei_inquilinato": "LI", "lei_maria_penha": "LMP", "lei_terceirizacao": "LT",
-    "lgpd": "LGPD",
+    "lgpd": "LGPD", "lei_juizados_especiais": "L9099",
 }
 
 
