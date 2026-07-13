@@ -119,10 +119,24 @@ def test_extrair_lei_fluxo_completo_nao_quebra(monkeypatch, tmp_path):
     ok = extrair_leis.extrair_lei(_Session(html.encode("utf-8")), "CDC", force=True)
     assert ok is True   # nao levanta (ex: NameError no print de resumo)
 
-    escritos = glob.glob(str(tmp_path / "data" / "cdc_*.json"))
-    assert escritos, "extrair_lei deveria ter escrito o JSON"
-    data = json.load(open(escritos[0], encoding="utf-8"))
+    # JSON principal = a LISTA de artigos. Filtra o sidecar _riscadas (um dict) que o glob
+    # "cdc_*.json" tambem casa — senao escritos[0] fica nao-deterministico e as vezes carregava
+    # o dict, quebrando o assert com TypeError. Regra do repo: consumidores de {lei}_*.json
+    # DEVEM filtrar _riscadas.
+    principais = [f for f in glob.glob(str(tmp_path / "data" / "cdc_*.json"))
+                  if "_riscadas" not in f]
+    assert principais, "extrair_lei deveria ter escrito o JSON principal"
+    data = json.load(open(principais[0], encoding="utf-8"))
     assert any(b["artigo"].startswith("Art.") for b in data)
+
+    # Sidecar _riscadas: smoke ESTRUTURAL — foi escrito e e um dict bem-formado (historico de
+    # redacoes). Aqui o HTML nao tem riscados, entao `riscadas` fica vazio — so a forma importa;
+    # o CONTEUDO do riscado e travado pelo test_completeness_golden ("nada da pagina se perde").
+    riscadas = glob.glob(str(tmp_path / "data" / "cdc_*_riscadas.json"))
+    assert riscadas, "extrair_lei deveria ter escrito o sidecar _riscadas"
+    risc = json.load(open(riscadas[0], encoding="utf-8"))
+    assert isinstance(risc, dict) and isinstance(risc.get("riscadas"), list)
+    assert risc.get("lei") == "CDC" and risc["total"] == len(risc["riscadas"])
 
 
 def test_parse_law_aborta_sem_artigo():
