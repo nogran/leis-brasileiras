@@ -44,6 +44,9 @@ LEIS_CONFIG = {
         "url": "https://www.planalto.gov.br/ccivil_03/constituicao/constituicao.htm",
         "nome_base": "cf88",
         "dedup_redacoes": True,
+        # NÃO liga capture_epigrafe: a Constituição não tem rubrica marginal por artigo. O
+        # que parecia rubrica ('Subseção I Disposição Geral', 'Dos Princípios Fundamentais')
+        # é header de hierarquia — ligar aqui só gera falso positivo. Ver docs/design/epigrafe-capture.md.
         "boundaries": [
             {
                 # Signatários do corpo principal (ANTES do ADCT)
@@ -81,6 +84,9 @@ LEIS_CONFIG = {
         "url": "https://www.planalto.gov.br/ccivil_03/decreto-lei/del5452compilado.htm",
         "nome_base": "clt",
         "dedup_redacoes": True,
+        # Heading CAIXA-ALTA + rubrica marginal Title-case por artigo -> captura em `epigrafe`
+        # (PEEK, sem truncar texto). Ver docs/design/epigrafe-capture.md.
+        "capture_epigrafe": True,
         "boundaries": [
             {"pattern": r"^ANEXO\b", "action": "anexo"},
         ],
@@ -100,6 +106,9 @@ LEIS_CONFIG = {
         "versao": "Decreto-Lei 2.848/1940",
         "url": "https://www.planalto.gov.br/ccivil_03/decreto-lei/del2848compilado.htm",
         "nome_base": "cp",
+        # Heading CAIXA-ALTA + rubrica marginal Title-case por artigo -> captura em `epigrafe`
+        # (PEEK, sem truncar texto). Ver docs/design/epigrafe-capture.md.
+        "capture_epigrafe": True,
     },
     "LGPD": {
         "versao": "Lei 13.709/2018",
@@ -686,6 +695,109 @@ REGEX_CONTINUACAO_HEADER = re.compile(
     re.IGNORECASE
 )
 
+# --- Epígrafe (rubrica por artigo) — ver docs/design/epigrafe-capture.md ---
+# Só em leis com heading CAIXA-ALTA (config capture_epigrafe): a rubrica Title-case do
+# artigo gruda no capitulo_nome (1º artigo) ou no fim do texto do artigo anterior (demais).
+# Capturamos como campo `epigrafe` (move, nunca dropa — o golden trava).
+_RUBRICA_MAX = 80
+
+# Palavra de hierarquia iniciando a frase = header (SUBSEÇÃO/SEÇÃO/CAPÍTULO/TÍTULO/LIVRO),
+# NUNCA rubrica de artigo. A subseção (nível não modelado no pipeline) gruda no secao_nome
+# como 'DO PROCESSO LEGISLATIVO Subseção I Disposição Geral' — sem este filtro o split
+# trataria 'Subseção I ...' como rubrica (falso positivo real na CF88).
+_HIERARCHY_HEAD_RE = re.compile(
+    r'(?:sub)?se[cç][aã]o\b|cap[ií]tulo\b|subt[ií]tulo\b|t[ií]tulo\b|livro\b',
+    re.IGNORECASE)
+
+
+def _is_hierarchy_header(s: str) -> bool:
+    return bool(_HIERARCHY_HEAD_RE.match((s or "").strip()))
+
+
+def is_rubrica_candidate(linha: str) -> bool:
+    """True se a linha é epígrafe/rubrica de artigo (Title-case CURTA que precede um `Art. N`).
+    Estrita p/ nunca capturar conteúdo: curta; Title-case (começa maiúscula, tem minúscula, NÃO
+    CAIXA-ALTA); sem `Art.`/`§`/`:`/`Pena`/dígito; sem ponto final; sem dot-leader nem marker."""
+    t = (linha or "").strip()
+    if not t or len(t) >= _RUBRICA_MAX:
+        return False
+    letters = [c for c in t if c.isalpha()]
+    if not letters or not letters[0].isupper():
+        return False
+    if all(c.isupper() for c in letters) or not any(c.islower() for c in letters):
+        return False   # CAIXA-ALTA = header, não rubrica
+    if t[-1] in '.:;' or t.startswith('(') or '§' in t or ':' in t or '....' in t:
+        return False
+    if re.search(r'\d', t):
+        return False   # rubricas são frases nominais sem número
+    low = t.lower()
+    # 'Pena ...' = linha de cominação (marginal do Planalto), rejeita SÓ quando ANCORADA
+    # no início — uma rubrica legítima PODE conter 'pena' ('Diminuição de pena',
+    # 'Penas restritivas de direitos'); `re.match` + `\b` não casa 'penas'.
+    if re.search(r'\bart\.?\s*\d', low) or re.match(r'pena\b', low):
+        return False
+    # Header de hierarquia (Subseção/Seção/Capítulo/Título/Livro) NÃO é rubrica. Ver
+    # _is_hierarchy_header — protege a CF88 (sem rubrica marginal) e CP/CLT do grude de
+    # subseção no nome da seção/capítulo.
+    if _is_hierarchy_header(t):
+        return False
+    if REGEX_ARTIGO.match(t):
+        return False
+    return True
+
+
+def _split_heading_rubrica(nome: str) -> tuple[str, str]:
+    """Separa `<HEADER CAIXA-ALTA> <rubrica Title-case>` -> (header, rubrica).
+    Ex: 'DAS LESÕES CORPORAIS Lesão corporal' -> ('DAS LESÕES CORPORAIS', 'Lesão corporal').
+    Sem grude (header inteiro CAIXA-ALTA, ou nome Title-case legítimo) -> (nome, '')."""
+    toks = (nome or "").split()
+    saw_allcaps = False
+    for i, t in enumerate(toks):
+        letters = [c for c in t if c.isalpha()]
+        if not letters:
+            continue
+        allcaps = len(letters) >= 2 and all(c.isupper() for c in letters)
+        titlecase = letters[0].isupper() and any(c.islower() for c in letters)
+        if allcaps:
+            saw_allcaps = True
+        elif titlecase and saw_allcaps:
+            header, rubrica = " ".join(toks[:i]).strip(), " ".join(toks[i:]).strip()
+            # No nome de capítulo/seção, o sufixo Title-case após a transição CAIXA-ALTA→
+            # Title É estruturalmente a rubrica do 1º artigo — QUALQUER comprimento (ex: CP
+            # Art. 306 tem rubrica de 113 chars). O único falso positivo real é o sufixo de
+            # SUBSEÇÃO grudado ('... Subseção I Disposição Geral'), que é header, não rubrica.
+            # Por isso rejeitamos SÓ header de hierarquia — não aplicamos o teto de 80 chars
+            # do is_rubrica_candidate (que existe pro caminho de strip do fim do buffer, onde
+            # linha longa provavelmente é conteúdo, não rubrica).
+            if _is_hierarchy_header(rubrica):
+                return nome, ""
+            return header, rubrica
+    return nome, ""
+
+
+def _extract_trailing_rubrica(linha: str) -> str:
+    """Rubrica (epígrafe) do PRÓXIMO artigo, colada no fim da linha que precede um 'Art. N'.
+    PEEK — só LÊ, nunca remove nada da linha (decisão de não truncar dispositivo). Dois modos:
+      1) a linha inteira já é a rubrica ('Disposições comuns' em linha própria);
+      2) o rabo Title-case no fim, após o último terminador de frase/fecho de marcador
+         ('...no Brasil.  Furto de coisa comum' -> 'Furto de coisa comum').
+    Retorna '' se não houver rubrica plausível. LIMITAÇÃO CONHECIDA: rubrica colada SEM
+    terminador antes (ex: '§ 7º Feminicídio' com o § revogado/vazio) não é pega aqui — ver
+    docs/design/epigrafe-capture.md."""
+    t = (linha or "").strip()
+    if not t:
+        return ""
+    if is_rubrica_candidate(t):
+        return t
+    # Rabo nominal curto no fim, após '.'/')'/':'/';'/aspas; sem terminador interno (frase
+    # nominal). is_rubrica_candidate re-valida (Title-case, teto de 80, sem dígito/§/header).
+    m = re.search(r'[.):;»”"]\s+([A-ZÀ-Ú][^.():;§]{1,78})$', t)
+    if m:
+        cand = m.group(1).strip()
+        if is_rubrica_candidate(cand):
+            return cand
+    return ""
+
 # PL-13 sub-bloco 2e: header de hierarquia em formato inline (numeral e nome
 # na mesma linha). Ex: "LIVRO I DAS PESSOAS", "CAPÍTULO I Da Personalidade".
 # split_inline_headers reescreve essas linhas em duas (numeral + nome) pra que
@@ -1040,6 +1152,11 @@ def extrair_estrutura(texto, sigla, versao, url, data_ext, config,
     em_transitorias = False
     blocos, buffer = [], []
     esperando_nome_secao = None
+    # Epígrafe (rubrica por artigo): `epigrafe_atual` é a do artigo em buffer; `epigrafe_proximo`
+    # carrega a rubrica desgrudada (do split do capítulo OU do fim do buffer) pro PRÓXIMO artigo.
+    capture_epigrafe = bool(config.get("capture_epigrafe"))
+    epigrafe_atual = ""
+    epigrafe_proximo = ""
 
     # Compila boundaries da config. "ignorecase": False permite pattern case-SENSITIVE:
     # headers de secao do Planalto sao MAIUSCULOS, e IGNORECASE fazia referencias do
@@ -1051,9 +1168,18 @@ def extrair_estrutura(texto, sigla, versao, url, data_ext, config,
         boundaries.append({**b, "_re": re.compile(b["pattern"], flags)})
 
     def flush_buffer(artigo_label):
-        nonlocal buffer
+        nonlocal buffer, epigrafe_proximo
         if not buffer:
             return
+        # Epígrafe (PEEK, não remove): a rubrica do PRÓXIMO artigo vem colada no fim da última
+        # linha DESTE artigo (ex: Art. 1 termina com 'Lei penal no tempo' = rubrica do Art. 2).
+        # Só LEMOS o rabo pra epigrafe_proximo; texto_limpo mantém o ruído colado — decisão de
+        # NÃO truncar dispositivo (ver docs/design/epigrafe-capture.md). `epigrafe_atual` (do
+        # artigo em buffer) é lido lá embaixo no dict do bloco.
+        if capture_epigrafe:
+            _rub_fim = _extract_trailing_rubrica(buffer[-1])
+            if _rub_fim:
+                epigrafe_proximo = _rub_fim
         texto_raw = "\n".join(buffer).strip()
         # PL-19 Estagio 2: alteracoes/notas/controle herdadas dos headers + do texto
         alteracoes_artigo = extrair_alteracoes(texto_raw, escopo="artigo")
@@ -1149,7 +1275,7 @@ def extrair_estrutura(texto, sigla, versao, url, data_ext, config,
             part_slug = f"_p{i+1}" if len(partes) > 1 else ""
             artigo_id = re.sub(r'_+', '_', f"{sigla.lower()}_art_{art_slug}{part_slug}")
 
-            blocos.append({
+            bloco = {
                 "id": artigo_id, "lei": sigla, "versao": versao,
                 "versao_consolidada": True,
                 "artigo": f"{artigo_label}{suffix_label}",
@@ -1158,6 +1284,7 @@ def extrair_estrutura(texto, sigla, versao, url, data_ext, config,
                 "subtitulo": subtitulo, "subtitulo_nome": subtitulo_nome,
                 "capitulo": capitulo, "capitulo_nome": capitulo_nome,
                 "secao": secao, "secao_nome": secao_nome,
+                "epigrafe": epigrafe_atual,
                 "path_hierarquico": path, "texto_limpo": parte,
                 "status": status,
                 "vetos_parciais": vetos_parciais if vetos_parciais else [],
@@ -1169,7 +1296,13 @@ def extrair_estrutura(texto, sigla, versao, url, data_ext, config,
                 "url_fonte": url, "data_extracao": data_ext,
                 "parte_num": i + 1 if len(partes) > 1 else None,
                 "total_partes": len(partes) if len(partes) > 1 else None,
-            })
+            }
+            # `epigrafe` só existe nas leis com rubrica marginal (capture_epigrafe: CP/CLT).
+            # Nas demais é sempre "" — omitir mantém o JSON dessas leis INALTERADO (a ingestão
+            # trata a ausência com g("epigrafe", "")). Ver docs/design/epigrafe-capture.md.
+            if not capture_epigrafe:
+                del bloco["epigrafe"]
+            blocos.append(bloco)
         buffer = []
 
     for linha in texto.split("\n"):
@@ -1332,12 +1465,20 @@ def extrair_estrutura(texto, sigla, versao, url, data_ext, config,
                 elif esperando_nome_secao == "capitulo":
                     if numeral_extra: capitulo = f"{capitulo} {numeral_extra}"
                     capitulo_nome = nome_parte
+                    if capture_epigrafe:
+                        _, _rub = _split_heading_rubrica(nome_parte)
+                        if _rub:
+                            epigrafe_proximo = _rub   # rubrica do 1º artigo (PEEK; nome fica inteiro)
                     capitulo_notas = _notas_aqui
                     capitulo_const = _controle_aqui
                     capitulo_alt = _alt_aqui
                 elif esperando_nome_secao == "secao":
                     if numeral_extra: secao = f"{secao} {numeral_extra}"
                     secao_nome = nome_parte
+                    if capture_epigrafe:
+                        _, _rub = _split_heading_rubrica(nome_parte)
+                        if _rub:
+                            epigrafe_proximo = _rub   # rubrica do 1º artigo (PEEK; nome fica inteiro)
                     secao_notas = _notas_aqui
                     secao_const = _controle_aqui
                     secao_alt = _alt_aqui
@@ -1357,12 +1498,20 @@ def extrair_estrutura(texto, sigla, versao, url, data_ext, config,
                     continue
                 elif capitulo and not capitulo_nome:
                     capitulo_nome = nome_secao
+                    if capture_epigrafe:
+                        _, _rub = _split_heading_rubrica(nome_secao)
+                        if _rub:
+                            epigrafe_proximo = _rub   # rubrica do 1º artigo (PEEK; nome fica inteiro)
                     capitulo_notas = _notas_aqui
                     capitulo_const = _controle_aqui
                     capitulo_alt = extrair_alteracoes(linha_clean, escopo="capitulo")
                     continue
                 elif secao and not secao_nome:
                     secao_nome = nome_secao
+                    if capture_epigrafe:
+                        _, _rub = _split_heading_rubrica(nome_secao)
+                        if _rub:
+                            epigrafe_proximo = _rub   # rubrica do 1º artigo (PEEK; nome fica inteiro)
                     secao_notas = _notas_aqui
                     secao_const = _controle_aqui
                     secao_alt = extrair_alteracoes(linha_clean, escopo="secao")
@@ -1386,6 +1535,10 @@ def extrair_estrutura(texto, sigla, versao, url, data_ext, config,
                 classificacao = classificar_linha_artigo(linha_clean, num_atual, sufixo, ultimo_num_artigo)
                 if classificacao == 'novo_artigo':
                     flush_buffer(artigo_label_atual)
+                    # Epígrafe: a rubrica desgrudada (split do capítulo OU fim do buffer anterior),
+                    # guardada em epigrafe_proximo pelo flush, agora é a do artigo que começa.
+                    epigrafe_atual = epigrafe_proximo
+                    epigrafe_proximo = ""
                     # Normaliza separador de milhar: "1337" → "1.337" (Planalto CC Art. 1337)
                     if '.' not in num_str and num_atual >= 1000:
                         num_str_novo = f"{num_atual:,}".replace(',', '.')
