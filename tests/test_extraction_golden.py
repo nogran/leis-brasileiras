@@ -20,18 +20,14 @@ import re
 import pytest
 
 import extrair_leis
+import laws
 
 _ROOT = os.path.dirname(os.path.dirname(__file__))
 _DATA = os.path.join(_ROOT, "data")
 _DATE = re.compile(r'_(\d{4}-\d{2}-\d{2})\.json$')
 
-# base do arquivo -> sigla no LEIS_CONFIG
-LAWS = {
-    "cadastro_positivo": "CADPOS", "cdc": "CDC", "cf88": "CF88", "clt": "CLT",
-    "codigo_civil": "CC", "cp": "CP", "cpc": "CPC", "eca": "ECA", "lc123": "LC123",
-    "lei_inquilinato": "LI", "lei_maria_penha": "LMP", "lei_terceirizacao": "LT",
-    "lgpd": "LGPD", "lei_juizados_especiais": "L9099",
-}
+# base do arquivo -> sigla, derivado do catálogo único (laws.yml). NUNCA re-hardcodar.
+LAWS = laws.NOME_BASE_PARA_SIGLA
 
 
 def _latest_pair(base):

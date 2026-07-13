@@ -27,6 +27,8 @@ import json, re, sys, os, argparse
 from collections import defaultdict, Counter
 from dataclasses import dataclass, field, asdict
 
+import laws
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # Configuração
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -45,10 +47,8 @@ REQUIRED_FIELDS = [
 
 VALID_STATUS = {"vigente", "vetado_total", "revogado"}
 
-VALID_LEI_SIGLAS = {
-    "CDC", "CLT", "CC", "CPC", "CF88", "CP", "LGPD",
-    "ECA", "LI", "LMP", "LC123", "LT", "CADPOS", "L9099",
-}
+# Derivado do catálogo único (laws.yml). NUNCA re-hardcodar aqui.
+VALID_LEI_SIGLAS = set(laws.SIGLAS)
 
 # PL-13: leis que de fato tem estrutura hierarquica de LIVRO (sub-bloco 4a)
 # Verificado contra clean.txt apos Estagio 6: CC e CPC sao as unicas com Livros.

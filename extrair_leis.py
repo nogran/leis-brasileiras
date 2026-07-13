@@ -20,6 +20,7 @@ import hashlib, re, json, sys, os
 import unicodedata
 
 import db
+import laws
 
 # Versao do parser gravada em raw_captures.parser_version (permite re-parse historico).
 PARSER_VERSION = "extrair_leis@3"
@@ -38,105 +39,38 @@ PARSER_VERSION = "extrair_leis@3"
 #      label      - (opcional) label para flush_section
 # =====================================================================
 
-LEIS_CONFIG = {
-    "CF88": {
-        "versao": "Constituição Federal 1988",
-        "url": "https://www.planalto.gov.br/ccivil_03/constituicao/constituicao.htm",
-        "nome_base": "cf88",
-        "dedup_redacoes": True,
-        # NÃO liga capture_epigrafe: a Constituição não tem rubrica marginal por artigo. O
-        # que parecia rubrica ('Subseção I Disposição Geral', 'Dos Princípios Fundamentais')
-        # é header de hierarquia — ligar aqui só gera falso positivo. Ver docs/design/epigrafe-capture.md.
-        "boundaries": [
-            {
-                # Signatários do corpo principal (ANTES do ADCT)
-                # Pattern específico com data para não casar "Brasília" em texto de artigo
-                "pattern": r"^Brasília\s*,\s*\d+\s+de\s+\w+\s+de\s+\d{4}",
-                "action": "flush_section",
-                "label": "SIGNATÁRIOS",
-            },
-            {
-                # 2026-07-07: case-SENSITIVE — a citação em texto corrido 'Ato das
-                # Disposições Constitucionais Transitórias, será cobrada...' (ADCT
-                # Art. 84) disparava o boundary no meio da lei com IGNORECASE.
-                "pattern": r"^ATO DAS DISPOSIÇÕES CONSTITUCIONAIS TRANSITÓRIAS",
-                "action": "transitorias",
-                "ignorecase": False,
-            },
-            {
-                # Signatários do ADCT (DEPOIS do ADCT)
-                "pattern": r"^Brasília\s*,",
-                "condition": "em_transitorias",
-                "action": "flush_section",
-                "label": "SIGNATÁRIOS (ADCT)",
-            },
-        ],
-    },
-    "CDC": {
-        "versao": "Lei 8.078/1990",
-        "url": "https://www.planalto.gov.br/ccivil_03/leis/l8078compilado.htm",
-        "nome_base": "cdc",
-        # Headers inline (TÍTULO I Dos Direitos...) sao tratados pelo
-        # split_inline_headers do engine (PL-13 sub-bloco 2e).
-    },
-    "CLT": {
-        "versao": "Decreto-Lei 5.452/1943",
-        "url": "https://www.planalto.gov.br/ccivil_03/decreto-lei/del5452compilado.htm",
-        "nome_base": "clt",
-        "dedup_redacoes": True,
-        # Heading CAIXA-ALTA + rubrica marginal Title-case por artigo -> captura em `epigrafe`
-        # (PEEK, sem truncar texto). Ver docs/design/epigrafe-capture.md.
-        "capture_epigrafe": True,
-        "boundaries": [
-            {"pattern": r"^ANEXO\b", "action": "anexo"},
-        ],
-    },
-    "CC": {
-        "versao": "Lei 10.406/2002",
-        "url": "https://www.planalto.gov.br/ccivil_03/leis/2002/l10406compilada.htm",
-        "nome_base": "codigo_civil",
-    },
-    "CPC": {
-        "versao": "Lei 13.105/2015",
-        "url": "https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2015/lei/L13105compilada.htm",
-        "nome_base": "cpc",
-        "dedup_redacoes": True,
-    },
-    "CP": {
-        "versao": "Decreto-Lei 2.848/1940",
-        "url": "https://www.planalto.gov.br/ccivil_03/decreto-lei/del2848compilado.htm",
-        "nome_base": "cp",
-        # Heading CAIXA-ALTA + rubrica marginal Title-case por artigo -> captura em `epigrafe`
-        # (PEEK, sem truncar texto). Ver docs/design/epigrafe-capture.md.
-        "capture_epigrafe": True,
-    },
-    "LGPD": {
-        "versao": "Lei 13.709/2018",
-        "url": "https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2018/lei/L13709compilado.htm",
-        "nome_base": "lgpd",
-    },
-    "ECA": {
-        "versao": "Lei 8.069/1990",
-        "url": "https://www.planalto.gov.br/ccivil_03/leis/L8069Compilado.htm",
-        "nome_base": "eca",
-        "dedup_redacoes": True,
-    },
-    "LI": {
-        "versao": "Lei 8.245/1991",
-        "url": "https://www.planalto.gov.br/ccivil_03/leis/L8245compilado.htm",
-        "nome_base": "lei_inquilinato",
-    },
-    "LMP": {
-        "versao": "Lei 11.340/2006",
-        "url": "https://www.planalto.gov.br/ccivil_03/_ato2004-2006/2006/lei/l11340.htm",
-        "nome_base": "lei_maria_penha",
-        "encoding": "utf-16",
-    },
-    "LC123": {
-        "versao": "Lei Complementar 123/2006",
-        "url": "https://www.planalto.gov.br/ccivil_03/leis/lcp/lcp123.htm",
-        "nome_base": "lc123",
-        "dedup_redacoes": True,
+# boundaries = cortes de seção (regex + ação/condição). São per-lei e EXTRATOR-INTERNAS —
+# não se repetem em outros arquivos, então ficam AQUI (não no laws.yml, que é só identidade +
+# flags simples). Só as 3 leis com estrutura especial precisam.
+_BOUNDARIES = {
+    "CF88": [
+        {
+            # Signatários do corpo principal (ANTES do ADCT)
+            # Pattern específico com data para não casar "Brasília" em texto de artigo
+            "pattern": r"^Brasília\s*,\s*\d+\s+de\s+\w+\s+de\s+\d{4}",
+            "action": "flush_section",
+            "label": "SIGNATÁRIOS",
+        },
+        {
+            # 2026-07-07: case-SENSITIVE — a citação em texto corrido 'Ato das
+            # Disposições Constitucionais Transitórias, será cobrada...' (ADCT
+            # Art. 84) disparava o boundary no meio da lei com IGNORECASE.
+            "pattern": r"^ATO DAS DISPOSIÇÕES CONSTITUCIONAIS TRANSITÓRIAS",
+            "action": "transitorias",
+            "ignorecase": False,
+        },
+        {
+            # Signatários do ADCT (DEPOIS do ADCT)
+            "pattern": r"^Brasília\s*,",
+            "condition": "em_transitorias",
+            "action": "flush_section",
+            "label": "SIGNATÁRIOS (ADCT)",
+        },
+    ],
+    "CLT": [
+        {"pattern": r"^ANEXO\b", "action": "anexo"},
+    ],
+    "LC123": [
         # 2026-07-07: headers de anexo da LC123 tem CAUDA ("ANEXO I DA LEI
         # COMPLEMENTAR Nº 123, DE...") — o pattern antigo exigia fim-de-linha apos
         # o numeral e NUNCA casava: as tabelas de aliquotas do Simples caiam
@@ -144,37 +78,26 @@ LEIS_CONFIG = {
         # 12 linhas iniciando com "Anexo(s) ... desta Lei Complementar" (referencias)
         # que um ^ANEXO\b IGNORECASE transformaria em boundaries falsos engolindo
         # artigos inteiros (Art. 28/56/77).
-        "boundaries": [
-            {"pattern": r"^ANEXO\s+[IVXLCDM]+(?:-[A-Z])?\s+DA LEI COMPLEMENTAR\b",
-             "action": "anexo", "ignorecase": False},
-        ],
-    },
-    "LT": {
-        "versao": "Lei 6.019/1974",
-        "url": "https://www.planalto.gov.br/ccivil_03/leis/l6019compilado.htm",
-        "nome_base": "lei_terceirizacao",
-        # Lei sem hierarquia interna (sem LIVRO/TÍTULO/CAPÍTULO/SEÇÃO).
-        "inline_headers": False,
-    },
-    "CADPOS": {
-        "versao": "Lei 12.414/2011",
-        "url": "https://www.planalto.gov.br/ccivil_03/_ato2011-2014/2011/lei/l12414.htm",
-        "nome_base": "cadastro_positivo",
-        "dedup_redacoes": True,
-        # Lei sem hierarquia interna (sem LIVRO/TÍTULO/CAPÍTULO/SEÇÃO).
-        "inline_headers": False,
-    },
-    "L9099": {
-        # Lei dos Juizados Especiais Cíveis e Criminais. Ancora a AÇÃO PENAL da lesão
-        # corporal leve (Art. 88 = condicionada à representação) — regra que a Justina
-        # respondia de conhecimento geral por não ter artigo na base (ver roadmap Fase 2,
-        # gap achado no caso irmão/filha/genro, 2026-07-13).
-        "versao": "Lei 9.099/1995",
-        "url": "https://www.planalto.gov.br/ccivil_03/leis/l9099.htm",
-        "nome_base": "lei_juizados_especiais",
-        "dedup_redacoes": True,
-    },
+        {"pattern": r"^ANEXO\s+[IVXLCDM]+(?:-[A-Z])?\s+DA LEI COMPLEMENTAR\b",
+         "action": "anexo", "ignorecase": False},
+    ],
 }
+
+# LEIS_CONFIG construído do CATÁLOGO ÚNICO (laws.yml) — identidade (versao/url/nome_base) +
+# flags de parse (dedup_redacoes/encoding/capture_epigrafe/inline_headers) + boundaries locais.
+# Mesma forma que o extrator já consome (cfg["versao"], cfg.get("boundaries")...). NUNCA
+# re-hardcodar identidade de lei aqui: adicionar/alterar lei = editar laws.yml.
+LEIS_CONFIG = {}
+for _law in laws.LAWS:
+    _cfg = {
+        "versao": _law["numero"],
+        "url": _law["url"],
+        "nome_base": _law["nome_base"],
+    }
+    _cfg.update(_law.get("parse", {}))
+    if _law["sigla"] in _BOUNDARIES:
+        _cfg["boundaries"] = _BOUNDARIES[_law["sigla"]]
+    LEIS_CONFIG[_law["sigla"]] = _cfg
 
 
 # =====================================================================
