@@ -1002,6 +1002,22 @@ def suppress_known_issues(report: FileReport, ki: dict):
     return suppressed
 
 
+def eh_json_de_lei(nome: str) -> bool:
+    """True so para JSONs de ARTIGOS DE LEI ({lei}_{data}.json) no modo diretorio.
+
+    Exclui hashes*, known_issues.json, *_questions*, *_riscadas* (comportamento
+    historico) e, desde o J0.1 (2026-07-20), qualquer jurisprudencia_* por PREFIXO:
+    os outputs de extrair_jurisprudencia.py (temas repetitivos STJ etc.) tem schema
+    PROPRIO (tema, nao artigo) — validados aqui virariam FAILs permanentes no gate.
+    Validador dedicado de jurisprudencia = debito da fase de ingestao J0."""
+    return (nome.endswith(".json")
+            and not nome.startswith("hashes")
+            and nome != "known_issues.json"
+            and "_questions" not in nome
+            and "_riscadas" not in nome    # sidecar de redacoes riscadas (schema proprio)
+            and not nome.startswith("jurisprudencia_"))
+
+
 def main():
     if sys.platform == "win32":
         try:
@@ -1039,10 +1055,7 @@ def main():
     if os.path.isdir(args.path):
         files = sorted(os.path.join(args.path, f)
                        for f in os.listdir(args.path)
-                       if f.endswith(".json") and not f.startswith("hashes")
-                       and f != "known_issues.json"
-                       and "_questions" not in f
-                       and "_riscadas" not in f)   # sidecar de redacoes riscadas (schema proprio)
+                       if eh_json_de_lei(f))
     elif os.path.isfile(args.path):
         files = [args.path]
     else:

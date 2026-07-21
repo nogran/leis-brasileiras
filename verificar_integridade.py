@@ -15,11 +15,15 @@ VALID_STATUS = {"vigente", "vetado_total", "revogado"}
 def eh_arquivo_de_lei(nome: str) -> bool:
     """True so para os JSONs de ARTIGOS ({lei}_{data}.json). Exclui hashes.json,
     perguntas e o sidecar _riscadas.json (historico de redacoes — schema proprio,
-    2026-07-08: os 13 'erros' fantasmas vinham de tentar le-lo como artigos)."""
+    2026-07-08: os 13 'erros' fantasmas vinham de tentar le-lo como artigos).
+    Exclui tambem jurisprudencia_* por PREFIXO (J0.1, 2026-07-20: outputs de
+    extrair_jurisprudencia.py sao TEMAS, nao artigos — schema proprio; validador
+    dedicado fica para a fase de ingestao)."""
     return (nome.endswith(".json")
             and not nome.startswith("hashes")
             and "_questions" not in nome
-            and "_riscadas" not in nome)
+            and "_riscadas" not in nome
+            and not nome.startswith("jurisprudencia_"))
 
 
 def verificar_integridade():
