@@ -1009,7 +1009,10 @@ def eh_json_de_lei(nome: str) -> bool:
     historico) e, desde o J0.1 (2026-07-20), qualquer jurisprudencia_* por PREFIXO:
     os outputs de extrair_jurisprudencia.py (temas repetitivos STJ etc.) tem schema
     PROPRIO (tema, nao artigo) — validados aqui virariam FAILs permanentes no gate.
-    Validador dedicado de jurisprudencia = debito da fase de ingestao J0."""
+
+    A exclusao FICA: os schemas sao mesmo diferentes. O que mudou em 2026-08-17 e que ela
+    deixou de ser um buraco — `validar_jurisprudencia.py` e o validador dedicado, com as
+    mesmas 6 categorias e os mesmos exit codes. Rode os DOIS."""
     return (nome.endswith(".json")
             and not nome.startswith("hashes")
             and nome != "known_issues.json"

@@ -17,8 +17,9 @@ def eh_arquivo_de_lei(nome: str) -> bool:
     perguntas e o sidecar _riscadas.json (historico de redacoes — schema proprio,
     2026-07-08: os 13 'erros' fantasmas vinham de tentar le-lo como artigos).
     Exclui tambem jurisprudencia_* por PREFIXO (J0.1, 2026-07-20: outputs de
-    extrair_jurisprudencia.py sao TEMAS, nao artigos — schema proprio; validador
-    dedicado fica para a fase de ingestao)."""
+    extrair_jurisprudencia.py sao TEMAS, nao artigos — schema proprio). A exclusao FICA;
+    desde 2026-08-17 ela nao e mais um buraco: quem cobre esses arquivos e
+    `validar_jurisprudencia.py`."""
     return (nome.endswith(".json")
             and not nome.startswith("hashes")
             and "_questions" not in nome
