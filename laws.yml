@@ -136,3 +136,11 @@ laws:
     parse:
       dedup_redacoes: true
     # Ancora a ação penal da lesão corporal leve (Art. 88 = condicionada à representação).
+
+  - sigla: LEP
+    nome_base: lei_execucao_penal
+    nome: "Lei de Execução Penal"
+    numero: "Lei 7.210/1984"
+    url: https://www.planalto.gov.br/ccivil_03/leis/l7210compilado.htm
+    parse:
+      dedup_redacoes: true
