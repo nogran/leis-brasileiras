@@ -55,3 +55,8 @@ def test_views_derivadas_coerentes_entre_si():
     # ida-e-volta sigla <-> nome_base
     for sigla, base in laws.SIGLA_PREFIXO.items():
         assert laws.NOME_BASE_PARA_SIGLA[base] == sigla
+
+
+def test_by_sigla_encontra_e_rejeita_sigla_desconhecida():
+    assert laws.by_sigla(laws.SIGLAS[0])["sigla"] == laws.SIGLAS[0]
+    assert laws.by_sigla("NAO_EXISTE") is None

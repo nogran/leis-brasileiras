@@ -17,7 +17,10 @@ from validar_leis import (
     validate_rag,
     validate_cross_file,
     FileReport,
+    Issue,
+    _art_num,
     REQUIRED_FIELDS,
+    RAG_WARN_CHUNK_CHARS,
     RAG_MAX_CHUNK_CHARS,
 )
 
@@ -66,6 +69,159 @@ def make_report(lei="TEST"):
 
 def issues_with_rule(report, rule):
     return [i for i in report.issues if i.rule == rule]
+
+
+def test_schema_rejeita_inconsistencias_e_tipos_invalidos():
+    primeiro = make_chunk(
+        lei="DESCONHECIDA", versao="v1", url_fonte="http://one",
+        data_extracao="ontem", referencias=[], alteracoes="nao-lista",
+        vetos_parciais="nao-lista", status="inventado", versao_consolidada=False,
+        parte_num=0, total_partes=1,
+    )
+    segundo = make_chunk(
+        id="test_art_2", artigo="Art. 2", lei="OUTRA", versao="v2",
+        url_fonte="http://two", data_extracao="2026-01-01", parte_num=None,
+        total_partes=2,
+    )
+    report = make_report()
+    validate_schema([primeiro, segundo], report)
+    rules = {issue.rule for issue in report.issues}
+    assert {
+        "lei_inconsistente", "versao_inconsistente", "url_inconsistente",
+        "sigla_desconhecida", "data_formato", "tipo_referencias",
+        "tipo_alteracoes", "tipo_vetos", "status_invalido",
+        "versao_consolidada", "partes_inconsistente", "partes_range",
+    } <= rules
+
+
+def test_artigos_detecta_duplicatas_sufixos_buracos_e_ordem():
+    chunks = [
+        make_chunk(id="same", artigo="Art. 1-O", texto_limpo="Art. 1° O texto"),
+        make_chunk(id="same", artigo="Art. 3-A", texto_limpo="Art. 3º A Regra"),
+        make_chunk(id="third", artigo="Art. 4-B", texto_limpo="Art. 4 - B texto"),
+        make_chunk(id="fourth", artigo="Art. 0", hash_artigo="abc123def456"),
+        make_chunk(id="fifth", artigo="Art. 20"),
+        make_chunk(id="sixth", artigo="Art. 1"),
+        make_chunk(id="seventh", artigo="Art. 0"),
+        make_chunk(id="eighth", artigo="Art. 1"),
+        make_chunk(id="ninth", artigo="Art. 0"),
+        make_chunk(id="tenth", artigo="Art. 20"),
+        make_chunk(id="eleventh", artigo="Art. 1"),
+        make_chunk(id="twelfth", artigo="Art. 20"),
+        make_chunk(id="thirteenth", artigo="Art. 1"),
+        make_chunk(id="fourteenth", artigo="Art. 20"),
+        make_chunk(id="fifteenth", artigo="Art. 1"),
+    ]
+    report = make_report()
+    validate_artigos(chunks, report)
+    rules = {issue.rule for issue in report.issues}
+    assert {
+        "id_duplicado", "hash_duplicado", "grau_como_sufixo_O",
+        "grau_como_sufixo_A", "sufixo_espacado", "artigos_faltantes",
+        "ordem_nao_monotonica",
+    } <= rules
+
+
+def test_hierarquia_detecta_headers_contaminados_e_inconsistencia_de_path():
+    casos = [
+        ("titulo", {"titulo": "Texto capturado do artigo que nao e titulo"},
+         "titulo_contaminado"),
+        ("capitulo", {"capitulo": "Texto capturado do capitulo que nao e cabecalho"},
+         "capitulo_contaminado"),
+        ("secao", {"secao": "Texto capturado da secao que nao e cabecalho"},
+         "secao_contaminada"),
+    ]
+    for _, override, rule in casos:
+        report = make_report()
+        validate_hierarquia([make_chunk(**override)], report)
+        assert issues_with_rule(report, rule)
+
+    report = make_report()
+    validate_hierarquia([
+        make_chunk(titulo="TITULO I", titulo_nome="", capitulo="CAPITULO I",
+                   capitulo_nome="", path_hierarquico="", artigo="Art. 1"),
+        make_chunk(titulo="", artigo="Art. 2"),
+    ], report)
+    assert issues_with_rule(report, "path_inconsistente")
+    assert issues_with_rule(report, "artigo_sem_titulo")
+
+
+def test_metadata_detecta_veto_longo_e_formato_de_veto_invalido():
+    report = make_report()
+    validate_metadata([make_chunk(
+        status="vetado_total", texto_limpo="x" * 301,
+        vetos_parciais=["formato desconhecido"],
+    )], report)
+    assert issues_with_rule(report, "vetado_texto_longo")
+    assert issues_with_rule(report, "veto_formato")
+
+
+def test_hierarquia_detecta_headers_sem_numero_e_secao_colada():
+    headers = make_report()
+    validate_hierarquia([make_chunk(capitulo="CAPÍTULO", secao="SEÇÃO")], headers)
+    assert {"capitulo_sem_numero", "secao_sem_numero"} <= {
+        issue.rule for issue in headers.issues
+    }
+    glued = make_report()
+    validate_hierarquia([make_chunk(capitulo="", secao="SecaoI")], glued)
+    assert issues_with_rule(glued, "secao_colada")
+
+
+def test_metadata_rejeita_tipos_de_referencias_invalidos():
+    report = make_report()
+    validate_metadata([make_chunk(referencias={
+        "internas": "texto", "leis_externas": "texto", "constituicao": "sim",
+    })], report)
+    rules = {issue.rule for issue in report.issues}
+    assert {"ref_tipo_internas", "ref_tipo_externas", "ref_tipo_cf"} <= rules
+
+
+def test_rag_resume_quatro_chunks_acima_do_limite():
+    report = make_report()
+    report.total_chunks = 4
+    report.vigentes = 4
+    validate_rag([
+        make_chunk(id=f"large_{i}", artigo=f"Art. {i}",
+                   texto_limpo="x" * (RAG_MAX_CHUNK_CHARS + 1))
+        for i in range(4)
+    ], report)
+    assert any("+1 chunks" in issue.message for issue in report.issues
+               if issue.rule == "chunk_grande")
+
+
+def test_conteudo_curto_e_whitespace_excessivo_sao_reportados():
+    report = make_report()
+    validate_conteudo([make_chunk(texto_limpo="curto\n\n\n")], report)
+    rules = {issue.rule for issue in report.issues}
+    assert {"texto_curto", "whitespace_excessivo"} <= rules
+
+
+def test_hierarquia_detecta_off_by_one_em_transicoes_repetidas():
+    report = make_report()
+    capitulos = ["A", "B", "A", "C", "A", "D", "A", "E", "A"]
+    secoes = ["I", "II", "I", "III", "I", "IV", "I", "V", "I"]
+    validate_hierarquia([
+        make_chunk(id=f"h_{i}", artigo=f"Art. {i}", capitulo=cap,
+                   secao=secao, path_hierarquico=cap)
+        for i, (cap, secao) in enumerate(zip(capitulos, secoes))
+    ], report)
+    assert issues_with_rule(report, "off_by_one")
+
+
+def test_helpers_e_rag_cobrem_estados_de_relatorio_e_chunk_intermediario():
+    report = make_report()
+    report.issues.extend([
+        Issue("FAIL", "TEST", "fail", "falhou"),
+        Issue("WARN", "TEST", "warn", "avisou"),
+    ])
+    assert report.fails == 1
+    assert report.warns == 1
+    assert not report.passed
+    assert _art_num("sem artigo") is None
+
+    report = make_report()
+    validate_rag([make_chunk(texto_limpo="x" * (RAG_WARN_CHUNK_CHARS + 1))], report)
+    assert not issues_with_rule(report, "chunk_grande")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
