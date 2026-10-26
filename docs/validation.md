@@ -30,8 +30,9 @@ ou corpus não fazem parte desta autorização.
 
 Ambiente executado: Windows, Python 3.14.3. CI preparada para Python 3.10 e 3.14 no
 Linux; o resultado remoto deve ser conferido nos checks do PR, separadamente dos testes
-locais registrados aqui. Suporte a 3.10 está declarado e as dependências fixadas são
-compatíveis; a execução nessa versão cabe ao CI.
+locais registrados aqui. O primeiro CI identificou que `coverage==7.17.0` exige Python
+3.11; o lock de desenvolvimento foi corrigido para `coverage==7.16.2`, com suporte
+a Python 3.10. A execução da matriz corrigida deve ser conferida nos checks do PR.
 O piso de cobertura do projeto de origem não foi alterado.
 
 A fixture de texto limpo da LEP continha 884 finais de linha CRLF; a nova fixture de
