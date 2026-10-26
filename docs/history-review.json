@@ -1,0 +1,279 @@
+{
+  "source_head": "e243ec4bf91aead633cc0427adb76b3ecbc19458",
+  "filtered_head": "e26b50f9380ba6774da2be69432f557817e5794d",
+  "retained_commits": 64,
+  "reviewed_objects": 239,
+  "authors_committers_dates_preserved": true,
+  "message_policy": "Original subjects and co-author trailers retained; bodies omitted to exclude private operational context.",
+  "historical_metadata_note": "Historical attribution retained as requested; no new provider co-authorship added.",
+  "scan_result": "No matches for private keys, provider tokens, credential URLs or secret assignments. Address-pattern matches inspected: legislative dates, not IPs.",
+  "internal_references": "Selected code retains generic historical architecture comments/imports. Private implementation, runtime data, credentials and operational message bodies excluded.",
+  "limitations": [
+    "Automated pattern review does not prove absence of every secret.",
+    "No LICENSE/COPYING/NOTICE files found in source history; owner licensing decision required.",
+    "Reviewed history incorporated into the proposal branch; no merge into main and no package/dataset release."
+  ],
+  "commits": [
+    {
+      "source": "043a73195fba88c32d168a442f70fc82f110c0e4",
+      "filtered": "a0e40ce6f6c2de2dfe9899499fcef27a1fa7aec7"
+    },
+    {
+      "source": "0af55ef5296d545358088d5642784c4956bd0643",
+      "filtered": "d2b3c1bffdd558fbdc87442f62d4c85842c1c058"
+    },
+    {
+      "source": "0d17f5d13f7dc998e62e42706d59acbad30432ec",
+      "filtered": "5f3716421bf135c5080901a87db84df0f3118161"
+    },
+    {
+      "source": "0ea2f74543fa28ace0b55e9b5d8d02df1a24bb47",
+      "filtered": "c1a280e87d38118b1f82b2c91661b84cee7109f9"
+    },
+    {
+      "source": "105e1cccf216a778892e09babaee67526fee93f4",
+      "filtered": "8a9bd6aa1e1c9cbf40bbe4bf4dca7a2efc7fce35"
+    },
+    {
+      "source": "105ecefa745ebd34bf09bc43e2e2c2187b499d72",
+      "filtered": "5381b39e2262c731629e19ed709936e9ff767da4"
+    },
+    {
+      "source": "14b502655e8c2aebbc87372b450fcd0c8b404eac",
+      "filtered": "a30414b4905bfda84417edae5796fee50e9877bd"
+    },
+    {
+      "source": "190a65ca0afdabdc03235f8dc5982e59d2c01bd2",
+      "filtered": "ba2ae8ec908a677b8c512aa23fd4eb64678d428c"
+    },
+    {
+      "source": "19999d564b6098e56d9f43b2424f3bd7f9330cd1",
+      "filtered": "1e595376f8f0c179e337f347cb4f0f2222bae361"
+    },
+    {
+      "source": "1c5d3ad4ab8c5df91fbf37daa7be0c4c45fa62ec",
+      "filtered": "83eabce48fcbeb5a7345deb6682e74f6ab84cd18"
+    },
+    {
+      "source": "277976cceefe428691e3c146b7b666a2886707cb",
+      "filtered": "fb21759e0ca9b003c5fb8b0d0d64181b592949b0"
+    },
+    {
+      "source": "28c6cf88a6d73a3bbd465e8c6fd34da39505c80a",
+      "filtered": "59a6e9899737e54786f1dfb524ae8348e473452a"
+    },
+    {
+      "source": "2bb6ed45ba6a4f29bdb8caace068da70f4ed57f2",
+      "filtered": "2d5d377d52916e4f90a0b5380689cae08ad16eb4"
+    },
+    {
+      "source": "2d0926882b971ce499224031b925a2a2b7be148a",
+      "filtered": "eaeb9872cc3f6d498499923aeb2ce064898024e8"
+    },
+    {
+      "source": "2e8756df6fc2c969310c387af0585d2fd5ab4356",
+      "filtered": "f5e200e4842b402dcb1745c2609e026935a9cb2a"
+    },
+    {
+      "source": "366fca7e64c4fa9d3bbc2f2ebbdbc43b699e727e",
+      "filtered": "aa661a0a905c0e622347a41d7c969c68c7c50adf"
+    },
+    {
+      "source": "382acc299c75734c4ff4ae281a44713b3715d73f",
+      "filtered": "28509f24db144e274ca484828937b7645a512103"
+    },
+    {
+      "source": "40d1ad7b2e7a5ee1078bb791a9ced35bcf2610ac",
+      "filtered": "bf27d7b4a12f6f27fb75cb99ae3da5c8b0bbbf93"
+    },
+    {
+      "source": "42055847a97df53c68f472b6d2168ab000beb17b",
+      "filtered": "90c58fb6dd7bc545c8705051db2ab63c321eb9ca"
+    },
+    {
+      "source": "498b219837206f9eaa4aa9a184cb6366224ca0c2",
+      "filtered": "771d9763bdb8d5c3cbd8314f913fc1cb6e94a694"
+    },
+    {
+      "source": "4a72d0fd344bcd8cae451f190ab961a60526a58b",
+      "filtered": "530a6225c604c0a05aa81bcab317fab78a6c9c79"
+    },
+    {
+      "source": "4bce5646835aa917a37feda6c560b0fefe820bf7",
+      "filtered": "0848c831c4fc5982f78ed8a1e0b8a26a70f81575"
+    },
+    {
+      "source": "4c3ed6f572e24e35f054c849b1a6dd9e2383ab48",
+      "filtered": "224f915a5943fd3d3fca0ef2d63754acb60d91ef"
+    },
+    {
+      "source": "51e90ecf88aad7c4531b3119e6617ff4d0b3cd96",
+      "filtered": "c7865bdf1414802414b075c81a999518a89f3fd4"
+    },
+    {
+      "source": "5add9e365cfeecc5f674fe3de6dce549c627a2c1",
+      "filtered": "bdd10cf4ec8bb52c7a249abe5535ecd0020bd09b"
+    },
+    {
+      "source": "5e5d7e25e9e2b0909bf443a4eadcbb912506e857",
+      "filtered": "34997139f8f23cea6c8ed832901dfaec66717681"
+    },
+    {
+      "source": "5efce428f187a1dc18647ff622c8bdd782b97cc1",
+      "filtered": "077acac679afa20cdd384ee705fdc69fcf2f4891"
+    },
+    {
+      "source": "6875dbc0b88bfab57af5010a20a6cba1e11901ad",
+      "filtered": "f457aeff6e784fb78d867f84c2755095efcb1240"
+    },
+    {
+      "source": "6c8cffc737a8a94a09a6dafa7e92711740b6bd0d",
+      "filtered": "0c09d23d30f25991b183ae5f53e2db988455310b"
+    },
+    {
+      "source": "6dbf66732e35e6cf3e4fad9268fa6dc76fe6f3fd",
+      "filtered": "f77040644588a4ce39013ea2a82a2a43f1b64649"
+    },
+    {
+      "source": "6faa5e65ef150a73c75976d06b6656384afd8e59",
+      "filtered": "dda964f5318499c3ef796500869daeb193ea6bcc"
+    },
+    {
+      "source": "79b574b4d39cbd5ec3b0fd34c10d7d6022f797dc",
+      "filtered": "6796f4d3994fe69d55739e9f2afc1e7f977ca1f1"
+    },
+    {
+      "source": "7a1e443a62a06a32b6886410ad1c5edcfb9a17d7",
+      "filtered": "aefaf8ec21bcd5f52b1b74c2b349a7b353557a85"
+    },
+    {
+      "source": "7f16371ae7ce72aa6dec2bd6b832077ec06df0ec",
+      "filtered": "38498e7d2306b26b5934b2299abebc7ecc7a1678"
+    },
+    {
+      "source": "83498652bc994bd91f5317000c70483f44d79a67",
+      "filtered": "d30c9477e09cfd3137084970ddd0c8e51e068660"
+    },
+    {
+      "source": "836ba52ba7fd6299dd4839ee110c8a253fbdc8ce",
+      "filtered": "c0f096bac54b3c78456c2f72dd407f4e9b3a5b45"
+    },
+    {
+      "source": "8381a9a16776c3aacf54cd2fa5131fbd90ed6ce4",
+      "filtered": "ff32616f57f6d6ecadfc31672c560819fbf81840"
+    },
+    {
+      "source": "84a9806e9a81f6b52c447674db8334df778a1e08",
+      "filtered": "fcb48fc03bf83487be5fcd72ecfb8a38047eb2e4"
+    },
+    {
+      "source": "8e8444781a06c8a017f35be8814d9c3dc3c9a8d3",
+      "filtered": "79704c7187ab7ee035c2e557bec47567080cda72"
+    },
+    {
+      "source": "8f123ac8630e98689540577f8f5e58071119d9a4",
+      "filtered": "65d3b762c302ffb8a5a14f5a819e0f8b90fe0637"
+    },
+    {
+      "source": "9c672bfbd41b16c88e573b89b6a3b5d9f05362d6",
+      "filtered": "b020de3b8a853e31971b01c79f4187e6865e8cc6"
+    },
+    {
+      "source": "9f410eeed0ef6635198b3d77826d467b6a66e2b5",
+      "filtered": "42a6e94228f8783fc7f20887f80c821f6e46ac26"
+    },
+    {
+      "source": "a0d1e81040f32ec72960cf077e40fcde7ffba594",
+      "filtered": "132b98ae4cd4c300896d4b7c01a54ea110f313cc"
+    },
+    {
+      "source": "a226157f1ff1c0dcdce0f6e54d80483472229b66",
+      "filtered": "debbf300205422a459114d8ea9a6b06f60d3012a"
+    },
+    {
+      "source": "ba1424f53bf36775e9b434af0e2caef1ac2977fb",
+      "filtered": "d37c23aa682fa44b026a10eed7d7a7e5fa13fcb9"
+    },
+    {
+      "source": "bb2555e5ecf06de444d4104c04cc7a52fd290db8",
+      "filtered": "5961ab48955f5e526f7adab3bd8475fc4cae2b7d"
+    },
+    {
+      "source": "bd32d521ca98918aa10676d8b5d3b39bd1d7975e",
+      "filtered": "2e846ea4b8093637bedd430a13698227ad541eff"
+    },
+    {
+      "source": "bf8ef702432bb43e7646be017323a16259e30d6e",
+      "filtered": "50e6d6cfea3b959b8e90871f1044b72f18608f3f"
+    },
+    {
+      "source": "c2b0831b6ce68fd778c923403349b1298303551a",
+      "filtered": "53bd89a13ecfcbd58ea41153a8766a3346a689c5"
+    },
+    {
+      "source": "ca6cb6f3ad1673f35e100217bc9f62a05685d6ed",
+      "filtered": "e26b50f9380ba6774da2be69432f557817e5794d"
+    },
+    {
+      "source": "cc62a5f3d0c850abd09d6bfab86f4d6da75fa3dc",
+      "filtered": "3648b1c3222354efaa0a60f5ed42bd9efca7e21e"
+    },
+    {
+      "source": "ccda0db4231eb3f317775c1b078dd7f2da9ffb7d",
+      "filtered": "ee350753b01a3848b414b267299c345e4592dcc6"
+    },
+    {
+      "source": "cd42f0199d45d21bc6ed8f6297f13f72fc503188",
+      "filtered": "255bc1919cafc1b1fffc5e874f0af755dbf4f672"
+    },
+    {
+      "source": "d5320150a3b34638d861fc64cda87f42713fd368",
+      "filtered": "390870e47bf6b0b8832676c21c65dbe47db08054"
+    },
+    {
+      "source": "d65d737048e4edd1ae483896df1a94559da04827",
+      "filtered": "ab5c1edf5bd5aa327cd840ed5d1066ccc884abad"
+    },
+    {
+      "source": "d6839a3c4f41edcdc33cb2a9b2618b34a20643b9",
+      "filtered": "0c353cac6c35c971455991d0ceff577483b8fd2f"
+    },
+    {
+      "source": "d7f949f1a620fb08957439b4d1ec26b5ed895c96",
+      "filtered": "6b5e75cd1ebb2d6a7786990997fae8d7681145b2"
+    },
+    {
+      "source": "d90097280c1b7ac58039f90e0c47b4fbb9395606",
+      "filtered": "6e33ddb698bf9793988606dc69bba95568b5c25a"
+    },
+    {
+      "source": "db4442ffbb10157183ea2166e29d1607624c95f8",
+      "filtered": "47d6402376b763b569e3e39f0253d5f7ba3ed194"
+    },
+    {
+      "source": "e60d05a19e767adc41768dc5e8c986ffe0076b98",
+      "filtered": "d0166e3f4243aa9f195d6f2b5ae4a534515bce46"
+    },
+    {
+      "source": "ec77add19e4f0e32be6cc2012934e49fc0f15f02",
+      "filtered": "d8c8595524dbd4b4405da3c1919cc7c32b7d4c3b"
+    },
+    {
+      "source": "ee765eda95c2cbbd7c65b48ac6632bdd2288a252",
+      "filtered": "0e6f68930d9d6435f54e9ce37cb47ba7d7e22497"
+    },
+    {
+      "source": "f49b976a1724a61cadd111c3a9521fbec8f61ef0",
+      "filtered": "e05cfc2f719f9f8491a8a9eb9e7edcf371f74f85"
+    },
+    {
+      "source": "fbc840db4635f9b3b5c4822bd04c42e9b6c72144",
+      "filtered": "09414df53370d1296e3b1eb50ceebc6ca284611c"
+    }
+  ],
+  "integration": {
+    "destination_base": "0c5eace8a895a564008a1a9ff49bafd8716f4882",
+    "strategy": "Two-parent adaptation commit; original destination and all 64 reviewed historical commits remain ancestors.",
+    "authorization": "Owner requested a public draft PR after reviewing local preparation."
+  }
+}

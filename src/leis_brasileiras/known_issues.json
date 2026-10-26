@@ -1,0 +1,174 @@
+{
+  "_doc": "Registro de issues verificados manualmente. O validador suprime esses INFOs. O extrator aplica os overrides.",
+  "_updated": "2026-07-07",
+  "_expected_suppressions_per_file": {"clt": 1, "codigo_civil": 1, "cpc": 1},
+  "_expected_suppressions_detail": "artigo_sem_titulo: 1 INFO suprimido POR SNAPSHOT DATADO de CLT (Art. 1 pré-TÍTULO I), CC (Livro Complementar 2.028-2.046) e CPC (Livro Complementar 1.045-1.072). O validador calcula o esperado dinamicamente (per_file × nº de arquivos datados da base) — o contador fixo antigo quebrava a cada extração nova.",
+
+  "artigos_faltantes_verificados": {
+    "_doc": "Artigos ausentes da versão compilada do Planalto — revogados por lei, removidos do texto, ou não recepcionados pela CF88.",
+    "CF88": {
+      "171": "Revogado pela EC nº 6/1995 (eliminação da distinção empresa nacional vs estrangeira)",
+      "117": "Revogado pela EC nº 24/1999 (extinção da representação classista na Justiça do Trabalho)",
+      "233": "Revogado pela EC nº 28/2000 (unificação de prazos prescricionais trabalhistas)"
+    },
+    "CLT": {
+      "554": "Não recepcionado pela CF88 Art. 8° (destituição de diretoria sindical pelo governo)",
+      "555": "Não recepcionado pela CF88 Art. 8° (cassação de carta de filiação sindical)",
+      "571": "Não recepcionado pela CF88 Art. 8° (enquadramento sindical por categoria)",
+      "572": "Não recepcionado pela CF88 Art. 8° (criação de federações por categoria)",
+      "575": "Não recepcionado pela CF88 Art. 8° (regras para confederações sindicais)",
+      "597": "Revogado pela Lei nº 4.589/1964 (extinção da Comissão do Imposto Sindical)"
+    },
+    "CC": {
+      "1.621": "Revogados em bloco (Arts. 1.621-1.629) pela Lei nº 12.010/2009 (Nova Lei de Adoção)",
+      "1.622": "Revogados em bloco (Arts. 1.621-1.629) pela Lei nº 12.010/2009",
+      "1.623": "Revogados em bloco (Arts. 1.621-1.629) pela Lei nº 12.010/2009",
+      "1.624": "Revogados em bloco (Arts. 1.621-1.629) pela Lei nº 12.010/2009",
+      "1.625": "Revogados em bloco (Arts. 1.621-1.629) pela Lei nº 12.010/2009",
+      "1.626": "Revogados em bloco (Arts. 1.621-1.629) pela Lei nº 12.010/2009",
+      "1.627": "Revogados em bloco (Arts. 1.621-1.629) pela Lei nº 12.010/2009",
+      "1.628": "Revogados em bloco (Arts. 1.621-1.629) pela Lei nº 12.010/2009",
+      "1.629": "Revogados em bloco (Arts. 1.621-1.629) pela Lei nº 12.010/2009"
+    },
+    "CP": {
+      "187": "Revogado pela Lei nº 9.279/1996 (Lei de Propriedade Industrial)",
+      "188": "Revogado pela Lei nº 9.279/1996 (Lei de Propriedade Industrial — mesmo capítulo do Art. 187)"
+    },
+    "LC123": {
+      "72": "Revogado pela LC nº 155/2016 (não exige mais ME/EPP no nome empresarial)"
+    },
+    "CADPOS": {
+      "11": "Revogado pela Lei Complementar nº 166/2019 (fornecimento de dados por prestadores de serviços continuados — água, esgoto, eletricidade, gás e telecomunicações). No Planalto o artigo inteiro está riscado via CSS line-through (rótulo dentro do riscado), então some do texto compilado após o fix de 2026-07-07"
+    }
+  },
+
+  "artigos_sem_titulo_verificados": {
+    "_doc": "Artigos legitimamente sem TÍTULO — preâmbulos ou seções finais sem subdivisão.",
+    "CLT": {
+      "artigos": ["Art. 1"],
+      "motivo": "Artigo de promulgação do Decreto-Lei, aparece antes do TÍTULO I"
+    },
+    "CC": {
+      "artigos": ["Art. 2.028", "Art. 2.029", "Art. 2.030", "Art. 2.031", "Art. 2.032", "Art. 2.033", "Art. 2.034", "Art. 2.035", "Art. 2.036", "Art. 2.037", "Art. 2.038", "Art. 2.039", "Art. 2.040", "Art. 2.041", "Art. 2.042", "Art. 2.043", "Art. 2.044", "Art. 2.045", "Art. 2.046"],
+      "motivo": "Livro Complementar — Das Disposições Finais e Transitórias (sem subdivisão em títulos)"
+    },
+    "CPC": {
+      "artigos": ["Art. 1.045", "Art. 1.046", "Art. 1.047", "Art. 1.048", "Art. 1.049", "Art. 1.050", "Art. 1.051", "Art. 1.052", "Art. 1.053", "Art. 1.054", "Art. 1.055", "Art. 1.056", "Art. 1.057", "Art. 1.058", "Art. 1.059", "Art. 1.060", "Art. 1.061", "Art. 1.062", "Art. 1.063", "Art. 1.064", "Art. 1.065", "Art. 1.066", "Art. 1.067", "Art. 1.068", "Art. 1.069", "Art. 1.070", "Art. 1.071", "Art. 1.072"],
+      "motivo": "Livro Complementar — Das Disposições Finais e Transitórias (sem subdivisão em títulos)"
+    }
+  },
+
+  "capitulo_sem_nome_verificados": {
+    "_doc": "Capítulos sem nome capturado — formatação do Planalto impede extração automática.",
+    "LGPD": {
+      "CAPÍTULO IX": "Da Autoridade Nacional de Proteção de Dados (ANPD) e do Conselho Nacional de Proteção de Dados Pessoais e da Privacidade"
+    }
+  },
+
+  "overrides_pos_extracao": {
+    "_doc": "Correções manuais aplicadas pelo extrator após a extração automática.",
+    "capitulo_nome": {
+      "LGPD": {
+        "CAPÍTULO IX": "Da Autoridade Nacional de Proteção de Dados (ANPD) e do Conselho Nacional de Proteção de Dados Pessoais e da Privacidade"
+      }
+    },
+    "titulo_nome": {
+      "CF88": {
+        "TÍTULO IX": "Das Disposições Constitucionais Gerais"
+      }
+    },
+    "notas_legais": {
+      "_doc": "Adiciona notas_legais a artigos especificos. Util pra marcar artigos com status doutrinario divergente do formal (ex: nao recepcionados pela CF88 — formalmente vigentes no Planalto mas inaplicaveis na pratica). O parser injeta essas notas pos-extracao SEM alterar texto_limpo nem status.",
+      "CLT": {
+        "Art. 554": [
+          {
+            "tipo": "nao_recepcionado_cf88",
+            "referencia": "CF88 Art. 8°",
+            "raw": "Não recepcionado pela CF88 Art. 8° (destituição de diretoria sindical pelo governo). Doutrinariamente inaplicável desde 05/10/1988 (promulgação da CF88)."
+          }
+        ],
+        "Art. 555": [
+          {
+            "tipo": "nao_recepcionado_cf88",
+            "referencia": "CF88 Art. 8°",
+            "raw": "Não recepcionado pela CF88 Art. 8° (cassação de carta de filiação sindical). Doutrinariamente inaplicável desde 05/10/1988."
+          }
+        ],
+        "Art. 571": [
+          {
+            "tipo": "nao_recepcionado_cf88",
+            "referencia": "CF88 Art. 8°",
+            "raw": "Não recepcionado pela CF88 Art. 8° (enquadramento sindical por categoria). Doutrinariamente inaplicável desde 05/10/1988."
+          }
+        ],
+        "Art. 572": [
+          {
+            "tipo": "nao_recepcionado_cf88",
+            "referencia": "CF88 Art. 8°",
+            "raw": "Não recepcionado pela CF88 Art. 8° (criação de federações por categoria). Doutrinariamente inaplicável desde 05/10/1988."
+          }
+        ],
+        "Art. 575": [
+          {
+            "tipo": "nao_recepcionado_cf88",
+            "referencia": "CF88 Art. 8°",
+            "raw": "Não recepcionado pela CF88 Art. 8° (regras para confederações sindicais). Doutrinariamente inaplicável desde 05/10/1988."
+          }
+        ]
+      }
+    },
+    "remover_alteracao": {
+      "_doc": "Remove alteracoes incorretamente atribuídas (marker no boundary entre artigos no HTML).",
+      "CP": {
+        "Art. 121-A": ["Lei nº 13.968, de 2019"]
+      }
+    }
+  },
+
+  "dispositivos_orfaos_reparados": {
+    "_doc": "Padrao 'rotulo sem conteudo' (bug CF88 Art. 7 XXVIII/XXIX, descoberto em prod 2026-07-02). Dispositivo revogado/vetado/riscado cujo rotulo (alinea/inciso/paragrafo) aparecia nu no texto_limpo. Reparo deterministico em extrair_leis.reparar_dispositivos_orfaos (chamado por parse_law) + guarda upstream no estagio HTML/merge. Entrada documental, o extrator NAO le esta chave.",
+    "mecanismos": {
+      "M1_preserva_literal": "Dispositivo revogado/vetado cujo UNICO conteudo e a anotacao (ex: 'a) (Revogada). (Redacao dada pela EC no 28, de 2000)'). O limpar_ruido_legislativo removia a anotacao e sobrava 'a)'. Fix: PRESERVAR a linha LITERAL do Planalto (fonte fiel, nunca compor/parafrasear). ~76 artigos.",
+      "M2_dropa_orfao": "Residuo de redacao ANTERIOR riscada (<strike>) cujo rotulo ficou FORA do strike e vazou como 'a)'/'b)' nu, sem anotacao. A redacao atual do mesmo dispositivo ja existe abaixo. Fix: DROPAR o rotulo EXATAMENTE vazio. ~11-14 dispositivos.",
+      "M3_rejunta_xref": "Referencia cruzada quebrada em duas linhas ('...art. 165,' + '§ 9o. (...)'). Nao e dispositivo, e continuacao do caput. Fix: RE-JUNTAR a linha anterior. 4 artigos: CF88 Art. 159, 168, 16 (ADCT), 44 (ADCT)."
+    },
+    "excecao_permanente_dot_leaders": "NUNCA tocar 'rotulo + dot-leaders' (ex: 'I - ..............'): e elisao legislativa REAL em blocos de emenda (LC123, LMP reproduzem outra norma elidindo trechos com '...'). Coberto por teste negativo permanente em test_extrair_leis.py::TestReparoM2NegativoDotLeaders.",
+    "leis_afetadas": "CADPOS, CF88, CLT, CC, CP, CPC, ECA, LC123, LT, LGPD (82 artigos). CDC, LI, LMP inalterados.",
+    "backlog_nivel_2": "Capturar a redacao ANTERIOR riscada como registro estruturado com status proprio (habilita exibicao ~tachada~ no WhatsApp + historico de redacoes no Pro; sinergia com radar de mudancas + bitemporal). Fora do escopo deste fix."
+  },
+
+  "caput_revogado_nu": {
+    "_doc": "REPARADO 2026-07-06 (M1-CAPUT em extrair_leis._CAPUT_NU_RE / reparar_dispositivos_orfaos). Artigos REVOGADOS cujo texto_limpo era so o rotulo do caput (ex: 'Art. 384 -') porque limpar_ruido comia a anotacao de revogacao e o M1 original so cobria alinea/inciso/paragrafo. Reparo preserva a linha LITERAL do Planalto (ex: 'Art. 384 - (Revogado pela Lei no 13.467, de 2017)'). Regen parse-only hermetico dos clean.txt de 2026-07-02: 262 artigos alterados (CLT 179, CC 66 incl. range 1.620-1.629, CP 11, CPC 1, ECA 2, LC123 2, LGPD 1), zero nao-revogados tocados, zero adicoes/remocoes. Contagem pos-reparo: ZERO em todas as leis.",
+    "reparado_em": "2026-07-06",
+    "contagem_pos_reparo": 0,
+    "invariantes_travados_por": "tests/test_law_content_regression.py::TestCaputNu — (1) vigente/vetado NUNCA nu (FAIL duro); (2) ratchet em ZERO: qualquer revogado-nu novo falha. + tests/test_extrair_leis.py::TestReparoM1CaputRevogado (unit, incl. teste negativo de dot-leaders no caput)",
+    "pendente_nivel_2": "A redacao ORIGINAL riscada do Planalto continua nao capturada (so a anotacao foi recuperada). Ver dispositivos_orfaos_reparados.backlog_nivel_2."
+  },
+
+  "residuo_pontuacao_nao_tratado": {
+    "_doc": "Rotulos com residuo de PONTUACAO (nao exatamente vazios: tem '- .', ':' etc). Mesma familia do rotulo-sem-conteudo, mas a regra M2 (extrair_leis._e_rotulo_vazio) casa APENAS rotulo exatamente vazio, de proposito, pra NAO afrouxar a garantia dos dot-leaders (elisao de emenda). PRE-EXISTENTES (ja estavam na base antes do fix de 2026-07-03), NAO sao regressao. DECISAO HUMANA FUTURA — NUNCA aplicar strip automatico sem inspecionar o HTML do Planalto.",
+    "casos": [
+      {
+        "lei": "CF88",
+        "artigo": "Art. 170",
+        "linha_texto_limpo": "12/12",
+        "residuo": "§ 2º - .",
+        "contexto_anterior": "Parágrafo único. É assegurado a todos o livre exercício..."
+      },
+      {
+        "lei": "CLT",
+        "artigo": "Art. 708",
+        "linha_texto_limpo": "3/4",
+        "residuo": "b) :",
+        "contexto_anterior": "a) revogada;",
+        "contexto_posterior": "Parágrafo único - Na ausência do Presidente e do Vice-Presidente..."
+      }
+    ]
+  },
+
+  "lc123_texto_quebrado_e_duplicado": {
+    "_doc": "LC123: regiao de tabelas do Simples no HTML do Planalto vem com glifos separados por espaco ('O v alor d e vido m ensa l mente') — texto quebrado letra-a-letra em 28 chunks (Art. 18 partes, 18-A, 18-B, 18-E, 61-A, 67-A, 79-E, 3, 4, 17, 19, 20, 21, 34, 42, 43, 49-A, 55, 58, 61-B, 89 partes). ALEM disso o Planalto repete o Art. 18 (caput limpo + corpo quebrado) e o parser captura AMBOS -> 'Art. 18' standalone coexiste com 'Art. 18 (Parte 1/6..6/6)'. Impacto: embeddings ruins + LLM recebe texto ilegivel no nucleo do Simples Nacional (publico MEI). PRE-EXISTENTE desde 2026-04 (nas extracoes 04-08, 07-02 e 07-06 identicamente).",
+    "deteccao": "validar_leis.py regras 'texto_quebrado_letra_a_letra' (consoante minuscula isolada; calibrada contra falsos-positivos reais: alineas entre aspas CLT Art. 334, abreviacao 'n°' LI Art. 90) e 'standalone_e_partes_coexistem'. Ambas WARN enquanto este caso existir; ELEVAR A FAIL quando a extracao for corrigida.",
+    "pendente_camada_2": "Corrigir a extracao da regiao (juntar glifos espacados + dedup de artigo repetido em sequencia preferindo a ocorrencia integra). Escopo proprio, com HTML real e golden. Depois do fix: re-extrair LC123, re-ingerir (hashes dos 28 chunks mudam) e regenerar perguntas via --redo."
+  }
+}
