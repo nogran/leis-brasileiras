@@ -33,6 +33,10 @@ Linux; o resultado remoto deve ser conferido nos checks do PR, separadamente dos
 locais registrados aqui. O primeiro CI identificou que `coverage==7.17.0` exige Python
 3.11; o lock de desenvolvimento foi corrigido para `coverage==7.16.2`, com suporte
 a Python 3.10. A execução da matriz corrigida deve ser conferida nos checks do PR.
+O CI Linux também revelou uma seleção ambígua de fixture no teste de integridade:
+o glob podia retornar o sidecar de trechos riscados antes do JSON de artigos. O teste
+agora seleciona explicitamente o snapshot congelado do CDC, sem depender da ordem
+de arquivos do sistema operacional.
 O piso de cobertura do projeto de origem não foi alterado.
 
 A fixture de texto limpo da LEP continha 884 finais de linha CRLF; a nova fixture de

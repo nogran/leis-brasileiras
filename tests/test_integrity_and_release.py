@@ -27,7 +27,7 @@ def test_malformed_article_validation_fails(tmp_path,value):
 
 @pytest.mark.parametrize('text',['\x00','\ufffd','<script>evil()</script>'])
 def test_integrity_checks_all_rows_not_only_first_five(tmp_path,text):
-    source=next(DATA_DIR.glob('cdc_*.json'))
+    source=DATA_DIR/'cdc_2026-07-07.json'
     records=json.loads(source.read_text(encoding='utf-8'))
     records[-1]['texto_limpo']=text
     (tmp_path/source.name).write_text(json.dumps(records))
