@@ -17,11 +17,17 @@ from leis_brasileiras.catalog import LAWS
 from leis_brasileiras.corpus import validate_articles
 from leis_brasileiras.extraction import LEIS_CONFIG, PARSER_VERSION, hash_texto, html_to_clean_text, parse_law
 from leis_brasileiras.integrity import verificar_integridade
+from leis_brasileiras.canonical import extract_document
+from leis_brasileiras.canonical_validation import validate_document
+from leis_brasileiras.compatibility import LEGACY_FORMAT, measure_records
+from leis_brasileiras.models import CANONICAL_FORMAT, CANONICAL_PARSER_VERSION
 
 ROOT=Path(__file__).resolve().parents[1]
 
 
-def build(output: Path, version: str) -> dict:
+def build(output: Path, version: str, *, format: str = LEGACY_FORMAT) -> dict:
+    if format not in (LEGACY_FORMAT, CANONICAL_FORMAT):
+        raise ValueError('Unknown reference format')
     if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._-]{0,63}',version):
         raise ValueError('Invalid reference version')
     payloads={}
@@ -49,6 +55,7 @@ def build(output: Path, version: str) -> dict:
                 raise ValueError('Reference redaction checksum mismatch')
             files={base+'.json':json_bytes(parsed),base+'_clean.txt':clean.encode(),base+'_riscadas.json':json_bytes(sidecar)}
             raw_path=ROOT/'tests/fixtures/html'/f"{law['nome_base']}.htm.gz"
+            raw = None
             if raw_path.exists():
                 raw=gzip.decompress(raw_path.read_bytes())
                 if html_to_clean_text(raw,law['sigla'],cfg)!=clean:
@@ -59,16 +66,35 @@ def build(output: Path, version: str) -> dict:
             result=validate_articles(directory/(base+'.json'),strict=True)
             if not result['ok']:
                 raise ValueError(f'Reference validation failed: {result}')
-            payloads.update(files)
+            if format == CANONICAL_FORMAT:
+                from leis_brasileiras.extraction import harvest_redacoes_riscadas
+
+                document = extract_document(clean, law['sigla'], date, precision='date',
+                                            raw_sha256=sha256(raw) if raw else None,
+                                            prior_redactions=harvest_redacoes_riscadas(raw,law['sigla'],cfg) if raw else [])
+                if not validate_document(document)['ok']:
+                    raise ValueError('Canonical reference validation failed')
+                canonical_files = {'canonical.json':json_bytes(document),'clean.txt':clean.encode()}
+                if raw:
+                    canonical_files['source.html'] = raw
+                # Original sidecar remains evidence; its dedup entries are not asserted
+                # to be legally prior redactions in the canonical document.
+                canonical_files['legacy_redactions.json'] = json_bytes(sidecar)
+                payloads.update({law['sigla']+'/'+name:data for name,data in canonical_files.items()})
+            else:
+                payloads.update(files)
             inventory.append({'law':law['sigla'],'source_url':law['url'],
                               'observed_date':date,'capture_time_precision':'date',
                               'raw_source_available':raw_path.exists(),
-                              'content_hash':sha256(clean.encode()),'chunks':len(parsed),
+                              'content_hash':sha256(clean.encode()),'legacy_counts':measure_records(parsed),
+                              **({'canonical_units':len(document['units']),
+                                  'document_revision':document['revision']} if format == CANONICAL_FORMAT else {}),
                               'prior_redactions':sidecar['total']})
         if not verificar_integridade(str(directory)):
             raise ValueError('Reference integrity failed')
-    manifest={'format_version':1,'corpus_version':version,'kind':'historical-reference',
-              'extractor_version':__version__,'parser_version':PARSER_VERSION,
+    manifest={'format_version':2,'format':format,'corpus_version':version,'kind':'historical-reference',
+              'extractor_version':__version__,
+              'parser_version':CANONICAL_PARSER_VERSION if format == CANONICAL_FORMAT else PARSER_VERSION,
               'license_status':'pending owner decision',
               'limitations':['Historical observed text, not a current legal-validity determination',
                              'Capture times unknown beyond recorded calendar dates',
@@ -81,7 +107,7 @@ def build(output: Path, version: str) -> dict:
             info=zipfile.ZipInfo(name,(1980,1,1,0,0,0));info.compress_type=zipfile.ZIP_DEFLATED
             info.external_attr=0o100644 << 16
             archive.writestr(info,data)
-    print(json.dumps({'laws':len(inventory),'chunks':sum(law['chunks'] for law in inventory),'sha256':sha256(output.read_bytes())}))
+    print(json.dumps({'laws':len(inventory),'legacy_records':sum(law['legacy_counts']['records'] for law in inventory),'sha256':sha256(output.read_bytes())}))
     return manifest
 
 
@@ -89,5 +115,6 @@ if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output',type=Path,required=True)
     parser.add_argument('--version',required=True)
+    parser.add_argument('--format',choices=[LEGACY_FORMAT,CANONICAL_FORMAT],default=LEGACY_FORMAT)
     args=parser.parse_args()
-    build(args.output,args.version)
+    build(args.output,args.version,format=args.format)

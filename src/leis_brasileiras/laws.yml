@@ -2,11 +2,11 @@
 #  laws.yml — CATÁLOGO ÚNICO das leis da base (Single Source of Truth)
 # =====================================================================
 # Fonte única do que existe na base. Adicione UMA lei aqui e todo o pipeline
-# passa a conhecê-la (ver docs/add-law.md §2 e laws.py). NÃO re-declarar sigla,
+# passa a conhecê-la (ver docs/format.md e catalog.py). NÃO re-declarar sigla,
 # nome_base ou contagem de lei em nenhum outro arquivo — derive daqui.
 #
 # Campos por lei:
-#   sigla       (obrigatório) chave curta usada no banco e no código (ex: L9099)
+#   sigla       (obrigatório) alias histórico de catálogo (ex: L9099)
 #   nome_base   (obrigatório) prefixo dos arquivos em data/ (ex: lei_juizados_especiais)
 #   nome        (obrigatório) nome canônico para exibição (auditoria, ficha)
 #   numero      (obrigatório) rótulo da norma; vira `versao` no JSON extraído
@@ -19,11 +19,12 @@
 #     inline_headers   false p/ lei SEM hierarquia (LT, CADPOS)
 #
 # NÃO fica aqui: `boundaries` (cortes de seção com regex/lógica). São per-lei,
-# extrator-internas e NÃO se repetem — vivem em extrair_leis._BOUNDARIES.
-# `aliases` (nomes alternativos p/ resolução) entram na Fase 2 (backend/LawCatalog).
+# extrator-internas e NÃO se repetem — vivem em extraction._BOUNDARIES.
+# `aliases` (nomes alternativos p/ resolução) entram na Fase 2 (catálogo público).
 
 laws:
   - sigla: CF88
+    public_id: br-federal:constitution:1988
     nome_base: cf88
     nome: "Constituição Federal de 1988"
     numero: "Constituição Federal 1988"
@@ -32,10 +33,11 @@ laws:
       dedup_redacoes: true
       # NÃO liga capture_epigrafe: a Constituição não tem rubrica marginal por artigo.
       # O que parece rubrica ('Subseção I Disposição Geral') é header de hierarquia →
-      # ligar aqui só gera falso positivo. Ver docs/design/epigrafe-capture.md.
-      # boundaries (ADCT / signatários) vivem em extrair_leis._BOUNDARIES.
+      # ligar aqui só gera falso positivo. Ver docs/format.md.
+      # boundaries (ADCT / signatários) vivem em extraction._BOUNDARIES.
 
   - sigla: CDC
+    public_id: br-federal:law:1990:8078
     nome_base: cdc
     nome: "Código de Defesa do Consumidor"
     numero: "Lei 8.078/1990"
@@ -43,6 +45,7 @@ laws:
     # Headers inline (TÍTULO I Dos Direitos...) tratados pelo split_inline_headers do engine.
 
   - sigla: CLT
+    public_id: br-federal:decree-law:1943:5452
     nome_base: clt
     nome: "Consolidação das Leis do Trabalho"
     numero: "Decreto-Lei 5.452/1943"
@@ -50,15 +53,17 @@ laws:
     parse:
       dedup_redacoes: true
       capture_epigrafe: true   # CAIXA-ALTA + rubrica marginal → epigrafe (PEEK, sem truncar)
-      # boundaries (ANEXO) em extrair_leis._BOUNDARIES.
+      # boundaries (ANEXO) em extraction._BOUNDARIES.
 
   - sigla: CC
+    public_id: br-federal:law:2002:10406
     nome_base: codigo_civil
     nome: "Código Civil"
     numero: "Lei 10.406/2002"
     url: https://www.planalto.gov.br/ccivil_03/leis/2002/l10406compilada.htm
 
   - sigla: CPC
+    public_id: br-federal:law:2015:13105
     nome_base: cpc
     nome: "Código de Processo Civil"
     numero: "Lei 13.105/2015"
@@ -67,6 +72,7 @@ laws:
       dedup_redacoes: true
 
   - sigla: CP
+    public_id: br-federal:decree-law:1940:2848
     nome_base: cp
     nome: "Código Penal"
     numero: "Decreto-Lei 2.848/1940"
@@ -75,12 +81,14 @@ laws:
       capture_epigrafe: true   # CAIXA-ALTA + rubrica marginal → epigrafe (PEEK, sem truncar)
 
   - sigla: LGPD
+    public_id: br-federal:law:2018:13709
     nome_base: lgpd
     nome: "Lei Geral de Proteção de Dados"
     numero: "Lei 13.709/2018"
     url: https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2018/lei/L13709compilado.htm
 
   - sigla: ECA
+    public_id: br-federal:law:1990:8069
     nome_base: eca
     nome: "Estatuto da Criança e do Adolescente"
     numero: "Lei 8.069/1990"
@@ -89,12 +97,14 @@ laws:
       dedup_redacoes: true
 
   - sigla: LI
+    public_id: br-federal:law:1991:8245
     nome_base: lei_inquilinato
     nome: "Lei do Inquilinato"
     numero: "Lei 8.245/1991"
     url: https://www.planalto.gov.br/ccivil_03/leis/L8245compilado.htm
 
   - sigla: LMP
+    public_id: br-federal:law:2006:11340
     nome_base: lei_maria_penha
     nome: "Lei Maria da Penha"
     numero: "Lei 11.340/2006"
@@ -103,15 +113,17 @@ laws:
       encoding: utf-16
 
   - sigla: LC123
+    public_id: br-federal:complementary-law:2006:123
     nome_base: lc123
     nome: "Estatuto Nacional da Microempresa e da Empresa de Pequeno Porte"
     numero: "Lei Complementar 123/2006"
     url: https://www.planalto.gov.br/ccivil_03/leis/lcp/lcp123.htm
     parse:
       dedup_redacoes: true
-      # boundaries (ANEXO ... DA LEI COMPLEMENTAR, estrito) em extrair_leis._BOUNDARIES.
+      # boundaries (ANEXO ... DA LEI COMPLEMENTAR, estrito) em extraction._BOUNDARIES.
 
   - sigla: LT
+    public_id: br-federal:law:1974:6019
     nome_base: lei_terceirizacao
     nome: "Lei do Trabalho Temporário e Terceirização"
     numero: "Lei 6.019/1974"
@@ -120,6 +132,7 @@ laws:
       inline_headers: false   # lei sem hierarquia interna (sem LIVRO/TÍTULO/CAP/SEÇÃO)
 
   - sigla: CADPOS
+    public_id: br-federal:law:2011:12414
     nome_base: cadastro_positivo
     nome: "Lei do Cadastro Positivo"
     numero: "Lei 12.414/2011"
@@ -129,6 +142,7 @@ laws:
       inline_headers: false   # lei sem hierarquia interna
 
   - sigla: L9099
+    public_id: br-federal:law:1995:9099
     nome_base: lei_juizados_especiais
     nome: "Lei dos Juizados Especiais Cíveis e Criminais"
     numero: "Lei 9.099/1995"
@@ -138,6 +152,7 @@ laws:
     # Ancora a ação penal da lesão corporal leve (Art. 88 = condicionada à representação).
 
   - sigla: LEP
+    public_id: br-federal:law:1984:7210
     nome_base: lei_execucao_penal
     nome: "Lei de Execução Penal"
     numero: "Lei 7.210/1984"

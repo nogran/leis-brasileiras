@@ -1,6 +1,6 @@
 """Pure extraction results and filesystem provenance, independent of application storage."""
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 import hashlib
 import json
 from pathlib import Path
@@ -10,6 +10,9 @@ import tempfile
 from . import __version__
 from .extraction import LEIS_CONFIG, PARSER_VERSION, harvest_redacoes_riscadas, hash_texto, html_to_clean_text, parse_law
 from .transport import MAX_HTML_BYTES
+from .canonical import extract_document
+from .compatibility import LEGACY_FORMAT
+from .models import CANONICAL_FORMAT, CANONICAL_PARSER_VERSION, CAPTURE_VERSION
 
 
 @dataclass
@@ -21,16 +24,19 @@ class Capture:
     clean_text: str
     articles: list[dict]
     prior_redactions: dict
+    canonical: dict | None = None
 
 
-def extract_html(raw_html: bytes, law: str, captured_at: str) -> Capture:
+def extract_html(raw_html: bytes, law: str, captured_at: str, *, format: str = LEGACY_FORMAT) -> Capture:
     """Parse a trusted catalog identity and untrusted HTML bytes without executing content.
 
     captured_at must include a timezone; observation is not legal validity. Application
-    capture_id is deliberately absent: the private consumer maps provenance to its own FK.
+    Database identifiers are not part of either public representation.
     """
     if law not in LEIS_CONFIG:
         raise ValueError("Unknown law code")
+    if format not in (LEGACY_FORMAT, CANONICAL_FORMAT):
+        raise ValueError("Unknown capture format")
     if not isinstance(raw_html, bytes) or not raw_html or len(raw_html) > MAX_HTML_BYTES:
         raise ValueError("Invalid HTML bytes or size")
     timestamp = datetime.fromisoformat(captured_at.replace("Z", "+00:00"))
@@ -39,6 +45,11 @@ def extract_html(raw_html: bytes, law: str, captured_at: str) -> Capture:
     date = timestamp.date().isoformat()
     cfg = LEIS_CONFIG[law]
     clean = html_to_clean_text(raw_html, law, cfg)
+    if format == CANONICAL_FORMAT:
+        prior = harvest_redacoes_riscadas(raw_html, law, cfg)
+        document = extract_document(clean, law, captured_at, raw_sha256=sha256(raw_html),
+                                    prior_redactions=prior)
+        return Capture(law, captured_at, cfg["url"], raw_html, clean, [], {}, document)
     articles, stats = parse_law(clean, law, cfg["versao"], cfg["url"], date, cfg)
     prior = harvest_redacoes_riscadas(raw_html, law, cfg)
     for source, records in stats.get("descartes", {}).items():
@@ -65,20 +76,31 @@ def write_capture(capture: Capture, root: Path) -> Path:
     root.mkdir(parents=True, exist_ok=True)
     stamp = datetime.fromisoformat(capture.captured_at.replace("Z", "+00:00")).strftime("%Y%m%dT%H%M%S%f%z")
     name = f"{capture.law}-{stamp}-{sha256(capture.raw_html)[:12]}"
+    if capture.canonical is not None:
+        name += "-" + CANONICAL_FORMAT
     destination = root / name
     if destination.exists():
         raise FileExistsError("Capture already exists")
-    base = LEIS_CONFIG[capture.law]["nome_base"] + "_" + capture.articles[0]["data_extracao"]
-    payloads = {base + ".json": json_bytes(capture.articles),
-                base + "_riscadas.json": json_bytes(capture.prior_redactions),
-                base + "_clean.txt": capture.clean_text.encode("utf-8"),
-                "source.html": capture.raw_html}
+    if capture.canonical is not None:
+        payloads = {"canonical.json": json_bytes(capture.canonical),
+                    "clean.txt": capture.clean_text.encode("utf-8"), "source.html": capture.raw_html}
+    else:
+        base = LEIS_CONFIG[capture.law]["nome_base"] + "_" + capture.articles[0]["data_extracao"]
+        payloads = {base + ".json": json_bytes(capture.articles),
+                    base + "_riscadas.json": json_bytes(capture.prior_redactions),
+                    base + "_clean.txt": capture.clean_text.encode("utf-8"),
+                    "source.html": capture.raw_html}
     manifest = {"format_version": 1, "law": capture.law, "captured_at": capture.captured_at,
                 "source_url": capture.source_url, "extractor_version": __version__,
                 "parser_version": PARSER_VERSION, "raw_sha256": sha256(capture.raw_html),
                 "content_hash": sha256(capture.clean_text.encode("utf-8")),
                 "temporal_semantics": "observed compilation; not an effective-date determination",
                 "files": {n: {"sha256": sha256(b), "bytes": len(b)} for n,b in payloads.items()}}
+    if capture.canonical is not None:
+        manifest.update(format_version=CAPTURE_VERSION, format=CANONICAL_FORMAT,
+                        parser_version=CANONICAL_PARSER_VERSION,
+                        recorded_at=datetime.now(timezone.utc).isoformat(),
+                        document_revision=capture.canonical["revision"])
     with tempfile.TemporaryDirectory(prefix=".capture-", dir=root) as temp:
         staging = Path(temp) / "capture"
         staging.mkdir()

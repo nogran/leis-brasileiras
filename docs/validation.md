@@ -1,13 +1,56 @@
-# Validação da proposta — 2026-10-26
+# Validação da proposta — atualização em 2026-10-27
 
 Branch de trabalho: `codex/extraction-core`, baseada nos dois commits já existentes
 do destino (base atual `8d732b3cc9609332de0d0d03ebb5ba3382c93d35`). Após a preparação local,
 o dono autorizou a abertura do PR. A proposta incorpora o histórico revisado e os
 arquivos novos em um commit de integração/adaptação, sem substituir os commits antigos.
-O PR permanece em rascunho. Merge do PR, mudança de visibilidade e releases de pacote
+O PR está aberto para revisão. Merge do PR, mudança de visibilidade e releases de pacote
 ou corpus não fazem parte desta autorização.
 
-## Resultados medidos
+## Incremento do corpus canônico
+
+O escopo atual está restrito ao repositório público `leis-brasileiras`. A adaptação
+dos repositórios privados da Justina será posterior. Os READMEs foram integrados
+sobre o commit concorrente `37ceff1`, com autorização do dono, preservando o catálogo,
+as perguntas frequentes e o exemplo JSON histórico.
+
+O contrato `canonical-v1` preserva unidades inteiras e leituras ambíguas, separa
+anotações editoriais e registra observação e revisões sem afirmar vigência jurídica.
+`legacy-blocks-v1` mantém o contrato congelado das 15 leis; a divisão 6.000/400 pertence
+somente à compatibilidade. Diagnósticos de RAG passam a ser opcionais e não bloqueiam
+a aceitação do corpus. Não há servidor MCP implementado: somente contrato e decisões
+de distribuição documentados.
+
+JSON Schemas são conferidos em desenvolvimento/CI; o runtime aplica validação
+estrutural e semântica sem resolução remota. A verificação de captura também reproduz
+o documento a partir do HTML, rejeitando adulterações mesmo com hashes recalculados.
+
+| Verificação do incremento | Resultado local (Windows, Python 3.14.3) |
+|---|---|
+| Suíte completa final | 713 testes passaram, sem falhas ou skips |
+| Cobertura | 87,79%; piso de 86% preservado |
+| Compatibilidade | 15 leis reproduzem os registros congelados; 6.276 registros |
+| Inventário | 23 grupos multipartes em 54 partes; 21 artigos em 47 partes, mais anexo e signatários |
+| Corpus canônico histórico | 15 normas, 6.231 unidades e 12 identidades ambíguas explicitadas |
+| Reprodutibilidade | ZIP canônico final idêntico byte a byte em duas construções; 59 hashes de artefatos e schema do manifesto conferidos em cada formato |
+| Contratos | JSON Schemas dos documentos e manifestos; rejeição de estruturas malformadas mesmo com hashes recalculados |
+| Capturas | Reprodução a partir do HTML, seleção explícita de subconjuntos e limites de entrada |
+| Isolamento editorial | Metadados das ocorrências não compartilham objetos mutáveis com o legado; nota editorial do Art. 555 da CLT permanece separada |
+| Documentação | Links locais, 15 linhas de catálogo por README, exemplo histórico do CDC e sintaxe Python conferidos |
+| Empacotamento | Wheel/sdist; schemas incluídos; instalação fora do checkout; captura/validação/bundle parcial nos dois formatos; `pip check` aprovado |
+
+A medição final foi executada com o código estabilizado. Uma medição intermediária,
+durante edição do parser, passou nos testes mas reprovou em cobertura; foi descartada
+e substituída pela execução completa acima. Resultados anteriores de AST descrevem
+a extração inicial: o parser agora inclui o ponto de emissão das ocorrências canônicas
+e o splitter histórico foi movido para o módulo de compatibilidade.
+
+A coleta `extract ALL --force --format canonical-v1` foi tentada em 2026-10-27:
+as 15 normas retornaram `ConnectionError` e o comando encerrou com código 1.
+Nenhuma captura atual bem-sucedida foi produzida. O gate de coleta ao vivo continua
+pendente, independentemente dos resultados offline.
+
+## Resultados da preparação inicial (formato histórico)
 
 | Verificação | Resultado |
 |---|---|
@@ -17,7 +60,7 @@ ou corpus não fazem parte desta autorização.
 | Comparação clean → JSON | 15 leis, igualdade dos campos públicos; `capture_id` excluído deliberadamente |
 | HTML → clean e completude | 14 leis com HTML bruto disponível; nenhuma whitelist nova para LEP |
 | Validação strict do corpus | 15 arquivos, 6.276 blocos, zero FAILs e zero WARNs; 29 INFOs, 3 INFOs conhecidos suprimidos |
-| Integridade de arquivos e multipartes | Zero erros; 24 dispositivos multipartes em 54 partes |
+| Integridade de arquivos e multipartes | Zero erros; 23 grupos multipartes em 54 partes (contagem corrigida pelo inventário reproduzível) |
 | Manifesto do corpus | 59 hashes de artefatos conferidos |
 | Empacotamento | Wheel e sdist construídos com sucesso |
 | Instalação limpa | Venv de desenvolvimento e segundo venv somente com wheel/deps de runtime |
@@ -97,4 +140,4 @@ implementações privadas, dados operacionais, dumps e credenciais ficaram fora.
 - Integrar futuramente a Justina por versão definida e validar em ambiente de teste.
   A migração **não está completa** enquanto o extrator antigo continuar como dependência.
 
-Commit da proposta: `feat(core): extract standalone Brazilian legislation package`.
+Commit inicial da proposta: `feat(core): extract standalone Brazilian legislation package`.

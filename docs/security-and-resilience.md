@@ -22,7 +22,7 @@ do sistema; o limite de tempo não é uma garantia de deadline de processo. Para
 remoto, isolar parsing/resolução em worker com deadline e limite de memória.
 
 Cada fetch usa sessão própria, sem `.netrc`, proxies ambientais ou cookies herdados.
-O cliente não conhece segredos da Justina. Logs do CLI mostram sigla e classe de erro,
+O cliente não lê credenciais de aplicações consumidoras. Logs do CLI mostram sigla e classe de erro,
 sem corpos da resposta. A camada `transport.fetch_html` é substituível sem mexer nos
 parsers, que recebem bytes; fixtures permitem validar o comportamento offline.
 
@@ -36,3 +36,18 @@ English: all external content is data, never authority or executable instruction
 Network and file inputs are bounded; failed or tampered captures are excluded from
 release preparation. Session state is not shared across fetches. Remote service
 isolation, authorization and hard process deadlines are explicitly future work.
+
+## Canonical corpus and future MCP
+
+Canonical documents are bounded to 64 MiB, 50,000 units and structural depth 32.
+Canonical capture verification also reparses the bounded 16 MiB raw HTML and compares
+the complete result; self-consistent hashes alone are not source authentication.
+Repeated readings remain explicit ambiguities; editorial assertions are separately
+marked as pending review and never establish effective dates. There are no network
+lookups for annotations, document identifiers or JSON schemas. Unknown source URLs
+are rejected against the packaged catalog. Invalid documents return bounded errors.
+
+The current CLI/library is not a multiuser service. Its independent capture state tests
+do not establish future HTTP authorization. See [MCP contract](mcp-contract.md) for the
+separate server threat model and release gates. No untrusted ZIP importer or PDF pipeline
+is introduced; collected HTML is parsed as data and never opened for execution.

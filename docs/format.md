@@ -1,88 +1,107 @@
-# Formato, proveniência e limites / Format, provenance and limits
+# Data contracts, provenance and limits
 
-## Contrato preservado
+Two explicit representations are available. Use `--format canonical-v1` for the public
+legislative model. Existing Python/CLI calls default to `legacy-blocks-v1` to preserve
+compatibility; the historical format is not the canonical MCP response contract.
+Schemas ship inside `leis_brasileiras/schemas/`.
 
-Cada JSON principal é uma lista de blocos. `id`, `lei`, `artigo`, `texto_limpo`,
-`hash_artigo`, `parte_num` e `total_partes` preservam a saída do núcleo de origem.
-Os nomes portugueses dos campos fazem parte do contrato e não foram traduzidos.
+## Canonical document (`canonical-v1`)
 
-| Campos | Significado |
+| Field | Contract |
 |---|---|
-| `id`, `lei`, `artigo` | Identificador técnico, sigla do catálogo e rótulo do dispositivo; preservar exatamente |
-| `versao`, `versao_consolidada` | Nome da norma e indicador do parser; não são uma determinação autônoma de vigência |
-| `texto_limpo`, `hash_artigo` | Texto estruturado e hash legado de compatibilidade |
-| `livro*`, `titulo*`, `subtitulo*`, `capitulo*`, `secao*`, `path_hierarquico` | Hierarquia, nomes e breadcrumb |
-| `epigrafe` | Rubrica marginal capturada em CP/CLT; omitida nas demais fontes |
-| `status` | Classificação observada: `vigente`, `revogado`, `vetado_total` |
-| `vetos_parciais`, `alteracoes`, `referencias` | Metadados e remissões extraídos |
-| `notas_legais`, `controle_constitucionalidade` | Notas da fonte e referências de controle constitucional |
-| `parte_num`, `total_partes` | Inteiros para partes; nulos quando não multipartes |
-| `url_fonte`, `data_extracao` | URL oficial e data da observação/extração, preservada no snapshot |
+| `law.id` | Stable catalog identity, e.g. `br-federal:law:1990:8078`; not a URL, content hash, database key or asserted LexML URN |
+| `law.aliases` | Historical catalog codes, e.g. `CDC` |
+| `law.name`, `designation`, `jurisdiction` | Catalog metadata; unknown authority/issue date remain null; external identifiers remain empty until verified |
+| `components` | Main body, ADCT and recognized annexes; each has the law as parent |
+| `units[].id` | Law + component + normalized label; independent of chapter title, text hash and segmentation |
+| `units[].parent_id`, `order`, `kind`, `label` | Component parent, source order, typed unit and observed label |
+| `units[].readings` | All observed occurrences, each with whole text, SHA-256, source wording, hierarchy, rubric, observed status and source metadata |
+| `units[].text`, `text_sha256` | Single observed reading, or null when ambiguous |
+| `units[].quality` | `observed` or `ambiguous`; does not certify legal completeness |
+| `units[].legacy_aliases` | Historical IDs/labels for correspondence, not a claim of identical text or metadata |
+| `units[].legal_validity` | `unknown`, null effective dates, empty evidence; current implementation does not determine legal validity |
+| `editorial_annotations` | Separate registry assertions, each `origin=editorial`, `review_status=pending`, with no independently verified evidence claimed |
+| `prior_redactions` | HTML/CSS struck text observed in available source HTML; not a complete amendment timeline |
+| `structure_depth`, `limitations` | Article-level extraction and explicit unresolved limitations |
 
-O `capture_id` da aplicação foi excluído: é uma chave estrangeira privada, não identidade
-do dispositivo. Um adaptador privado deve inserir/reusar sua captura e atribuir esse ID
-antes da ingestão. Não envie identificadores SHA-256 públicos ao campo UUID do banco.
+Kinds: `article`, `annex`, `signatories`, `preamble_or_summary`, `other`.
+Hierarchy entries have `level`, `number` and `title`; recognized levels are book,
+title, subtitle, chapter and section. Paragraphs/clauses remain text. The law registry
+fixes public IDs explicitly; changing a catalog alias must not create a new law identity.
+Renumbering a provision is a change of locator requiring an explicit future relation,
+not something inferred from similar wording.
 
-`hash_artigo` mantém o algoritmo legado, inclusive particularidades das lápides. Não
-o substitua por um hash do arquivo ou um hash de texto recomposto. SHA-256 nos manifestos
-verifica bytes de artefatos; `content_hash` verifica UTF-8 do texto limpo completo.
+`source_text` is the normalized source buffer before unit-level cleaning, not byte-exact
+HTML. Only the retained raw source is byte evidence. The canonical cleaned reading is
+captured before historical deduplication, overlap and short-text filters. Repeated
+labels are not silently resolved. Missing provisions do not acquire invented text.
 
-## Multipartes e redações
+## Observation, revisions and validity
 
-O dedup de redações roda no artigo inteiro **antes** do corte. O corte preserva a
-convenção `(Parte N/M)`, normalmente até 6.000 caracteres com overlap de 400; as guardas
-do splitter evitam fatias minúsculas. Nada edita as partes depois do corte.
-Não concatene partes cegamente: o overlap repetiria texto. Não traduza rótulos nem
-remova `(ADCT)` ou o sufixo de parte para ingerir.
+`provenance` records source URL, observation time/precision, raw and clean SHA-256,
+parser revision and curation revision. A historical day stays a day; no time is invented.
+`basis=historical-clean-text` means raw source evidence is unavailable.
 
-O sidecar `{base}_{data}_riscadas.json` tem `lei`, `versao`, `data_extracao`, `url_fonte`,
-`total`, `riscadas`. Cada entrada registra `artigo_base`, `dispositivo`, `texto`,
-`fonte_marcacao`, `hash`, `ordem`. Ele inclui riscos HTML/CSS, descartes do dedup de
-redações e duplicatas por rótulo. **Nunca ingeri-lo como lista de artigos vigentes.**
-Essas redações não constituem histórico completo de vigência: faltam textos originais,
-intervalos de eficácia e emendas ausentes das páginas observadas.
+`content_revision` hashes law/components/units/redactions using deterministic JSON;
+`revision` also covers observation/provenance/curation. The content revision includes
+compatibility aliases; it is a version of the structured payload, not only prose.
+Permanent IDs never use either revision hash. Capture manifests separately record
+`recorded_at`, the timestamp of writing that immutable capture. Recording, observation,
+source publication and legal effectiveness are different events.
 
-## Distribuição
+Names, status labels and amendment notes extracted from a compiled page cannot establish
+that a provision is legally effective today. Raw HTML/CSS redactions and dedup discards
+are not a complete history of legal validity. Editorial claims require independent review.
 
-Captura nova: um diretório imutável com JSON principal, texto limpo, sidecar, HTML bruto
-e `manifest.json`. O manifesto registra `format_version`, `captured_at` com fuso, fonte,
-versões, hashes e tamanho de cada arquivo. O verificador rejeita arquivos extras,
-symlinks, alterações de hash, mistura de leis e saída que não se reproduza do HTML.
+## Capture and corpus manifests
 
-Corpus novo: ZIP com uma captura validada de cada lei e manifesto raiz versionado.
-Corpus de referência: ZIP plano produzido exclusivamente das fixtures selecionadas,
-com `kind=historical-reference`, datas com precisão de dia e HTML bruto quando disponível.
-As duas modalidades são explícitas; o builder histórico não afirma coleta atual.
-Arquivos ZIP são escritos com ordem e timestamps determinísticos. Não extrair um ZIP
-não confiável sem verificar caminhos, limites e hashes em um consumidor futuro.
+Canonical captures use `format_version=2`, `format=canonical-v1` and contain exactly
+`canonical.json`, `clean.txt`, `source.html` and `manifest.json`. Verification checks
+bounded files, exact file selection, hashes, provenance and reproduction from source.
+Legacy capture version 1 remains supported without reinterpreting its payload.
 
-## Fontes e limitações
+Fresh corpus manifests use version 2, an explicit representation, selected law codes,
+`coverage=full-catalog|selected-laws`, package/parser versions and file hashes.
+`bundle --laws CDC LI` requires exactly those captures; omitting `--laws` still requires
+all catalog laws. Duplicates, absent/unknown selections and mixed formats are rejected.
 
-Todas as URLs vêm de `src/leis_brasileiras/laws.yml`, sob HTTPS no Planalto. O catálogo
-é instalado junto do pacote, sem caminhos relativos para repositórios privados.
-O `docs/source-inventory.json` mede disponibilidade e hashes das referências.
+Historical references use `kind=historical-reference`, version 2 and an explicit format.
+Canonical historical archives contain per-law documents, clean text, raw HTML where
+available and `legacy_redactions.json` as compatibility evidence. They are not fresh
+capture directories. L9099 has no historical raw HTML; its canonical prior-redaction
+list cannot claim evidence from HTML, while its original sidecar remains preserved.
+Inventory counts are explicitly `legacy_counts`; `canonical_units` counts canonical nodes.
 
-| Caso | Tratamento e teste |
-|---|---|
-| UTF-16 sem BOM e padding corrompido | Decode determinístico e guardas NUL; testes de extração |
-| Riscos `<strike>`, `<s>`, `<del>` e `line-through` inline | Removidos do texto observado, arquivados em sidecar; completude |
-| Kerning que fatia palavras | Junção de spans; golden HTML |
-| Anotações sem parêntese final | Remoção limitada à linha; regressão contra perda de parágrafo |
-| Caput revogado, vetos e dispositivos órfãos | Literal da fonte ou lápides de `known_issues.json`; regressões dedicadas |
-| Artigos duplicados, ANEXO e ADCT | Dedup com arquivo, boundaries por lei e integridade multiparte |
-| Rubricas e cabeçalhos inline | Captura sem truncar texto; golden e testes de rubrica |
+Manifest hashes establish internal consistency, not authenticity against an attacker
+able to replace all files. Obtain distributions through a trusted channel and pin their
+hash. ZIP entries are deterministic. This release creates ZIPs; it does not implement
+an untrusted ZIP importer. Never extract untrusted paths without bounds and traversal checks.
 
-Limites: subseções não têm nível próprio; tabelas como imagem exigiriam outro pipeline;
-seletores CSS de risco por classe não têm cobertura universal; notas legais são
-deduplicadas por artigo e nem sempre localizam o inciso alterado. As exceções verificadas
-em `known_issues.json` são parte da curadoria e devem ser revisadas, não ampliadas para
-silenciar falhas. Nenhum resultado substitui a conferência da publicação oficial.
+## Historical compatibility (`legacy-blocks-v1`)
 
-## English contract summary
+The original Portuguese fields remain unchanged: `id`, `lei`, `versao`,
+`versao_consolidada`, `artigo`, hierarchy fields, `epigrafe` where present,
+`path_hierarquico`, `texto_limpo`, `status`, `vetos_parciais`, `alteracoes`,
+`referencias`, `notas_legais`, `controle_constitucionalidade`, `hash_artigo`,
+`url_fonte`, `data_extracao`, `parte_num`, `total_partes`.
 
-Portuguese JSON field names and multipart identifiers are intentionally unchanged.
-Observation date, parser status and legal effective date are different concepts.
-Private application capture IDs are omitted and must be supplied by the consuming
-adapter. Historical redaction sidecars must never be ingested as current articles.
-Raw fixtures cover 14 laws; all 15 have frozen article and cleaned-text references.
-Manifests distinguish fresh captures from historical references and hash exact bytes.
+`parse_legacy` is the explicit facade; `parse_law` remains compatible. The historical
+split uses up to 6,000 characters and overlap of 400, with guards against degenerate
+slices. Preserve `(Parte N/M)` and `(ADCT)` labels. Never concatenate parts blindly.
+`hash_artigo` retains its short historical algorithm, including tombstone particulars;
+it must not be substituted with a recomposed-text or artifact hash.
+
+Historical `_riscadas.json` contains source redactions AND heuristic discards; it is
+not an article list. Runtime application foreign keys are absent from public payloads.
+Consumer-specific mappings belong to adapters, not this format specification.
+
+## Reproducible inventory
+
+`python tools/build_inventory.py --check` verifies `docs/source-inventory.json` against
+frozen fixtures. `records` counts blocks, not embeddings or unique articles.
+The baseline has 15 laws, 6,276 records and 23 multipart groups in 54 parts:
+21 article groups plus one annex and one signatory group. LI has 92 records:
+91 article records and one introductory block. Counts do not describe production systems.
+
+References: [LexML identities](https://projeto.lexml.gov.br/documentacao/Parte-2-LexML-URN.pdf),
+[JSON Schema 2020-12](https://json-schema.org/draft/2020-12/json-schema-validation).

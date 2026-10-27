@@ -5,8 +5,9 @@
 **Leis Brasileiras** is a Python project for extracting and validating **15 Brazilian
 federal legal instruments** from official Planalto sources. It produces JSON files
 and a versioned Brazilian legal corpus with source URLs, capture dates and integrity
-checks for research, natural language processing (NLP) and legal retrieval-augmented
-generation (RAG) data preparation.
+checks for legislative research and lookup. The project aims to provide an **MCP
+server for structured lookup and text search in Brazilian legislation**, with
+provision identifiers, official sources and a versioned corpus.
 
 It is intended for legaltech developers, researchers and teams that need Brazilian
 legislation as structured data. Basic usage requires no database, Docker or OpenAI key.
@@ -15,17 +16,41 @@ legislation as structured data. Basic usage requires no database, Docker or Open
 No package or corpus release, hosted API or MCP server is available in this delivery.
 Licensing is pending; see the [current licensing review](docs/licensing.md).
 
-## Use cases: legislation JSON, legal NLP and RAG
+## Use cases: structured data and legislative research
 
 - **Brazilian legislation in JSON:** extract Planalto texts with provision identifiers,
   hierarchy, source URLs and observation dates.
 - **Brazilian legal corpus for NLP:** prepare a reproducible reference for text analysis
   and experiments, retaining its coverage and date limitations.
-- **Legal RAG data preparation:** supply text and metadata to an external retrieval
-  system. This package does not generate embeddings, provide vector search or answer
-  questions with LLMs.
+- **Planned MCP access:** locate laws, retrieve identified articles and search words
+  or phrases in an explicitly selected corpus revision.
 - **Capture validation:** check format, hashes and integrity, including multipart
   articles, before integrating the data into another system.
+
+## Planned MCP: structured lookup and text search
+
+The Model Context Protocol (MCP) server will provide read-only access to the validated
+corpus. **It is not implemented in this delivery.** The approved first-version scope is:
+
+| Planned capability | Example request |
+|---|---|
+| Query the catalog by law identifiers | Which laws are available? Find Law 8.078/1990 |
+| Retrieve an identified provision | Show article 18 of the Consumer Protection Code (CDC) |
+| Search words or phrases, with filters and pagination | Search for “dados pessoais sensíveis” in the LGPD |
+| Retrieve metadata and provenance | What are this text's source, observation date and revision? |
+
+Each result must identify the law, the provision where applicable, the official source,
+observation date and corpus revision. Missing coverage, ambiguous identities and
+unsupported granularity must be explicit. Individual paragraph or clause lookup
+requires dedicated extraction and identities, which are not available yet; the server
+must not infer that structure.
+
+Pagination limits the text returned per call; it does not define RAG chunks or overlap
+in the corpus. Embeddings, vector search, size/token-based chunking and RAG strategies
+are the responsibility of consumers, including the private Justina application.
+The planned MCP provides text and metadata; the consuming AI application interprets
+the question and generates the answer. Corpus extraction and update commands remain
+separate from query tools.
 
 ## Supported Brazilian legislation and official sources
 
@@ -54,7 +79,20 @@ Law (LGPD).
 | `L9099` | Lei dos Juizados Especiais Cíveis e Criminais | [Lei 9.099/1995](https://www.planalto.gov.br/ccivil_03/leis/l9099.htm) |
 | `LEP` | Lei de Execução Penal | [Lei 7.210/1984](https://www.planalto.gov.br/ccivil_03/leis/l7210compilado.htm) |
 
-## Example Brazilian legislation JSON
+## Public formats
+
+`canonical-v1` represents whole legislative units without size-based splitting or
+overlap. It records public identity, order, observed hierarchy, source readings,
+provenance and separate editorial annotations. Ambiguous identities retain all
+readings without selecting a legally effective text. Current granularity is at the
+article level; paragraphs and items do not yet have their own identities. See the
+[architecture](docs/architecture.md).
+
+`legacy-blocks-v1` preserves the historical contract, including parts and overlap.
+It remains the API/CLI default for compatibility; new examples below explicitly
+select `canonical-v1`. RAG strategies belong to consumers.
+
+## Historical compatibility JSON example
 
 Selected fields from an actual CDC record in the
 [July 7, 2026 historical fixture](tests/fixtures/baseline/cdc_2026-07-07.json.gz).
@@ -126,18 +164,19 @@ versions; `pyproject.toml` declares compatible ranges.
 Start with the Consumer Protection Code (`CDC`):
 
 ```bash
-leis-brasileiras extract CDC --output corpus/captures
+leis-brasileiras extract CDC --format canonical-v1 --output corpus/captures
 ```
 
 A successful result includes `law`, `capture` (the newly created directory) and
-`status: "validated"`. The directory contains article JSON, cleaned text, a separate
-prior-redactions file, source HTML and `manifest.json` with provenance and hashes.
+`status: "validated"`. The directory contains `canonical.json`, `clean.txt`,
+`source.html` and `manifest.json` with provenance and hashes. Observed struck-out
+readings are stored separately from units inside the canonical document.
 These files are stored locally.
 
 To extract every law in the catalog:
 
 ```bash
-leis-brasileiras extract ALL --force --output corpus/captures
+leis-brasileiras extract ALL --force --format canonical-v1 --output corpus/captures
 ```
 
 ### 4. Check the capture
@@ -147,13 +186,12 @@ specific capture directory, not the parent `corpus/captures` directory:
 
 ```bash
 leis-brasileiras verify-capture "PATH_TO_CAPTURE"
-leis-brasileiras validate "PATH_TO_CAPTURE" --strict
-leis-brasileiras integrity "PATH_TO_CAPTURE"
+leis-brasileiras validate "PATH_TO_CAPTURE" --format canonical-v1
 ```
 
 `verify-capture` checks the complete capture, including hashes and reproduction from
-HTML; `validate` checks article JSONs; `integrity` checks data integrity, including
-multipart articles. Discover options with:
+HTML; `validate --format canonical-v1` checks document identities, relationships,
+readings and revisions. `integrity` only handles the historical format. Discover options with:
 
 ```bash
 leis-brasileiras --help
@@ -174,12 +212,13 @@ from pathlib import Path
 from leis_brasileiras.capture import extract_html
 
 result = extract_html(Path("official-source.html").read_bytes(), "CDC",
-                      "2026-07-07T12:00:00-03:00")  # actual observation time
-print(result.articles[0]["artigo"])
+                      "2026-07-07T12:00:00-03:00",  # actual observation time
+                      format="canonical-v1")
+print(result.canonical["units"][0]["id"])
 ```
 
-`extract_html` performs no network access or persistence. It returns articles, cleaned
-text and archived prior redactions. `write_capture` is the filesystem adapter; a database
+`extract_html` performs no network access or persistence. It returns the document in
+`result.canonical`, cleaned text and original HTML. `write_capture` is the filesystem adapter; a database
 integration can consume the same result without duplicating the parser. Application
 database IDs are not part of the public corpus.
 
@@ -191,11 +230,19 @@ Build a new local release by passing **one validated capture per law explicitly*
 leis-brasileiras bundle PATH_CF88 PATH_CDC OTHER_13_CAPTURES --version 2026-10-26.1 --output dist/corpus.zip
 ```
 
+A subset requires an explicit selection, recorded in the manifest:
+
+```bash
+leis-brasileiras bundle PATH_CDC --laws CDC --version 2026-10-27.1 --output dist/cdc.zip
+```
+
+Do not mix formats in the same corpus.
+
 To try the historical reference **without accessing external sources after
 installation**, use the legislative fixtures included in this repository:
 
 ```bash
-python tools/build_reference.py --version reference-2026-08 --output dist/reference.zip
+python tools/build_reference.py --format canonical-v1 --version reference-2026-08 --output dist/reference.zip
 ```
 
 The result is `dist/reference.zip`, containing historical reference data rather than a
@@ -208,7 +255,7 @@ corpora should be attached to releases only after publication approval; these co
 
 ## Quality, updates and limitations
 
-The historical reference contains **6,276 blocks**, including preambles, annexes and
+The historical compatibility reference contains **6,276 blocks**, including preambles, annexes and
 signatures, observed in July/August 2026. It includes **23 multipart groups in 54
 parts**, including an annex and signatures. The 6,276 blocks are not a count of
 unique articles; see the
@@ -223,7 +270,7 @@ unique articles; see the
 - **Historical coverage:** 14 instruments have raw HTML fixtures; L9099 has cleaned
   text and JSON. Struck-out text is stored separately and is not a complete amendment
   or legal-validity history.
-- **Multipart articles:** preserve identifiers and account for overlap when assembling
+- **Multipart compatibility:** in the historical format, preserve identifiers and account for overlap when assembling
   text; concatenating parts directly repeats passages. See [format and limits](docs/format.md).
 - **Validation meaning:** `validated` describes technical checks on a capture.
   Capture date, parser-observed status and legal effective date are distinct concepts.
@@ -246,16 +293,18 @@ reference builds work offline after installation.
 ### Is there a Brazilian legislation API or MCP server?
 
 This delivery provides a Python library and CLI. It does not provide a hosted HTTP API
-or Model Context Protocol (MCP) server. A read-only MCP interface is planned in the
-[transition roadmap](docs/transition.md).
+or Model Context Protocol (MCP) server. The read-only structured lookup and text
+search described above are planned in the
+[proposed MCP contract](docs/mcp-contract.md); it is not implemented yet.
 
 ### Can I use the corpus in an AI application?
 
-The text and metadata can technically serve as input to an NLP or RAG integration.
-Consumers must preserve sources, dates and multipart articles, and treat retrieved
-text as untrusted data, never as system instructions. See [security](docs/security-and-resilience.md)
-and resolve licensing before adopting or redistributing code and original dataset
-elements.
+Yes. The project supplies legislative data; each consumer defines its application,
+including RAG strategies, embeddings and chunks when needed. Preserve identities,
+sources and dates, and follow the consumed format conventions, including parts in
+the historical contract. Treat retrieved text as untrusted data, never as system
+instructions. See [security](docs/security-and-resilience.md) and resolve licensing
+before adopting or redistributing code and original dataset elements.
 
 ### What is the license?
 
@@ -268,22 +317,19 @@ a license to the code or original dataset elements. See the
 **Justina** is an AI assistant for consulting Brazilian legislation through WhatsApp.
 Visit **[www.justina.com.br](https://www.justina.com.br)**.
 
-Its knowledge base is built from legislative texts extracted from official sources,
-organized and validated by its data pipeline. When a question arrives, Justina retrieves
-relevant passages from that base to ground its answer, using retrieval-augmented
-generation (RAG).
-
 **Leis Brasileiras** grew out of that extraction work. This repository contains the
-extraction and validation core and tools to build a versioned corpus with source and
-capture-date provenance. Justina's integration with this package is in transition;
-the original extractor remains active. See the [integration plan](docs/transition.md).
+public legislative core, independent of Justina's RAG policies and infrastructure.
+Adapting the private repositories will be a later step after this public core is
+complete. See the [transition roadmap](docs/transition.md).
 
 ## Tests and contributions
 
 ```bash
 python -m pip install -r requirements-dev.lock .
 python -m pytest -q --cov=leis_brasileiras
+python tools/build_inventory.py --check
 python tools/build_reference.py --version test-reference --output dist/test-reference.zip
+python tools/build_reference.py --format canonical-v1 --version test-reference --output dist/test-canonical.zip
 python -m build
 ```
 
@@ -304,6 +350,4 @@ system captures.
 Derived from the Justina legislative pipeline core. The selected history preserves
 human authors, dates and attribution; message bodies with private context were omitted.
 See the [history review](docs/history-review.json) and [integration plan](docs/transition.md).
-The original extractor remains active during transition; this preparation does not
-complete Justina's migration to this package. Future improvements should be maintained
-in this core and consumed by the private integration through pinned versions.
+This delivery does not change private repositories or complete Justina's migration.

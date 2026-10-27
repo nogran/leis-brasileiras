@@ -4,6 +4,7 @@ Missing fields or duplicate codes/file prefixes fail at import time. Keep public
 identities stable: downstream applications use these exact values as contract keys.
 """
 import os
+import re
 
 import yaml
 
@@ -15,9 +16,10 @@ with open(_PATH, encoding="utf-8") as _f:
 LAWS = _DOC["laws"]  # list[dict] — ordem do yaml preservada
 
 # --- guarda de integridade do catálogo (fail-fast no import) ---
-_REQUIRED = ("sigla", "nome_base", "nome", "numero", "url")
+_REQUIRED = ("sigla", "nome_base", "nome", "numero", "url", "public_id")
 _siglas_vistas: set[str] = set()
 _bases_vistas: set[str] = set()
+_public_ids: set[str] = set()
 for _l in LAWS:
     _faltando = [k for k in _REQUIRED if not _l.get(k)]
     if _faltando:
@@ -27,6 +29,11 @@ for _l in LAWS:
         raise ValueError(f"laws.yml: sigla duplicada: {_l['sigla']}")
     if _l["nome_base"] in _bases_vistas:
         raise ValueError(f"laws.yml: nome_base duplicado: {_l['nome_base']}")
+    if not re.fullmatch(r"br-federal:[a-z-]+:[0-9]{4}(?::[0-9]+)?", _l["public_id"]):
+        raise ValueError("Invalid public law identity")
+    if _l["public_id"] in _public_ids:
+        raise ValueError("Duplicate public law identity")
+    _public_ids.add(_l["public_id"])
     _siglas_vistas.add(_l["sigla"])
     _bases_vistas.add(_l["nome_base"])
 

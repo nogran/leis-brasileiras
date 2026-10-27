@@ -5,8 +5,9 @@
 **Leis Brasileiras** é um projeto Python para extrair e validar textos de **15 normas
 federais brasileiras** a partir de fontes oficiais do Planalto. Gera arquivos JSON e
 um corpus versionado com fontes, datas de captura e verificações de integridade,
-para pesquisa, processamento de linguagem natural (NLP) e preparação de bases para
-RAG jurídico — geração aumentada por recuperação.
+para pesquisa e consulta de textos legislativos. O objetivo do projeto é oferecer
+um **servidor MCP para consulta estruturada e busca textual em legislação brasileira**,
+com identificação de dispositivos, fontes oficiais e corpus versionado.
 
 Destina-se a desenvolvedores de legaltech, pesquisadores e equipes que precisam
 transformar legislação brasileira em dados estruturados. O uso básico funciona sem
@@ -16,17 +17,42 @@ banco de dados, Docker ou chave de OpenAI.
 Não há pacote ou corpus publicado em releases, API hospedada ou servidor MCP nesta
 entrega. O licenciamento está pendente; consulte os [termos atuais](docs/licensing.md).
 
-## Casos de uso: JSON, pesquisa e RAG jurídico
+## Casos de uso: dados estruturados e pesquisa legislativa
 
 - **Legislação brasileira em JSON:** extrair textos do Planalto com identificação
   dos dispositivos, hierarquia, fonte e data de observação.
 - **Corpus para NLP jurídico:** preparar uma referência reproduzível para análise
   textual e experimentos, preservando os limites da cobertura e das datas.
-- **Dados para RAG jurídico:** fornecer textos e metadados a um sistema de recuperação
-  externo. O pacote não gera embeddings, não oferece busca vetorial e não responde
-  perguntas com LLMs.
+- **Consulta via MCP, planejada:** localizar normas, consultar artigos identificados
+  e pesquisar palavras ou expressões em uma versão explícita do corpus.
 - **Validação de capturas:** verificar formato, hashes e integridade, inclusive de
   artigos divididos em partes, antes de integrar os dados a outro sistema.
+
+## MCP planejado: consulta estruturada e busca textual
+
+O servidor Model Context Protocol (MCP) será uma interface de consulta somente leitura
+sobre o corpus validado. **Ainda não está implementado nesta entrega.** O escopo
+aprovado para a primeira versão é:
+
+| Capacidade planejada | Exemplo de consulta |
+|---|---|
+| Consultar o catálogo por identificação da norma | Quais normas estão disponíveis? Onde está a Lei 8.078/1990? |
+| Recuperar um dispositivo identificado | Mostre o artigo 18 do CDC |
+| Buscar palavras ou expressões, com filtros e paginação | Busque “dados pessoais sensíveis” na LGPD |
+| Consultar metadados e proveniência | Qual é a fonte, a data de observação e a versão desse texto? |
+
+Cada resultado deverá identificar a norma, o dispositivo quando aplicável, a fonte
+oficial, a data de observação e a versão do corpus. Ausência de cobertura, identidades
+ambíguas e granularidade não suportada deverão ser informadas explicitamente. Consulta
+individual a parágrafos e incisos depende de extração e identificação próprias,
+ainda não disponíveis; o servidor não deverá inferir essa estrutura.
+
+A paginação limita o texto devolvido por chamada; não define chunks de RAG nem overlap
+no corpus. Embeddings, busca vetorial, chunking por tamanho ou tokens e estratégias
+de RAG ficam sob responsabilidade dos consumidores, incluindo a Justina privada.
+O MCP planejado fornece textos e metadados; a interpretação da pergunta e a geração
+da resposta ficam com a aplicação de IA que o utiliza. Os comandos de extração e
+atualização do corpus permanecem separados das ferramentas de consulta.
 
 ## Legislação coberta e fontes oficiais
 
@@ -52,11 +78,23 @@ verdade do catálogo; os links apontam para as páginas oficiais utilizadas pelo
 | `L9099` | Lei dos Juizados Especiais Cíveis e Criminais | [Lei 9.099/1995](https://www.planalto.gov.br/ccivil_03/leis/l9099.htm) |
 | `LEP` | Lei de Execução Penal | [Lei 7.210/1984](https://www.planalto.gov.br/ccivil_03/leis/l7210compilado.htm) |
 
-## Exemplo de legislação em JSON
+## Formatos públicos
+
+`canonical-v1` representa unidades legislativas inteiras, sem divisão por tamanho ou
+overlap. Mantém identidade pública, ordem, hierarquia observada, leituras da fonte,
+proveniência e anotações editoriais separadas. Identidades ambíguas conservam todas as
+leituras, sem eleger um texto vigente. A granularidade atual é de artigo; incisos e
+parágrafos ainda não têm identidade própria. Veja a [arquitetura](docs/architecture.md).
+
+`legacy-blocks-v1` preserva o contrato histórico, incluindo partes e overlap. Continua
+sendo o padrão da API/CLI para compatibilidade; os exemplos novos abaixo selecionam
+explicitamente `canonical-v1`. Estratégias de RAG pertencem aos consumidores.
+
+## Exemplo do JSON histórico de compatibilidade
 
 Campos selecionados de um registro real do CDC na
 [fixture histórica de 7 de julho de 2026](tests/fixtures/baseline/cdc_2026-07-07.json.gz).
-O JSON de uma lei contém uma lista de blocos; este objeto é apenas um deles, com
+Neste formato histórico, o JSON de uma lei contém uma lista de blocos; este objeto é apenas um deles, com
 campos adicionais omitidos para facilitar a leitura.
 
 ```json
@@ -126,18 +164,18 @@ dono: disponibilidade do código não deve ser interpretada como licença conced
 Comece pelo Código de Defesa do Consumidor (`CDC`):
 
 ```bash
-leis-brasileiras extract CDC --output corpus/captures
+leis-brasileiras extract CDC --format canonical-v1 --output corpus/captures
 ```
 
 Em caso de sucesso, a saída inclui `law`, `capture` (o caminho da pasta criada) e
-`status: "validated"`. Essa pasta contém o JSON dos dispositivos, o texto limpo,
-as redações riscadas em arquivo separado, o HTML de origem e `manifest.json` com a
-proveniência e os hashes. Os arquivos ficam no seu computador.
+`status: "validated"`. Essa pasta contém `canonical.json`, `clean.txt`, `source.html`
+e `manifest.json`. Redações riscadas observadas ficam no documento canônico, separadas
+das unidades. O manifesto registra proveniência e hashes. Os arquivos ficam no seu computador.
 
 Para extrair todas as leis do catálogo:
 
 ```bash
-leis-brasileiras extract ALL --force --output corpus/captures
+leis-brasileiras extract ALL --force --format canonical-v1 --output corpus/captures
 ```
 
 ### 4. Conferir a captura
@@ -147,13 +185,12 @@ daquela captura, e não a pasta geral `corpus/captures`:
 
 ```bash
 leis-brasileiras verify-capture "CAMINHO_DA_CAPTURA"
-leis-brasileiras validate "CAMINHO_DA_CAPTURA" --strict
-leis-brasileiras integrity "CAMINHO_DA_CAPTURA"
+leis-brasileiras validate "CAMINHO_DA_CAPTURA" --format canonical-v1
 ```
 
 `verify-capture` confere o conjunto da captura, incluindo hashes e reprodução a partir
-do HTML; `validate` verifica os JSONs de artigos; `integrity` verifica a integridade dos
-dados, incluindo artigos divididos em partes. Consulte as opções com:
+do HTML; `validate --format canonical-v1` verifica identidades, relações, leituras e
+revisões do documento. `integrity` atende somente ao formato histórico. Consulte as opções com:
 
 ```bash
 leis-brasileiras --help
@@ -176,12 +213,13 @@ capture = extract_html(
     Path("captura-oficial.html").read_bytes(),
     law="CDC",
     captured_at="2026-07-07T12:00:00-03:00",  # use o horário real da sua captura
+    format="canonical-v1",
 )
-print(capture.articles[0]["artigo"])
+print(capture.canonical["units"][0]["id"])
 ```
 
 `extract_html` não realiza rede nem persistência. Ela recebe HTML como dado e devolve
-artigos, texto limpo e redações arquivadas. `write_capture` é o adaptador de filesystem;
+o documento em `capture.canonical`, texto limpo e HTML original. `write_capture` é o adaptador de filesystem;
 uma integração de banco pode consumir o mesmo resultado sem duplicar o parser.
 
 ## Corpus jurídico brasileiro versionado
@@ -192,11 +230,19 @@ Prepare uma release local nova passando **explicitamente uma captura validada po
 leis-brasileiras bundle CAMINHO_CF88 CAMINHO_CDC OUTRAS_13_CAPTURAS --version 2026-10-26.1 --output dist/corpus.zip
 ```
 
+Um subconjunto exige seleção explícita, registrada no manifesto:
+
+```bash
+leis-brasileiras bundle CAMINHO_CDC --laws CDC --version 2026-10-27.1 --output dist/cdc.zip
+```
+
+Não misture formatos no mesmo corpus.
+
 Para experimentar **sem acessar as fontes externas após a instalação**, reproduza a
 referência histórica revisada usando as fixtures legislativas incluídas no repositório:
 
 ```bash
-python tools/build_reference.py --version reference-2026-08 --output dist/reference.zip
+python tools/build_reference.py --format canonical-v1 --version reference-2026-08 --output dist/reference.zip
 ```
 
 O resultado é `dist/reference.zip`. Ele contém os dados históricos de referência,
@@ -209,7 +255,7 @@ acima **não publicam** nada. Não copie diretórios privados de dados para o re
 
 ## Qualidade, atualização e limites
 
-O corpus de referência contém **6.276 blocos**, incluindo ementas, anexos e signatários,
+O corpus histórico de compatibilidade contém **6.276 blocos**, incluindo ementas, anexos e signatários,
 com capturas registradas em julho/agosto de 2026. Há **23 grupos multipartes em
 54 partes**, incluindo anexo e signatários. Os 6.276 blocos não correspondem a
 artigos únicos; consulte o
@@ -224,7 +270,7 @@ artigos únicos; consulte o
 - **Cobertura histórica:** 14 normas têm HTML bruto nas fixtures; L9099 possui texto
   limpo e JSON. Redações riscadas ficam separadas e não formam um histórico completo
   de vigência.
-- **Artigos multipartes:** preserve os identificadores e trate o overlap ao recompor
+- **Compatibilidade multipartes:** no formato histórico, preserve os identificadores e trate o overlap ao recompor
   o texto; concatenar as partes diretamente repete trechos. Veja [formato e limites](docs/format.md).
 - **Significado da validação:** `validated` descreve verificações técnicas da captura.
   Data de coleta, status observado pelo parser e vigência jurídica são conceitos
@@ -247,14 +293,17 @@ A construção da referência histórica funciona offline após a instalação.
 ### Existe API de legislação brasileira ou servidor MCP?
 
 Esta entrega oferece biblioteca Python e CLI. Não oferece API HTTP hospedada nem
-servidor Model Context Protocol (MCP). Uma interface MCP somente leitura está
-prevista no [plano de transição](docs/transition.md).
+servidor Model Context Protocol (MCP). A consulta estruturada e a busca textual
+somente leitura descritas acima estão
+previstas no [contrato MCP proposto](docs/mcp-contract.md), ainda sem implementação.
 
 ### Posso usar o corpus em uma aplicação de IA?
 
-Os textos e metadados podem servir de entrada técnica para uma integração de NLP ou
-RAG. O consumidor deve preservar fontes, datas e artigos multipartes e tratar todo
-texto recuperado como dado não confiável, nunca como instrução de sistema. Consulte
+Sim. O projeto fornece dados legislativos; cada consumidor define sua aplicação,
+inclusive estratégias de RAG, embeddings e chunks quando necessários. Preserve as
+identidades, fontes e datas; respeite as convenções do formato consumido, incluindo
+partes no contrato histórico. Trate texto recuperado como dado não confiável, nunca
+como instrução de sistema. Consulte
 [segurança](docs/security-and-resilience.md) e resolva o licenciamento antes de adotar
 ou redistribuir código e elementos próprios do dataset.
 
@@ -269,22 +318,19 @@ Veja a [revisão de licenciamento](docs/licensing.md).
 A **Justina** é uma assistente de inteligência artificial para consulta à legislação
 brasileira pelo WhatsApp. Conheça o projeto em **[www.justina.com.br](https://www.justina.com.br)**.
 
-Sua base de consulta é construída a partir de textos legislativos extraídos de fontes
-oficiais, organizados e validados pelo pipeline de dados. Ao receber uma pergunta, a
-Justina busca trechos relevantes dessa base para fundamentar a resposta — uma abordagem
-conhecida como RAG (geração aumentada por recuperação).
-
 O **Leis Brasileiras** nasceu desse trabalho de extração. Este repositório reúne o núcleo
-de extração e validação e os recursos para gerar um corpus versionado, com identificação
-das fontes e das datas de captura. A integração da Justina com este pacote está em
-transição; o extrator original continua ativo. Veja o [plano de integração](docs/transition.md).
+legislativo público, independente das políticas de RAG e da infraestrutura da Justina.
+A adaptação dos repositórios privados será uma etapa posterior à conclusão deste
+núcleo público. Veja o [plano de transição](docs/transition.md).
 
 ## Testes e contribuição
 
 ```bash
 python -m pip install -r requirements-dev.lock .
 python -m pytest -q --cov=leis_brasileiras
+python tools/build_inventory.py --check
 python tools/build_reference.py --version test-reference --output dist/test-reference.zip
+python tools/build_reference.py --format canonical-v1 --version test-reference --output dist/test-canonical.zip
 python -m build
 ```
 
@@ -305,6 +351,4 @@ credenciais ou capturas de sistemas privados.
 Derivado do núcleo legislativo do pipeline Justina. A seleção histórica preserva
 autores, datas e atribuições; corpos de mensagens com contexto privado foram omitidos.
 Veja [revisão do histórico](docs/history-review.json) e [plano de integração](docs/transition.md).
-O extrator original continua ativo durante a transição; esta preparação não conclui a
-migração da Justina. Melhorias futuras deverão ser feitas neste núcleo e consumidas
-pela integração privada através de versões definidas.
+Esta entrega não altera os repositórios privados nem conclui a migração da Justina.

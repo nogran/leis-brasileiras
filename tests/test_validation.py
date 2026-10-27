@@ -743,7 +743,7 @@ class TestStandalonePartesCoexistem:
         assert issues_with_rule(rep, "standalone_e_partes_coexistem")
 
     def test_nao_dispara_so_partes(self):
-        """Multi-parte normal (só partes, sem standalone) é legítimo — 24 artigos na base."""
+        """Multi-parte normal (só partes, sem standalone) é legítimo no formato histórico."""
         chunks = [
             make_chunk(id="cc_art_5_p1", artigo="Art. 5 (Parte 1/2)", parte_num=1,
                        total_partes=2, texto_limpo="Art. 5. Primeira parte do texto."),

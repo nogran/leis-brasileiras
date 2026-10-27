@@ -15,8 +15,10 @@ import hashlib, re, json, sys, os
 import unicodedata
 
 from . import catalog as laws
+from .compatibility import split_com_overlap
+from copy import deepcopy
 
-# Versao do parser gravada em raw_captures.parser_version (permite re-parse historico).
+# Parser revision recorded in public manifests for reproducibility.
 PARSER_VERSION = "extrair_leis@3"
 
 
@@ -491,8 +493,7 @@ def extrair_controle_constitucionalidade(texto: str) -> list[dict]:
 
 
 # --- Hashes ---
-# O estado de idempotencia agora vive no banco (raw_captures.content_hash, Portao 1 /
-# ADR 0002). O hashes.json local foi aposentado.
+# Full artifact hashes and legacy short text hashes have separate contracts.
 def hash_conteudo(content: bytes) -> str:
     return hashlib.sha256(content).hexdigest()
 
@@ -546,7 +547,7 @@ def normalizar_texto(text: str) -> str:
       - colapsa espaco/tab HORIZONTAIS em 1 espaco e remove espaco colado na quebra.
     PRESERVA '\\n' (estrutura de artigo/paragrafo que o parser usa). NAO unifica traco
     (– vs -) nem \\n-vs-espaco: sao potencialmente semanticos. A fonte fiel (bytes brutos)
-    fica em raw_captures; aqui so canonicaliza o texto ja limpo, cortando ruido cosmetico
+    permanece na captura bruta; aqui so canonicaliza o texto ja limpo, cortando ruido cosmetico
     que geraria versao espuria (falso alerta no radar)."""
     text = unicodedata.normalize("NFC", text)
     text = re.sub(r"[^\S\n]+", " ", text)   # espaco/tab horizontais -> 1 espaco
@@ -556,35 +557,7 @@ def normalizar_texto(text: str) -> str:
 
 # --- HTTP ---
 # --- Chunking ---
-def split_com_overlap(texto: str, max_chars: int = 6000, overlap_chars: int = 400) -> list[str]:
-    if len(texto) <= max_chars:
-        return [texto]
-    # 2026-07-08 (2ª rodada do ANEXO da CLT): cortar num '\n' que esta perto demais
-    # do INICIO da janela produz fatia inutil (a parte 1 ficou com 30 chars, 'ANEXO
-    # Quadro a que se refere o'). '\n' util e perto do FIM; senao, corta em ESPACO —
-    # nunca no meio de palavra.
-    min_parte = max(overlap_chars * 2, 800)
-    partes, inicio = [], 0
-    while inicio < len(texto):
-        fim = inicio + max_chars
-        if fim >= len(texto):
-            partes.append(texto[inicio:].strip())
-            break
-        corte = texto.rfind('\n', inicio, fim)
-        if corte - inicio < min_parte:
-            corte_espaco = texto.rfind(' ', inicio, fim)
-            if corte_espaco - inicio > corte - inicio:
-                corte = corte_espaco
-        if corte <= inicio:
-            corte = fim
-        partes.append(texto[inicio:corte].strip())
-        # 2026-07-08: overlap so quando ha avanco real. Quando o unico '\n' fica
-        # perto do INICIO, `corte - overlap` recuava e a janela avancava 1 char por
-        # iteracao — 30 partes-fantasma deslizantes ('ANEXO Quadro...' perdendo uma
-        # letra por parte) no ANEXO da CLT. Sem avanco: pula direto pro corte.
-        proximo = corte - overlap_chars
-        inicio = proximo if proximo > inicio else corte + 1
-    return [p for p in partes if p]
+
 
 
 # --- Regex de artigo ---
@@ -1054,7 +1027,7 @@ _DEDUP_SUFIXO_RE = re.compile(r'§\s*\d+[°ºo]?-[A-Z]|[IVXLCDM]+-[A-Z]\s*[-–�
 
 
 def extrair_estrutura(texto, sigla, versao, url, data_ext, config,
-                      descartados_out=None, dedup_out=None):
+                      descartados_out=None, dedup_out=None, units_out=None):
     livro = titulo = subtitulo = capitulo = secao = ""
     livro_nome = titulo_nome = subtitulo_nome = capitulo_nome = secao_nome = ""
     # PL-19 Estagio 2: notas_legais, controle_const e alteracoes por nivel
@@ -1136,7 +1109,7 @@ def extrair_estrutura(texto, sigla, versao, url, data_ext, config,
 
         if not texto_limpo:
             buffer = []; return
-        if len(texto_limpo) < 30 and status == 'vigente':
+        if units_out is None and len(texto_limpo) < 30 and status == 'vigente':
             buffer = []; return
 
         # Referências extraídas do texto SEM a anotação literal preservada pelo M1.
@@ -1157,13 +1130,37 @@ def extrair_estrutura(texto, sigla, versao, url, data_ext, config,
                 # Sob capture_epigrafe (CP/CLT) a rubrica marginal do 1º artigo vem colada no
                 # nome do nível (PEEK mantém *_nome INTEIRO, risco zero de truncar dispositivo)
                 # e já está capturada em `epigrafe`. Aqui limpamos SÓ o breadcrumb de exibição
-                # (path_hierarquico) pra a rubrica não sair duas vezes na ficha do Modo Técnico
+                # (path_hierarquico) pra a rubrica não sair duas vezes na apresentação da hierarquia
                 # (grudada na linha "Hierarquia" + como título "Art. 129 — Lesão corporal").
                 # _split_heading_rubrica é no-op quando não há transição CAIXA-ALTA→Title, então
                 # só apara rubrica real; os campos *_nome crus seguem grudados (invariante PEEK).
                 nome_path = _split_heading_rubrica(nome)[0] if (capture_epigrafe and nome) else nome
                 path_partes.append(f"{num} — {nome_path}" if nome_path else num)
         path = " > ".join(path_partes) if path_partes else ""
+
+        # Shared intermediate representation: complete observed occurrences, before
+        # legacy size filters, redaction heuristics, overlap or label deduplication.
+        # Preserve source wording separately from cleaned text and editorial notes.
+        if units_out is not None:
+            units_out.append(deepcopy({
+                "label": artigo_label, "text": texto_limpo, "source_text": texto_raw,
+                "component": "adct" if em_transitorias else "main",
+                "hierarchy": [
+                    {"level": level, "number": number, "title": title}
+                    for level, number, title in [
+                        ("book", livro, livro_nome), ("title", titulo, titulo_nome),
+                        ("subtitle", subtitulo, subtitulo_nome),
+                        ("chapter", capitulo, capitulo_nome), ("section", secao, secao_nome)
+                    ] if number
+                ],
+                "rubric": epigrafe_atual,
+                "observed_status": status,
+                "metadata": {"partial_vetoes": vetos_parciais, "amendments": alteracoes,
+                             "references": refs, "source_notes": notas_legais,
+                             "constitutional_references": controle_const},
+            }))
+            if len(texto_limpo) < 30 and status == 'vigente':
+                buffer = []; return
 
         # Enriquece vetado_total: se alteracoes está vazio, registra a norma de origem.
         # Se já tem (ex: "Incluído pela Lei 14.181" + vetado), o veto foi nessa lei.
@@ -1224,7 +1221,7 @@ def extrair_estrutura(texto, sigla, versao, url, data_ext, config,
             }
             # `epigrafe` só existe nas leis com rubrica marginal (capture_epigrafe: CP/CLT).
             # Nas demais é sempre "" — omitir mantém o JSON dessas leis INALTERADO (a ingestão
-            # trata a ausência com g("epigrafe", "")). Ver docs/design/epigrafe-capture.md.
+            # trata a ausência com g("epigrafe", "")). Ver docs/format.md.
             if not capture_epigrafe:
                 del bloco["epigrafe"]
             blocos.append(bloco)
@@ -1500,7 +1497,7 @@ def extrair_estrutura(texto, sigla, versao, url, data_ext, config,
 #  EXTRACAO PRINCIPAL
 # =====================================================================
 
-def parse_law(clean_text, sigla, versao, url, data_ext, config):
+def parse_law(clean_text, sigla, versao, url, data_ext, config, *, units_out=None):
     """clean_text -> blocos enriquecidos (extrair_estrutura + guardrail + overrides
     do known_issues + lapides + dedup). PURA/deterministica: sem HTTP/DB/capture_id.
     Extraida de extrair_lei pra permitir o golden test (clean.txt commitado -> JSON).
@@ -1510,12 +1507,13 @@ def parse_law(clean_text, sigla, versao, url, data_ext, config):
     dedup_removidos = []
     blocos = extrair_estrutura(clean_text, sigla, versao, url, data_ext, config,
                                descartados_out=dup_rotulo,
-                               dedup_out=dedup_removidos)
+                               dedup_out=dedup_removidos, units_out=units_out)
 
     # Guardrail: sem NENHUM artigo real "Art. N", o parser não enxergou a estrutura
     # (ex: tudo caiu como EMENTA) — sinal de encoding/HTML corrompido. Aborta antes de
     # gerar JSON e antes de qualquer ingestão/embedding.
-    if not any(re.match(r"Art\.\s*\d", (b.get("artigo") or "")) for b in blocos):
+    if not (any(re.match(r"Art\.\s*\d", (b.get("artigo") or "")) for b in blocos)
+            or any(re.match(r"Art\.\s*\d", b["label"]) for b in (units_out or []))):
         raise RuntimeError(
             f"{sigla}: extração sem nenhum 'Art. N' ({len(blocos)} blocos) — parser não achou "
             f"estrutura (provável encoding/HTML corrompido). JSON não foi gerado.")
@@ -1556,7 +1554,7 @@ def parse_law(clean_text, sigla, versao, url, data_ext, config):
         # Override notas_legais — adiciona notas_legais especificas a artigos
         # selecionados (ex: CLT 554-575 nao recepcionados pela CF88 Art. 8°).
         # Reusa estrutura existente sem alterar texto_limpo nem status. As notas
-        # ficam disponiveis pro Justina renderizar como aviso doutrinario.
+        # ficam disponiveis para consumidores do formato historico como anotacao editorial.
         notas_overrides = ki.get("overrides_pos_extracao", {}).get("notas_legais", {}).get(sigla, {})
         if notas_overrides:
             for bloco in blocos:
@@ -1766,11 +1764,11 @@ def html_to_clean_text(content: bytes, sigla: str, config: dict) -> str:
     clean_text = strip_padding_tail(clean_text)
 
     # Normalizacao deterministica (NFC + whitespace horizontal) — corta ruido cosmetico que
-    # geraria versao espuria. Fonte fiel = raw_captures; aqui e o texto ja limpo (camada 1
+    # geraria versao espuria. Fonte fiel = HTML bruto; aqui e o texto ja limpo (camada 1
     # do radar de mudancas). Nao unifica traco nem \n-vs-espaco (potencialmente semanticos).
     clean_text = normalizar_texto(clean_text)
 
-    # PORTAO 1 (ADR 0002): content_hash = hash do TEXTO LIMPO (identidade estavel do
+    # content_hash = hash do TEXTO LIMPO (identidade de conteudo do
     # conteudo, robusta a mudancas cosmeticas no HTML). Corta custo zero se nao mudou;
     # senao grava a captura BRUTA (raw_html = bytes originais) e segue o parse.
     # Guardrail: NUL (0x00) em massa == encoding decodificado errado (o texto real vira

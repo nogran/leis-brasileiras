@@ -36,6 +36,7 @@ Metadados das distribuições instaladas na validação local:
 | idna | BSD-3-Clause |
 | certifi | MPL-2.0 |
 | typing-extensions | PSF-2.0 |
+| jsonschema, attrs, jsonschema-specifications, referencing, rpds-py (somente desenvolvimento) | MIT |
 
 Elas são instaladas pelo gerenciador de pacotes, sem vendorizar seus fontes neste
 repositório. A tabela não substitui os textos completos das licenças nem a revisão de
@@ -48,6 +49,6 @@ No new license has been granted. Apache-2.0 for original code is a proposal awai
 owner approval. No LICENSE/COPYING/NOTICE files were found in the inspected source
 history. Statutory texts, original software, dataset organization and third-party
 page elements must be treated separately. The project claims no ownership over laws.
-The owner separately authorized a public draft PR; no new license was granted by that
+The owner separately authorized a public PR; no new license was granted by that
 instruction. Package and dataset releases await the appropriate rights/license
 decisions and outstanding validation gates.

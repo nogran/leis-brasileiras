@@ -1,5 +1,5 @@
 {
-  "_doc": "Registro de issues verificados manualmente. O validador suprime esses INFOs. O extrator aplica os overrides.",
+  "_doc": "Historical compatibility registry. Canonical output exposes editorial assertions separately with review_status=pending; these entries are not independently verified evidence.",
   "_updated": "2026-07-07",
   "_expected_suppressions_per_file": {"clt": 1, "codigo_civil": 1, "cpc": 1},
   "_expected_suppressions_detail": "artigo_sem_titulo: 1 INFO suprimido POR SNAPSHOT DATADO de CLT (Art. 1 pré-TÍTULO I), CC (Livro Complementar 2.028-2.046) e CPC (Livro Complementar 1.045-1.072). O validador calcula o esperado dinamicamente (per_file × nº de arquivos datados da base) — o contador fixo antigo quebrava a cada extração nova.",
@@ -134,7 +134,7 @@
     },
     "excecao_permanente_dot_leaders": "NUNCA tocar 'rotulo + dot-leaders' (ex: 'I - ..............'): e elisao legislativa REAL em blocos de emenda (LC123, LMP reproduzem outra norma elidindo trechos com '...'). Coberto por teste negativo permanente em test_extrair_leis.py::TestReparoM2NegativoDotLeaders.",
     "leis_afetadas": "CADPOS, CF88, CLT, CC, CP, CPC, ECA, LC123, LT, LGPD (82 artigos). CDC, LI, LMP inalterados.",
-    "backlog_nivel_2": "Capturar a redacao ANTERIOR riscada como registro estruturado com status proprio (habilita exibicao ~tachada~ no WhatsApp + historico de redacoes no Pro; sinergia com radar de mudancas + bitemporal). Fora do escopo deste fix."
+    "backlog_nivel_2": "Capturar a redacao ANTERIOR riscada como registro estruturado com status proprio (permite consultar redacoes observadas separadamente do texto principal). Fora do escopo deste fix."
   },
 
   "caput_revogado_nu": {
@@ -167,8 +167,8 @@
   },
 
   "lc123_texto_quebrado_e_duplicado": {
-    "_doc": "LC123: regiao de tabelas do Simples no HTML do Planalto vem com glifos separados por espaco ('O v alor d e vido m ensa l mente') — texto quebrado letra-a-letra em 28 chunks (Art. 18 partes, 18-A, 18-B, 18-E, 61-A, 67-A, 79-E, 3, 4, 17, 19, 20, 21, 34, 42, 43, 49-A, 55, 58, 61-B, 89 partes). ALEM disso o Planalto repete o Art. 18 (caput limpo + corpo quebrado) e o parser captura AMBOS -> 'Art. 18' standalone coexiste com 'Art. 18 (Parte 1/6..6/6)'. Impacto: embeddings ruins + LLM recebe texto ilegivel no nucleo do Simples Nacional (publico MEI). PRE-EXISTENTE desde 2026-04 (nas extracoes 04-08, 07-02 e 07-06 identicamente).",
+    "_doc": "LC123: regiao de tabelas do Simples no HTML do Planalto vem com glifos separados por espaco ('O v alor d e vido m ensa l mente') — texto quebrado letra-a-letra em 28 chunks (Art. 18 partes, 18-A, 18-B, 18-E, 61-A, 67-A, 79-E, 3, 4, 17, 19, 20, 21, 34, 42, 43, 49-A, 55, 58, 61-B, 89 partes). ALEM disso o Planalto repete o Art. 18 (caput limpo + corpo quebrado) e o parser captura AMBOS -> 'Art. 18' standalone coexiste com 'Art. 18 (Parte 1/6..6/6)'. Impacto: texto ilegivel e duplicado. PRE-EXISTENTE desde 2026-04 (nas extracoes 04-08, 07-02 e 07-06 identicamente).",
     "deteccao": "validar_leis.py regras 'texto_quebrado_letra_a_letra' (consoante minuscula isolada; calibrada contra falsos-positivos reais: alineas entre aspas CLT Art. 334, abreviacao 'n°' LI Art. 90) e 'standalone_e_partes_coexistem'. Ambas WARN enquanto este caso existir; ELEVAR A FAIL quando a extracao for corrigida.",
-    "pendente_camada_2": "Corrigir a extracao da regiao (juntar glifos espacados + dedup de artigo repetido em sequencia preferindo a ocorrencia integra). Escopo proprio, com HTML real e golden. Depois do fix: re-extrair LC123, re-ingerir (hashes dos 28 chunks mudam) e regenerar perguntas via --redo."
+    "pendente_camada_2": "Corrigir a extracao da regiao (juntar glifos espacados + dedup de artigo repetido em sequencia preferindo a ocorrencia integra). Escopo proprio, com HTML real e golden. Depois do fix: re-extrair LC123, verificar os consumidores dos registros historicos."
   }
 }

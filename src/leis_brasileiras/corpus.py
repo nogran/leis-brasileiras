@@ -11,6 +11,8 @@ from .capture import json_bytes, sha256
 from .catalog import SIGLAS
 from .extraction import LEIS_CONFIG, PARSER_VERSION
 from .validation import aplicar_ratchet, load_known_issues, suppress_known_issues, validate_file
+from .models import CANONICAL_FORMAT, CANONICAL_PARSER_VERSION, CAPTURE_VERSION, CORPUS_VERSION
+from .canonical_validation import validate_document
 
 PART = re.compile(r"^(.*?)\s*\(Parte (\d+)/(\d+)\)\s*$")
 
@@ -87,14 +89,20 @@ def verify_capture(directory: Path, strict: bool = True) -> dict:
     law = manifest["law"]
     if law not in SIGLAS or manifest["source_url"] != LEIS_CONFIG[law]["url"]:
         raise ValueError("Unknown law or source mismatch")
-    if manifest.get("format_version") != 1:
+    version = manifest.get("format_version")
+    if version not in (1, CAPTURE_VERSION):
         raise ValueError("Unsupported manifest version")
+    canonical = version == CAPTURE_VERSION
+    if canonical and manifest.get("format") != CANONICAL_FORMAT:
+        raise ValueError("Unknown capture format")
     from datetime import datetime
     timestamp = datetime.fromisoformat(manifest["captured_at"].replace("Z", "+00:00"))
     if timestamp.tzinfo is None:
         raise ValueError("Capture timezone missing")
     base = LEIS_CONFIG[law]["nome_base"] + "_" + timestamp.date().isoformat()
     expected = {base+".json",base+"_riscadas.json",base+"_clean.txt","source.html"}
+    if canonical:
+        expected = {"canonical.json", "clean.txt", "source.html"}
     if set(manifest["files"]) != expected:
         raise ValueError("Unexpected files in capture manifest")
     if {p.name for p in directory.iterdir()} != expected | {"manifest.json"}:
@@ -107,8 +115,25 @@ def verify_capture(directory: Path, strict: bool = True) -> dict:
         if len(data) != info["bytes"] or sha256(data) != info["sha256"]:
             raise ValueError("Artifact checksum mismatch")
     if (manifest["raw_sha256"] != manifest["files"]["source.html"]["sha256"]
-            or manifest["content_hash"] != manifest["files"][base+"_clean.txt"]["sha256"]):
+            or manifest["content_hash"] != manifest["files"]["clean.txt" if canonical else base+"_clean.txt"]["sha256"]):
         raise ValueError("Capture provenance hash mismatch")
+    if canonical:
+        from .capture import extract_html
+
+        recorded = datetime.fromisoformat(manifest["recorded_at"].replace("Z", "+00:00"))
+        if recorded.tzinfo is None:
+            raise ValueError("Recording timezone missing")
+        document = json.loads((directory / "canonical.json").read_text(encoding="utf-8"))
+        if not validate_document(document)["ok"] or document["revision"] != manifest["document_revision"]:
+            raise ValueError("Canonical validation failed")
+        if manifest["parser_version"] != document["provenance"]["parser_version"]:
+            raise ValueError("Parser provenance mismatch")
+        regenerated = extract_html((directory / "source.html").read_bytes(), law,
+                                   manifest["captured_at"], format=CANONICAL_FORMAT)
+        if (document != regenerated.canonical
+                or regenerated.clean_text != (directory / "clean.txt").read_text(encoding="utf-8")):
+            raise ValueError("Canonical capture does not reproduce from source")
+        return manifest
     articles = json.loads((directory/(base+".json")).read_text(encoding="utf-8"))
     if not isinstance(articles,list) or not articles:
         raise ValueError("Empty or invalid article payload")
@@ -139,14 +164,20 @@ def verify_capture(directory: Path, strict: bool = True) -> dict:
     return manifest
 
 
-def build_release(captures: list[Path], output: Path, version: str) -> Path:
+def build_release(captures: list[Path], output: Path, version: str, *,
+                  selected_laws: list[str] | None = None) -> Path:
     """Prepare only an explicit, complete, validated selection; never upload anything."""
     if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,63}",version):
         raise ValueError("Invalid corpus version")
     verified = [(Path(path),verify_capture(Path(path))) for path in captures]
     laws = [manifest["law"] for _,manifest in verified]
-    if len(laws) != len(set(laws)) or set(laws) != set(SIGLAS):
-        raise ValueError("Release requires exactly one validated capture of every catalog law")
+    selection = SIGLAS if selected_laws is None else selected_laws
+    if (not selection or len(selection) != len(set(selection)) or not set(selection) <= set(SIGLAS)
+            or len(laws) != len(set(laws)) or set(laws) != set(selection)):
+        raise ValueError("Release requires exactly one validated capture of every catalog law selected")
+    formats = {manifest.get("format", "legacy-blocks-v1") for _, manifest in verified}
+    if len(formats) != 1:
+        raise ValueError("A release cannot mix canonical and legacy captures")
     payloads = {}
     for directory,manifest in sorted(verified,key=lambda item:item[1]["law"]):
         for name in [*manifest["files"],"manifest.json"]:
@@ -154,6 +185,10 @@ def build_release(captures: list[Path], output: Path, version: str) -> Path:
     release = {"corpus_version":version,"format_version":1,"extractor_version":__version__,
                "parser_version":PARSER_VERSION,"laws":sorted(laws),"license_status":"pending owner decision",
                "files":{name:{"sha256":sha256(data),"bytes":len(data)} for name,data in payloads.items()}}
+    release.update(format_version=CORPUS_VERSION, format=formats.pop(),
+                   selection=sorted(selection), coverage="full-catalog" if set(laws) == set(SIGLAS) else "selected-laws")
+    if release["format"] == CANONICAL_FORMAT:
+        release["parser_version"] = CANONICAL_PARSER_VERSION
     payloads["manifest.json"] = json_bytes(release)
     output = Path(output)
     output.parent.mkdir(parents=True,exist_ok=True)

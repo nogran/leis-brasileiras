@@ -69,7 +69,7 @@ _RE_MARKER_ALTERACAO = re.compile(
 )
 
 # Limites para RAG
-RAG_MAX_CHUNK_CHARS = 8000    # acima disso, embedding models truncam
+RAG_MAX_CHUNK_CHARS = 8000    # historical diagnostic, not a model-independent limit
 RAG_WARN_CHUNK_CHARS = 6500   # zona de atenção
 RAG_MIN_CONTENT_CHARS = 15    # abaixo disso, chunk é ruído
 
@@ -838,7 +838,7 @@ def validate_cross_file(reports: list[FileReport], all_data: dict[str, list[dict
 # Orquestrador
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def validate_file(filepath: str) -> FileReport:
+def validate_file(filepath: str, *, retrieval_diagnostics: bool = False) -> FileReport:
     report = FileReport(file=os.path.basename(filepath))
 
     try:
@@ -863,7 +863,8 @@ def validate_file(filepath: str) -> FileReport:
     validate_hierarquia(data, report)
     validate_conteudo(data, report)
     validate_metadata(data, report)
-    validate_rag(data, report)
+    if retrieval_diagnostics:
+        validate_rag(data, report)
 
     # Dedup
     seen = Counter()
