@@ -14,7 +14,7 @@ garantem a vigência jurídica atual. [Inventário reproduzível](docs/source-in
 
 ## Instalação local reproduzível
 
-Python 3.10 ou superior. Execute a partir de uma cópia deste repositório:
+Python 3.14 ou superior. Execute a partir de uma cópia deste repositório:
 
 ```bash
 python -m venv .venv

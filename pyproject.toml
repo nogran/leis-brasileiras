@@ -7,7 +7,7 @@ name = "leis-brasileiras"
 version = "0.1.0.dev0"
 description = "Extração e validação de legislação brasileira de fontes oficiais"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.14"
 dependencies = ["requests>=2.31,<3", "beautifulsoup4>=4.12,<5", "PyYAML>=6,<7"]
 
 [project.optional-dependencies]

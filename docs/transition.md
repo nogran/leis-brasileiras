@@ -17,6 +17,11 @@ backend, schema, dado operacional, credencial, ingestion job ou modelo foi alter
 
 Dependências de runtime: Requests, BeautifulSoup4 e PyYAML, com transitivas fixadas nos
 locks. O parser utiliza `html.parser` da biblioteca padrão, portanto lxml não é necessário.
+Python 3.14 é o padrão de desenvolvimento e CI; o pacote exige no mínimo Python 3.14.
+O pipeline privado ainda declara `>=3.10` e testa com Python 3.11. Antes de consumir
+este pacote, sua integração deverá migrar o ambiente e o CI para Python 3.14 e validar
+as dependências privadas. Essa atualização do consumidor é uma etapa futura e não
+altera o extrator original ou a produção nesta proposta.
 PostgreSQL, psycopg2, dotenv, OpenAI, embeddings, pipeline.py, geração de perguntas,
 curadoria e jurisprudência permanecem na integração original. O backend real local é
 `nogran-justina-backend`; referências antigas a `nogran-justina-api` não guiam alterações.

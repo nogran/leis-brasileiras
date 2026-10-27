@@ -29,11 +29,12 @@ ou corpus não fazem parte desta autorização.
 | Segurança da árvore atual | Scan dos arquivos selecionados, inclusive gzip; único match de URL com credencial era um exemplo sintético de rejeição no teste |
 | Repositórios privados | Pipeline, backend e dados sem alterações de trabalho |
 
-Ambiente executado: Windows, Python 3.14.3. CI preparada para Python 3.10 e 3.14 no
-Linux; o resultado remoto deve ser conferido nos checks do PR, separadamente dos testes
-locais registrados aqui. O primeiro CI identificou que `coverage==7.17.0` exige Python
-3.11; o lock de desenvolvimento foi corrigido para `coverage==7.16.2`, com suporte
-a Python 3.10. A execução da matriz corrigida deve ser conferida nos checks do PR.
+Ambiente executado: Windows, Python 3.14.3. Em 2026-10-27, o dono definiu Python 3.14
+como padrão do projeto: requisito mínimo `>=3.14` no pacote e uma única versão (3.14)
+no CI Linux. Os resultados remotos devem ser conferidos nos checks do PR, separadamente
+dos testes locais registrados aqui. O lock de desenvolvimento permanece fixado em
+`coverage==7.16.2`, já validado com Python 3.14; não é necessário atualizar dependências
+para alterar a política de suporte. Python 3.10 e 3.11 não fazem parte dessa política.
 O CI Linux também revelou uma seleção ambígua de fixture no teste de integridade:
 o glob podia retornar o sidecar de trechos riscados antes do JSON de artigos. O teste
 agora seleciona explicitamente o snapshot congelado do CDC, sem depender da ordem

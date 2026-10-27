@@ -13,7 +13,7 @@ or determine present legal validity. [Measured inventory](docs/source-inventory.
 
 ## Install and use
 
-Python 3.10+. From the repository checkout:
+Python 3.14+. From the repository checkout:
 
 ```bash
 python -m venv .venv
