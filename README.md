@@ -1,33 +1,82 @@
-# Leis Brasileiras
+# Leis Brasileiras — legislação brasileira em JSON com Python
 
-[English](README.en.md) · [Formato e fontes](docs/format.md) · [Transição](docs/transition.md) · [Licenciamento pendente](docs/licensing.md)
+[English](README.en.md) · [Formato e fontes](docs/format.md) · [Validação](docs/validation.md) · [Transição](docs/transition.md) · [Licenciamento pendente](docs/licensing.md)
 
-Extração de legislação brasileira de fontes oficiais, catálogo e validadores em Python.
-O uso básico funciona sem banco de dados e sem chave de OpenAI. Este é um núcleo em
-revisão: **não há pacote publicado nem servidor MCP nesta entrega**.
+**Leis Brasileiras** é um projeto Python para extrair e validar textos de **15 normas
+federais brasileiras** a partir de fontes oficiais do Planalto. Gera arquivos JSON e
+um corpus versionado com fontes, datas de captura e verificações de integridade,
+para pesquisa, processamento de linguagem natural (NLP) e preparação de bases para
+RAG jurídico — geração aumentada por recuperação.
 
-O catálogo contém **15 leis federais**, não toda a legislação brasileira. O corpus de
-referência contém **6.276 blocos**, incluindo ementas, anexos e signatários, com capturas
-registradas em julho/agosto de 2026. Há 24 dispositivos multipartes em 54 partes.
-Esses números foram medidos nos artefatos, não representam cobertura nacional nem
-garantem a vigência jurídica atual. [Inventário reproduzível](docs/source-inventory.json).
+Destina-se a desenvolvedores de legaltech, pesquisadores e equipes que precisam
+transformar legislação brasileira em dados estruturados. O uso básico funciona sem
+banco de dados, Docker ou chave de OpenAI.
 
-## Relação com a Justina
+**Estado do projeto:** núcleo de extração em revisão no [PR #1](https://github.com/nogran/leis-brasileiras/pull/1).
+Não há pacote ou corpus publicado em releases, API hospedada ou servidor MCP nesta
+entrega. O licenciamento está pendente; consulte os [termos atuais](docs/licensing.md).
 
-A **Justina** é uma assistente de inteligência artificial para consulta à legislação
-brasileira pelo WhatsApp. Conheça o projeto em **[www.justina.com.br](https://www.justina.com.br)**.
+## Casos de uso: JSON, pesquisa e RAG jurídico
 
-Sua base de consulta é construída a partir de textos legislativos extraídos de fontes
-oficiais, organizados e validados pelo pipeline de dados. Ao receber uma pergunta, a
-Justina busca trechos relevantes dessa base para fundamentar a resposta — uma abordagem
-conhecida como RAG (geração aumentada por recuperação).
+- **Legislação brasileira em JSON:** extrair textos do Planalto com identificação
+  dos dispositivos, hierarquia, fonte e data de observação.
+- **Corpus para NLP jurídico:** preparar uma referência reproduzível para análise
+  textual e experimentos, preservando os limites da cobertura e das datas.
+- **Dados para RAG jurídico:** fornecer textos e metadados a um sistema de recuperação
+  externo. O pacote não gera embeddings, não oferece busca vetorial e não responde
+  perguntas com LLMs.
+- **Validação de capturas:** verificar formato, hashes e integridade, inclusive de
+  artigos divididos em partes, antes de integrar os dados a outro sistema.
 
-O **Leis Brasileiras** nasceu desse trabalho de extração. Este repositório reúne o núcleo
-de extração e validação e os recursos para gerar um corpus versionado, com identificação
-das fontes e das datas de captura. A integração da Justina com este pacote está em
-transição; o extrator original continua ativo. Veja o [plano de integração](docs/transition.md).
+## Legislação coberta e fontes oficiais
 
-## Como rodar localmente
+O catálogo cobre as normas abaixo, não toda a legislação brasileira. Esta tabela é
+uma apresentação derivada de [`laws.yml`](src/leis_brasileiras/laws.yml), a fonte de
+verdade do catálogo; os links apontam para as páginas oficiais utilizadas pelo extrator.
+
+| Sigla na CLI | Norma | Identificação e fonte no Planalto |
+|---|---|---|
+| `CF88` | Constituição Federal de 1988 | [Constituição Federal 1988](https://www.planalto.gov.br/ccivil_03/constituicao/constituicao.htm) |
+| `CDC` | Código de Defesa do Consumidor | [Lei 8.078/1990](https://www.planalto.gov.br/ccivil_03/leis/l8078compilado.htm) |
+| `CLT` | Consolidação das Leis do Trabalho | [Decreto-Lei 5.452/1943](https://www.planalto.gov.br/ccivil_03/decreto-lei/del5452compilado.htm) |
+| `CC` | Código Civil | [Lei 10.406/2002](https://www.planalto.gov.br/ccivil_03/leis/2002/l10406compilada.htm) |
+| `CPC` | Código de Processo Civil | [Lei 13.105/2015](https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2015/lei/L13105compilada.htm) |
+| `CP` | Código Penal | [Decreto-Lei 2.848/1940](https://www.planalto.gov.br/ccivil_03/decreto-lei/del2848compilado.htm) |
+| `LGPD` | Lei Geral de Proteção de Dados | [Lei 13.709/2018](https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2018/lei/L13709compilado.htm) |
+| `ECA` | Estatuto da Criança e do Adolescente | [Lei 8.069/1990](https://www.planalto.gov.br/ccivil_03/leis/L8069Compilado.htm) |
+| `LI` | Lei do Inquilinato | [Lei 8.245/1991](https://www.planalto.gov.br/ccivil_03/leis/L8245compilado.htm) |
+| `LMP` | Lei Maria da Penha | [Lei 11.340/2006](https://www.planalto.gov.br/ccivil_03/_ato2004-2006/2006/lei/l11340.htm) |
+| `LC123` | Estatuto Nacional da Microempresa e da Empresa de Pequeno Porte | [Lei Complementar 123/2006](https://www.planalto.gov.br/ccivil_03/leis/lcp/lcp123.htm) |
+| `LT` | Lei do Trabalho Temporário e Terceirização | [Lei 6.019/1974](https://www.planalto.gov.br/ccivil_03/leis/l6019compilado.htm) |
+| `CADPOS` | Lei do Cadastro Positivo | [Lei 12.414/2011](https://www.planalto.gov.br/ccivil_03/_ato2011-2014/2011/lei/l12414.htm) |
+| `L9099` | Lei dos Juizados Especiais Cíveis e Criminais | [Lei 9.099/1995](https://www.planalto.gov.br/ccivil_03/leis/l9099.htm) |
+| `LEP` | Lei de Execução Penal | [Lei 7.210/1984](https://www.planalto.gov.br/ccivil_03/leis/l7210compilado.htm) |
+
+## Exemplo de legislação em JSON
+
+Campos selecionados de um registro real do CDC na
+[fixture histórica de 7 de julho de 2026](tests/fixtures/baseline/cdc_2026-07-07.json.gz).
+O JSON de uma lei contém uma lista de blocos; este objeto é apenas um deles, com
+campos adicionais omitidos para facilitar a leitura.
+
+```json
+{
+  "lei": "CDC",
+  "artigo": "Art. 1",
+  "texto_limpo": "Art. 1° O presente código estabelece normas de proteção e defesa do consumidor, de ordem pública e interesse social, nos termos dos arts. 5°, inciso XXXII, 170, inciso V, da Constituição Federal e art. 48 de suas Disposições Transitórias.",
+  "url_fonte": "https://www.planalto.gov.br/ccivil_03/leis/l8078compilado.htm",
+  "data_extracao": "2026-07-07",
+  "parte_num": null,
+  "total_partes": null
+}
+```
+
+`lei` e `artigo` identificam o dispositivo; `texto_limpo` contém o texto extraído;
+`url_fonte` e `data_extracao` registram a origem e a observação. Valores nulos em
+`parte_num` e `total_partes` indicam que este bloco não foi dividido. A data do
+exemplo é histórica e não atesta a vigência atual. Veja o [contrato completo](docs/format.md).
+
+## Início rápido: extrair leis do Planalto
 
 Você precisa de **Git e Python 3.14 ou superior**. A instalação baixa dependências e a
 extração consulta as fontes oficiais pela internet. O uso básico não exige PostgreSQL,
@@ -135,7 +184,7 @@ print(capture.articles[0]["artigo"])
 artigos, texto limpo e redações arquivadas. `write_capture` é o adaptador de filesystem;
 uma integração de banco pode consumir o mesmo resultado sem duplicar o parser.
 
-## Corpus versionado
+## Corpus jurídico brasileiro versionado
 
 Prepare uma release local nova passando **explicitamente uma captura validada por lei**:
 
@@ -158,7 +207,79 @@ parser. A referência histórica explicita a precisão das datas e a ausência d
 bruto de L9099. Prefira anexar corpus volumosos a releases após aprovação; os comandos
 acima **não publicam** nada. Não copie diretórios privados de dados para o repositório.
 
-## Testes
+## Qualidade, atualização e limites
+
+O corpus de referência contém **6.276 blocos**, incluindo ementas, anexos e signatários,
+com capturas registradas em julho/agosto de 2026. Há **23 grupos multipartes em
+54 partes**, incluindo anexo e signatários. Os 6.276 blocos não correspondem a
+artigos únicos; consulte o
+[inventário reproduzível](docs/source-inventory.json).
+
+- **Proveniência:** manifestos registram fontes, datas, versões do parser e hashes.
+  Capturas novas e a referência histórica são distribuições distintas.
+- **Atualização:** uma nova extração consulta o Planalto; não há atualização automática.
+  A coleta atual das 15 normas ainda está pendente por falhas de conexão registradas
+  na [validação da proposta](docs/validation.md). Os testes offline não comprovam
+  acesso atual às fontes.
+- **Cobertura histórica:** 14 normas têm HTML bruto nas fixtures; L9099 possui texto
+  limpo e JSON. Redações riscadas ficam separadas e não formam um histórico completo
+  de vigência.
+- **Artigos multipartes:** preserve os identificadores e trate o overlap ao recompor
+  o texto; concatenar as partes diretamente repete trechos. Veja [formato e limites](docs/format.md).
+- **Significado da validação:** `validated` descreve verificações técnicas da captura.
+  Data de coleta, status observado pelo parser e vigência jurídica são conceitos
+  distintos. Os dados não substituem a conferência da publicação oficial.
+
+## Perguntas frequentes
+
+### Posso baixar um dataset pronto de leis brasileiras?
+
+Ainda não há release publicada do corpus. Após instalar o projeto, você pode gerar
+localmente o ZIP histórico com `tools/build_reference.py`, como mostrado acima,
+ou preparar um corpus a partir de capturas novas validadas.
+
+### Preciso de OpenAI, PostgreSQL ou Docker?
+
+Não. O núcleo usa Python 3.14+ e as dependências declaradas no projeto. A instalação
+baixa dependências; a extração de textos atuais precisa de acesso às fontes oficiais.
+A construção da referência histórica funciona offline após a instalação.
+
+### Existe API de legislação brasileira ou servidor MCP?
+
+Esta entrega oferece biblioteca Python e CLI. Não oferece API HTTP hospedada nem
+servidor Model Context Protocol (MCP). Uma interface MCP somente leitura está
+prevista no [plano de transição](docs/transition.md).
+
+### Posso usar o corpus em uma aplicação de IA?
+
+Os textos e metadados podem servir de entrada técnica para uma integração de NLP ou
+RAG. O consumidor deve preservar fontes, datas e artigos multipartes e tratar todo
+texto recuperado como dado não confiável, nunca como instrução de sistema. Consulte
+[segurança](docs/security-and-resilience.md) e resolva o licenciamento antes de adotar
+ou redistribuir código e elementos próprios do dataset.
+
+### Qual é a licença?
+
+O licenciamento está pendente de decisão do titular. A disponibilidade pública do
+repositório não concede uma licença ao código ou aos elementos próprios do dataset.
+Veja a [revisão de licenciamento](docs/licensing.md).
+
+## Relação com a Justina
+
+A **Justina** é uma assistente de inteligência artificial para consulta à legislação
+brasileira pelo WhatsApp. Conheça o projeto em **[www.justina.com.br](https://www.justina.com.br)**.
+
+Sua base de consulta é construída a partir de textos legislativos extraídos de fontes
+oficiais, organizados e validados pelo pipeline de dados. Ao receber uma pergunta, a
+Justina busca trechos relevantes dessa base para fundamentar a resposta — uma abordagem
+conhecida como RAG (geração aumentada por recuperação).
+
+O **Leis Brasileiras** nasceu desse trabalho de extração. Este repositório reúne o núcleo
+de extração e validação e os recursos para gerar um corpus versionado, com identificação
+das fontes e das datas de captura. A integração da Justina com este pacote está em
+transição; o extrator original continua ativo. Veja o [plano de integração](docs/transition.md).
+
+## Testes e contribuição
 
 ```bash
 python -m pip install -r requirements-dev.lock .
@@ -172,6 +293,12 @@ captura disponível e testa numeração, overlap, duplicatas e tamanho das parte
 de abuso cobrem URLs externas, tentativa de exfiltração, conteúdo ativo, instruções
 maliciosas tratadas como texto, entradas malformadas, volume e isolamento de capturas.
 Não há chamadas pagas nem acesso ao banco nos testes.
+
+Para contribuir, descreva o problema ou a melhoria em uma
+[issue](https://github.com/nogran/leis-brasileiras/issues), indicando a norma, a fonte
+e como reproduzir o caso. Em mudanças de extração, preserve os identificadores e
+acrescente uma regressão com os testes pertinentes. Não envie dados pessoais,
+credenciais ou capturas de sistemas privados.
 
 ## Origem e transição
 
