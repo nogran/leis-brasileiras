@@ -39,8 +39,12 @@ compatibilidade, evitando duas linhas permanentes de desenvolvimento.
    do escopo desta etapa. Uma branch pública de revisão não concede uma nova licença.
 2. **Histórico incorporado à proposta:** os dois commits existentes do destino e os
    64 commits filtrados são ancestrais do commit novo de integração/adaptação. Nenhum
-   force-push ou alteração de `main`. Histórico tem autores/committers/datas reais;
-   corpos de mensagens privados foram omitidos, títulos e coautorias antigas preservados.
+   merge da implementação em `main`. Por solicitação do dono em 2026-10-27, os
+   69 commits foram padronizados como `tipo(escopo): descrição` em inglês e as
+   coautorias de provedor de IA removidas. Essa reescrita atualiza os hashes da
+   branch do PR e dos dois commits de `main`, com envio protegido por leases.
+   Conteúdo de cada commit, autores humanos, committers e datas são preservados.
+   Corpos de mensagens privados permanecem omitidos.
    A árvore final remove os seis caminhos antigos da raiz
    (`extrair_leis.py`, `laws.py`, `laws.yml`, `known_issues.json`, `validar_leis.py`,
    `verificar_integridade.py`) e os testes renomeados (`test_extrair_leis.py`,

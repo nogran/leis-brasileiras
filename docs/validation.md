@@ -1,7 +1,7 @@
 # Validação da proposta — 2026-10-26
 
 Branch de trabalho: `codex/extraction-core`, baseada nos dois commits já existentes
-do destino (base `0c5eace8a895a564008a1a9ff49bafd8716f4882`). Após a preparação local,
+do destino (base atual `8d732b3cc9609332de0d0d03ebb5ba3382c93d35`). Após a preparação local,
 o dono autorizou a abertura do PR. A proposta incorpora o histórico revisado e os
 arquivos novos em um commit de integração/adaptação, sem substituir os commits antigos.
 O PR permanece em rascunho. Merge do PR, mudança de visibilidade e releases de pacote
@@ -25,6 +25,7 @@ ou corpus não fazem parte desta autorização.
 | Dependências | `pip check` passou; runtime sem db/psycopg2/dotenv/OpenAI |
 | Histórico selecionado | 64 commits e 175 blobs examinados, incluindo descompressão das fixtures; bundle verificado |
 | Autoria histórica | Autor, committer e ambas as datas comparados para os 64 commits; preservados |
+| Padronização em 2026-10-27 | 69 mensagens padronizadas; 42 coautorias de provedor removidas; todas as árvores, autores humanos, committers e datas preservados |
 | Segurança da árvore atual | Scan dos arquivos selecionados, inclusive gzip; único match de URL com credencial era um exemplo sintético de rejeição no teste |
 | Repositórios privados | Pipeline, backend e dados sem alterações de trabalho |
 
@@ -67,6 +68,15 @@ import achatado. Não houve merge na branch principal. Mensagens originais conti
 no repositório privado; os corpos foram
 omitidos na seleção pública por conterem contexto de atendimento/operação interna.
 
+Em 2026-10-27, o dono solicitou remover as coautorias de provedor de IA e padronizar
+todas as mensagens. Os 69 commits foram revisados para títulos em inglês no formato
+`tipo(escopo): descrição`, com até 72 caracteres, sem os corpos repetitivos de
+sanitização. Os hashes mudaram também nos dois commits iniciais de `main`, cujo
+conteúdo permaneceu idêntico. O mapa de origem em `history-review.json` foi atualizado.
+O histórico do pipeline privado permanece intacto. A suíte local foi repetida:
+631 testes passaram, cobertura de 86,71%, e o corpus de 15 leis/6.276 blocos foi
+validado novamente sem erros. A reescrita foi verificada commit a commit.
+
 O scan por padrões não é uma prova absoluta de inexistência de segredos. Não foram
 encontradas chaves privadas, tokens de provedor, URLs reais com credenciais ou atribuições
 de segredo na seleção histórica; matches de endereço eram datas legislativas.
@@ -79,7 +89,7 @@ implementações privadas, dados operacionais, dumps e credenciais ficaram fora.
   nenhuma licença foi criada por presunção.
 - Concluir a coleta atual/validação das 15 leis e obter fixture HTML de L9099.
 - Conferir o diff e os checks do PR; autoria do commit novo confirmada com a identidade
-  Git e o perfil GitHub do dono. Atribuições históricas foram preservadas.
+  Git e o perfil GitHub do dono. Autores humanos e datas históricas foram preservados.
 - Apenas o código, documentação e fixtures revisadas integram o PR. Wheel, sdist,
   corpus ZIP, logs e ferramentas privadas de migração não são enviados na branch.
 - Merge do PR e publicação no PyPI ou em releases continuam fora do escopo.

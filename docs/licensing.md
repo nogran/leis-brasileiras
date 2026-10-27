@@ -5,7 +5,9 @@ código próprio, mas depende de aprovação do titular. O inventário de arquiv
 e a pesquisa histórica por LICENSE, COPYING e NOTICE não localizaram uma licença para
 o núcleo. Isso não prova titularidade nem autoriza relicenciar contribuições de terceiros.
 
-Autores, committers, datas e atribuições históricas foram preservados na seleção.
+Autores humanos, committers e datas foram preservados na seleção. Por solicitação
+do dono em 2026-10-27, as mensagens foram padronizadas e as coautorias de provedor
+de IA foram removidas do histórico público, sem alterar o conteúdo dos commits.
 Antes de uma release licenciada: confirmar direitos sobre código e contribuições; escolher licença
 do código; definir separadamente a dos elementos próprios da organização do dataset;
 incluir os avisos exigidos e revisar as dependências na distribuição efetivamente feita.
