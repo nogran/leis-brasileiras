@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools==80.9.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "leis-brasileiras"
+version = "0.1.0.dev1"
+description = "Extração e validação de legislação brasileira de fontes oficiais"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = ["requests>=2.31,<3", "beautifulsoup4>=4.12,<5", "PyYAML>=6,<7"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8,<10", "pytest-cov>=5,<8", "build>=1,<2", "jsonschema>=4.26,<5"]
+
+[project.scripts]
+leis-brasileiras = "leis_brasileiras.cli:main"
+leis-validate = "leis_brasileiras.validation:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+leis_brasileiras = ["laws.yml", "known_issues.json", "schemas/*.json"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["leis_brasileiras"]
+
+[tool.coverage.report]
+fail_under = 86.0

@@ -1,0 +1,6 @@
+recursive-include src/leis_brasileiras *.yml *.json
+recursive-include src/leis_brasileiras/schemas *.json
+recursive-include tests *.py *.gz
+recursive-include docs *.md *.json
+recursive-include tools *.py
+include README.en.md requirements.lock requirements-dev.lock

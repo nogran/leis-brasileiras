@@ -1,0 +1,31 @@
+name: tests
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+          cache: pip
+      - name: Install locked dependencies and package
+        run: python -m pip install -r requirements-dev.lock .
+      - name: Test parsing, completeness, multipart and abuse scenarios
+        run: python -m pytest -q --cov=leis_brasileiras --cov-report=term
+      - name: Validate all reference laws and prepare local corpus
+        run: |
+          python tools/build_inventory.py --check
+          python tools/build_reference.py --output dist/reference.zip --version ci-reference
+          python tools/build_reference.py --format canonical-v1 --output dist/canonical-reference.zip --version ci-reference
+      - name: Build wheel and source distribution
+        run: python -m build
+      - name: Install wheel into a clean environment outside source tree
+        run: |
+          python -m venv /tmp/leis-wheel
+          /tmp/leis-wheel/bin/pip install -r requirements.lock dist/*.whl
+          cd /tmp
+          /tmp/leis-wheel/bin/python -m leis_brasileiras catalog
+          /tmp/leis-wheel/bin/python -c "from importlib.resources import files; assert files('leis_brasileiras').joinpath('schemas/canonical.schema.json').is_file()"
