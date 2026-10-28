@@ -3,23 +3,26 @@
 [Português](README.md) · [Data format](docs/format.md) · [Validation](docs/validation.md) · [Transition plan](docs/transition.md) · [Licensing pending](docs/licensing.md)
 
 **Leis Brasileiras** is a Python project for extracting and validating **15 Brazilian
-federal legal instruments** from official Planalto sources. It produces JSON files
+federal legal instruments** from official Planalto sources and **six jurisprudence
+sources from STJ, STF, TJPE and TJMG**. It produces JSON files
 and a versioned Brazilian legal corpus with source URLs, capture dates and integrity
-checks for legislative research and lookup. The project aims to provide an **MCP
+checks for legislation and case-law research and lookup. The project aims to provide an **MCP
 server for structured lookup and text search in Brazilian legislation**, with
 provision identifiers, official sources and a versioned corpus.
 
 It is intended for legaltech developers, researchers and teams that need Brazilian
-legislation as structured data. Basic usage requires no database, Docker or OpenAI key.
+legislation and case law as structured data. Basic usage requires no database, Docker or OpenAI key.
 
 **Project status:** legislative core merged in [PR #1](https://github.com/nogran/leis-brasileiras/pull/1); the library and CLI also include jurisprudence.
 No package or corpus release, hosted API or MCP server is available in this delivery.
 Licensing is pending; see the [current licensing review](docs/licensing.md).
 
-## Use cases: structured data and legislative research
+## Use cases: structured data and legal research
 
 - **Brazilian legislation in JSON:** extract Planalto texts with provision identifiers,
   hierarchy, source URLs and observation dates.
+- **Jurisprudence in JSON:** extract precedents and súmulas from supported courts,
+  preserving the source, observed status and evidence for each capture.
 - **Brazilian legal corpus for NLP:** prepare a reproducible reference for text analysis
   and experiments, retaining its coverage and date limitations.
 - **Planned MCP access:** locate laws, retrieve identified articles and search words
@@ -79,6 +82,37 @@ Law (LGPD).
 | `L9099` | Lei dos Juizados Especiais Cíveis e Criminais | [Lei 9.099/1995](https://www.planalto.gov.br/ccivil_03/leis/l9099.htm) |
 | `LEP` | Lei de Execução Penal | [Lei 7.210/1984](https://www.planalto.gov.br/ccivil_03/leis/l7210compilado.htm) |
 
+## Supported jurisprudence and official sources
+
+The catalog covers six sources from four courts, not all Brazilian case law.
+This table is derived from [`sources.json`](src/leis_brasileiras/jurisprudence/sources.json),
+the catalog’s source of truth. Official Portuguese court names are preserved; links
+point to endpoints and pages used by the extractors. The paginated STJ search link
+opens the first page.
+
+| CLI identifier | Court | Covered content | Official source |
+|---|---|---|---|
+| `stj_temas` | STJ — Superior Tribunal de Justiça | Repetitive themes, controversies, IAC, PUIL and SIRDR; includes records without a thesis | [Open data — precedents CSV](https://dadosabertos.web.stj.jus.br/dataset/4238da2f-c07b-4c1a-b345-4402accacdcf/resource/df29da13-7d6b-41ba-ad96-cd1a5bbd191c/download/temas.csv) |
+| `stj_sumulas` | STJ — Superior Tribunal de Justiça | Súmulas, including cancelled entries | [SCON — súmula search](https://processo.stj.jus.br/SCON/pesquisar.jsp?livre=%40docn&b=SUMU&p=true&numDocsPagina=50&i=1) |
+| `stf_teses_rg` | STF — Supremo Tribunal Federal | General repercussion: lists with and without a thesis | [Portal — general-repercussion theses](https://portal.stf.jus.br/repercussaogeral/retornartesesrepercussaogeral.asp) |
+| `stf_sumulas_vinculantes` | STF — Supremo Tribunal Federal | Binding súmulas: index and statements | [Portal — binding súmulas](https://portal.stf.jus.br/jurisprudencia/sumariosumulas.asp?base=26) |
+| `tjpe_sumulas` | TJPE — Tribunal de Justiça de Pernambuco | Súmulas from the court’s official books (PDF) | [Portal — súmula books](https://portal.tjpe.jus.br/servicos/consulta/sumulas) |
+| `tjmg_sumulas` | TJMG — Tribunal de Justiça do Estado de Minas Gerais | Súmula statements in the court’s consolidated PDF | [Portal — súmula list](https://www.tjmg.jus.br/portal-tjmg/jurisprudencia/consulta-de-jurisprudencia/lista-de-sumulas.htm) |
+
+The historical reference contains **4,631 records**, observed between July and August
+2026; this total does not establish current coverage or legal validity. Each capture
+preserves raw evidence, provenance and observed status. Individual judgments have
+a validation contract but no bulk collection. PDFs require ClamAV or Windows Defender.
+
+```bash
+leis-brasileiras jurisprudence catalog
+leis-brasileiras jurisprudence extract stj_temas --output corpus/jurisprudence
+leis-brasileiras jurisprudence verify-capture "CAPTURE_PATH"
+```
+
+See [commands, formats, source observation dates and limitations](docs/jurisprudence.md).
+The MCP server remains planned.
+
 ## Public formats
 
 `canonical-v1` represents whole legislative units without size-based splitting or
@@ -91,6 +125,11 @@ article level; paragraphs and items do not yet have their own identities. See th
 `legacy-blocks-v1` preserves the historical contract, including parts and overlap.
 It remains the API/CLI default for compatibility; new examples below explicitly
 select `canonical-v1`. RAG strategies belong to consumers.
+
+`jurisprudence-v1` represents jurisprudence records with public identity, text, source,
+observation date, hashes and unknown legal validity. Captures and bundles use
+`jurisprudence-capture-v1` and `jurisprudence-corpus-v1`. See the
+[jurisprudence guide](docs/jurisprudence.md).
 
 ## Historical compatibility JSON example
 
@@ -124,14 +163,15 @@ require PostgreSQL, Docker or an OpenAI key.
 
 ### 1. Get the code
 
-The core described here is on the `codex/extraction-core` review branch:
+The legislation and jurisprudence library and CLI are on the `main` branch:
 
 ```bash
-git clone --branch codex/extraction-core https://github.com/nogran/leis-brasileiras.git
+git clone --branch main https://github.com/nogran/leis-brasileiras.git
 cd leis-brasileiras
 ```
 
-If you already have this branch locally, enter the existing directory.
+If you already have the repository locally, enter the existing directory and use a
+revision that includes the jurisprudence integration from [PR #2](https://github.com/nogran/leis-brasileiras/pull/2).
 
 ### 2. Create the environment and install
 
@@ -351,22 +391,3 @@ Derived from the Justina legislative pipeline core. The selected history preserv
 human authors, dates and attribution; message bodies with private context were omitted.
 See the [history review](docs/history-review.json) and [integration plan](docs/transition.md).
 This delivery does not change private repositories or complete Justina's migration.
-
-## Jurisprudence library and CLI
-
-Six official sources are now supported: STJ qualified precedents and summaries,
-STF general-repercussion theses and binding summaries, and TJPE/TJMG summaries.
-The dated historical reference contains 4,631 records; it is not proof of current
-coverage or validity. `jurisprudence-v1` preserves source records and evidence,
-explicit observation precision, content hashes and unknown legal validity.
-
-```bash
-leis-brasileiras jurisprudence catalog
-leis-brasileiras jurisprudence extract stj_temas --output corpus/jurisprudence
-leis-brasileiras jurisprudence verify-capture CAPTURE
-```
-
-PDF processing requires ClamAV or Windows Defender and uses a bounded child process.
-Individual judgments have an explicit validation contract, without bulk collection.
-See [the jurisprudence guide](docs/jurisprudence.md). The MCP server remains planned;
-no private consumer or production database is migrated by this increment.
