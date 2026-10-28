@@ -95,6 +95,14 @@ def test_full_catalog_is_isolated_between_callers():
         source("../../secret")
 
 
+def test_catalog_preserves_official_portuguese_labels_and_documented_inventory():
+    counts = source("stj_temas")["historical_counts"]
+    situations = {entry["situation"] for entry in counts}
+    assert {"Em Afeta\u00e7\u00e3o", "Ac\u00f3rd\u00e3o Publicado", "Tr\u00e2nsito em Julgado"} <= situations
+    documented = Path(__file__).parents[1] / "docs/jurisprudence-source-inventory.json"
+    assert load_json(documented) == catalog()
+
+
 def test_samples_cannot_masquerade_as_full_source():
     with pytest.raises(ValueError, match="historical coverage"):
         parse_batch(Batch("stj_temas", FixtureClient("stj_temas")), "2026-08-17")

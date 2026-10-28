@@ -22,7 +22,7 @@
         {
           "court": "STJ",
           "doc_type": "controversia",
-          "situation": "Em AfetaÃ§Ã£o",
+          "situation": "Em Afetação",
           "count": 6
         },
         {
@@ -52,7 +52,7 @@
         {
           "court": "STJ",
           "doc_type": "iac",
-          "situation": "AcÃ³rdÃ£o Publicado",
+          "situation": "Acórdão Publicado",
           "count": 2
         },
         {
@@ -76,13 +76,13 @@
         {
           "court": "STJ",
           "doc_type": "iac",
-          "situation": "TrÃ¢nsito em Julgado",
+          "situation": "Trânsito em Julgado",
           "count": 15
         },
         {
           "court": "STJ",
           "doc_type": "puil",
-          "situation": "AcÃ³rdÃ£o Publicado - RE Pendente",
+          "situation": "Acórdão Publicado - RE Pendente",
           "count": 1
         },
         {
@@ -94,13 +94,13 @@
         {
           "court": "STJ",
           "doc_type": "puil",
-          "situation": "TrÃ¢nsito em Julgado",
+          "situation": "Trânsito em Julgado",
           "count": 25
         },
         {
           "court": "STJ",
           "doc_type": "sirdr",
-          "situation": "Finalizada determinaÃ§Ã£o de suspensÃ£o",
+          "situation": "Finalizada determinação de suspensão",
           "count": 1
         },
         {
@@ -112,13 +112,13 @@
         {
           "court": "STJ",
           "doc_type": "sirdr",
-          "situation": "SuspensÃ£o deferida",
+          "situation": "Suspensão deferida",
           "count": 1
         },
         {
           "court": "STJ",
           "doc_type": "sirdr",
-          "situation": "SuspensÃ£o indeferida",
+          "situation": "Suspensão indeferida",
           "count": 5
         },
         {
@@ -130,13 +130,13 @@
         {
           "court": "STJ",
           "doc_type": "tema_repetitivo",
-          "situation": "AcÃ³rdÃ£o Publicado",
+          "situation": "Acórdão Publicado",
           "count": 58
         },
         {
           "court": "STJ",
           "doc_type": "tema_repetitivo",
-          "situation": "AcÃ³rdÃ£o Publicado - RE Pendente",
+          "situation": "Acórdão Publicado - RE Pendente",
           "count": 33
         },
         {
@@ -148,7 +148,7 @@
         {
           "court": "STJ",
           "doc_type": "tema_repetitivo",
-          "situation": "Afetado - PossÃ­vel RevisÃ£o de Tese",
+          "situation": "Afetado - Possível Revisão de Tese",
           "count": 4
         },
         {
@@ -166,7 +166,7 @@
         {
           "court": "STJ",
           "doc_type": "tema_repetitivo",
-          "situation": "MÃ©rito Julgado",
+          "situation": "Mérito Julgado",
           "count": 2
         },
         {
@@ -190,7 +190,7 @@
         {
           "court": "STJ",
           "doc_type": "tema_repetitivo",
-          "situation": "TrÃ¢nsito em Julgado",
+          "situation": "Trânsito em Julgado",
           "count": 992
         }
       ]
