@@ -51,3 +51,29 @@ The current CLI/library is not a multiuser service. Its independent capture stat
 do not establish future HTTP authorization. See [MCP contract](mcp-contract.md) for the
 separate server threat model and release gates. No untrusted ZIP importer or PDF pipeline
 is introduced; collected HTML is parsed as data and never opened for execution.
+
+## Jurisprudence and PDF failure map
+
+Requests are restricted by official host, endpoint, method and bounded query values.
+Each request owns its session; ambient proxies, .netrc and cross-call cookies are
+disabled. TLS is required; redirects and arbitrary download endpoints are rejected.
+Two attempts cover transient transport failures and 429/selected 5xx; there is no
+retry for certificate failure or malformed data. Budgets are 60 seconds/request,
+10 minutes/source, 24 MiB/response, 128 files and 128 MiB of raw bytes/capture.
+Decompressed PDF text also has a separate 32 MiB aggregate limit per capture, so a
+batch of individually small compressed PDFs cannot accumulate unbounded text. Failure stops the
+batch before publication, providing batch-level fail-fast behavior rather than a
+persistent service circuit breaker. No alternative source or stale corpus is silently
+substituted. Logs disclose counts and error types rather than remote payloads.
+
+ClamAV/Defender failure, missing signatures, infection, parser failure, encrypted or
+image-only PDF, or exhausted resource limits fail closed. Quarantine is temporary;
+PDF text extraction runs page by page in a child bounded by memory/time/pages/output.
+No PDF action, script or embedded file is executed. The worker is not an OS network
+sandbox. Antivirus and resource limits reduce risk; they do not certify content safe.
+
+`SourceClient` and `extract_pages` are replaceable adapters. Revalidate fixtures and
+malformed inputs when upgrading Requests, pypdf or the scanner. Package rollback
+keeps prior validated captures available; activate a corpus explicitly by revision/hash.
+Prompt injection is retained only as inert source data. Consumers must still treat
+all returned text and metadata as untrusted input. [Details](jurisprudence.md).

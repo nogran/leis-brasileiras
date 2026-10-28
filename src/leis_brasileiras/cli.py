@@ -21,6 +21,29 @@ def main(argv=None) -> int:
         sys.stdout.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(prog="leis-brasileiras")
     commands = parser.add_subparsers(dest="command",required=True)
+    jurisprudence = commands.add_parser("jurisprudence", help="Official jurisprudence corpus")
+    from .jurisprudence.catalog import SOURCE_IDS
+    operations = jurisprudence.add_subparsers(dest="juris_command", required=True)
+    operations.add_parser("catalog", help="List official sources and dated historical counts")
+    jextract = operations.add_parser("extract", help="Capture and validate one complete official source")
+    jextract.add_argument("source", choices=SOURCE_IDS)
+    jextract.add_argument("--output", type=Path, required=True)
+    jextract.add_argument("--scanner", type=Path, help="ClamAV executable or Windows MpCmdRun.exe")
+    jextract.add_argument("--ca-bundle", type=Path, help="Explicit reviewed TLS CA bundle")
+    for name in ("validate", "verify-capture", "validate-decision"):
+        operation = operations.add_parser(name)
+        operation.add_argument("path", type=Path)
+        if name == "verify-capture":
+            operation.add_argument("--scanner", type=Path)
+        if name == "validate-decision":
+            operation.add_argument("--require-review", action="store_true")
+    jbundle = operations.add_parser("bundle", help="Verify and package a local jurisprudence archive")
+    jbundle.add_argument("captures", nargs="+", type=Path)
+    jbundle.add_argument("--output", type=Path, required=True)
+    jbundle.add_argument("--version", required=True)
+    jbundle.add_argument("--sources", nargs="+", choices=SOURCE_IDS)
+    jbundle.add_argument("--scanner", type=Path)
+    jbundle.add_argument("--allow-samples", action="store_true")
     commands.add_parser("catalog",help="List supported sources")
     extract = commands.add_parser("extract",help="Capture official sources; no database")
     extract.add_argument("laws",nargs="+",choices=[*SIGLAS,"ALL"])
@@ -44,7 +67,9 @@ def main(argv=None) -> int:
                          help="Explicit subset; omission requires the full catalog")
     args = parser.parse_args(argv)
     try:
-        if args.command == "catalog":
+        if args.command == "jurisprudence":
+            return jurisprudence_command(args)
+        elif args.command == "catalog":
             print(json.dumps(LAWS,ensure_ascii=False,indent=2))
         elif args.command == "extract":
             selected = SIGLAS if "ALL" in args.laws else list(dict.fromkeys(args.laws))
@@ -85,4 +110,34 @@ def main(argv=None) -> int:
     except Exception as exc:
         print(f"{type(exc).__name__}: operation failed; inspect input and validation report",file=sys.stderr)
         return 1
+    return 0
+
+
+def jurisprudence_command(args) -> int:
+    """CLI-only dispatch; library APIs remain independent of argparse."""
+    from .jurisprudence.catalog import catalog
+    from .jurisprudence.capture import capture, verify_capture
+    from .jurisprudence.corpus import build_release
+    from .jurisprudence.decisions import validate_decision
+    from .jurisprudence.validation import load_json, validate_document
+
+    if args.juris_command == "catalog":
+        result = catalog()
+    elif args.juris_command == "extract":
+        result = {"capture": str(capture(args.source, args.output, scanner=args.scanner, ca_bundle=args.ca_bundle))}
+    elif args.juris_command == "validate":
+        result = validate_document(load_json(args.path))
+    elif args.juris_command == "verify-capture":
+        result = verify_capture(args.path, scanner=args.scanner)
+    elif args.juris_command == "validate-decision":
+        record = load_json(args.path)
+        if not isinstance(record, dict) or record.get("tipo") != "acordao":
+            raise ValueError("Expected an individual judgment")
+        validate_decision(record, require_review=args.require_review)
+        result = {"ok": True, "type": "acordao", "review_required": args.require_review}
+    else:
+        result = {"archive": str(build_release(args.captures, args.output, args.version,
+                                               selected_sources=args.sources, scanner=args.scanner,
+                                               allow_samples=args.allow_samples))}
+    print(json.dumps(result, ensure_ascii=False, indent=2))
     return 0

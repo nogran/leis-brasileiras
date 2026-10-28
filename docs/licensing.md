@@ -52,3 +52,13 @@ page elements must be treated separately. The project claims no ownership over l
 The owner separately authorized a public PR; no new license was granted by that
 instruction. Package and dataset releases await the appropriate rights/license
 decisions and outstanding validation gates.
+
+## Jurisprudência
+
+A incorporação inclui parsers e fixtures de evidência das seis fontes catalogadas,
+com proveniência em `tests/fixtures/jurisprudence/manifest.json`. Capturas privadas,
+logs operacionais e classificações da Justina não integram o pacote. O uso de fontes
+oficiais não concede licença por presunção para organização, curadoria ou elementos
+de terceiros. As pendências de titularidade e licenciamento acima continuam abertas.
+`pypdf` é uma dependência de runtime com licença declarada BSD-3-Clause; ClamAV ou
+Windows Defender são executáveis externos, não redistribuídos pelo pacote.

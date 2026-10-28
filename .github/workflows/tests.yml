@@ -13,7 +13,7 @@ jobs:
           cache: pip
       - name: Install locked dependencies and package
         run: python -m pip install -r requirements-dev.lock .
-      - name: Test parsing, completeness, multipart and abuse scenarios
+      - name: Test legislation, jurisprudence, PDF isolation and abuse scenarios
         run: python -m pytest -q --cov=leis_brasileiras --cov-report=term
       - name: Validate all reference laws and prepare local corpus
         run: |
@@ -28,4 +28,6 @@ jobs:
           /tmp/leis-wheel/bin/pip install -r requirements.lock dist/*.whl
           cd /tmp
           /tmp/leis-wheel/bin/python -m leis_brasileiras catalog
+          /tmp/leis-wheel/bin/python -m leis_brasileiras jurisprudence catalog
           /tmp/leis-wheel/bin/python -c "from importlib.resources import files; assert files('leis_brasileiras').joinpath('schemas/canonical.schema.json').is_file()"
+          /tmp/leis-wheel/bin/python -c "from importlib.resources import files; from leis_brasileiras.jurisprudence.catalog import SOURCE_IDS; assert len(SOURCE_IDS) == 6; assert files('leis_brasileiras').joinpath('schemas/jurisprudence.schema.json').is_file()"

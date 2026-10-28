@@ -1,0 +1,156 @@
+{
+  "origin": "Justina source parser regression fixtures",
+  "capture_dates": [
+    "2026-07-20",
+    "2026-07-21",
+    "2026-08-17"
+  ],
+  "files": [
+    {
+      "path": "stf_sv_amostra_golden.json.gz",
+      "sha256": "e952680611d9b24aaf4b5a592bca8361413f21450e680dab0b228e7d063f7c00",
+      "origin": "stf_sv_amostra_golden.json",
+      "source": "stf_sumulas_vinculantes",
+      "official_url": "https://portal.stf.jus.br/jurisprudencia/sumariosumulas.asp?base=26"
+    },
+    {
+      "path": "stf_teses_amostra_golden.json.gz",
+      "sha256": "e2e36b078b52dc298ea10105b42790eecb122faecddcdf1010109f769a34722d",
+      "origin": "stf_teses_amostra_golden.json",
+      "source": "stf_teses_rg",
+      "official_url": "https://portal.stf.jus.br/repercussaogeral/retornartesesrepercussaogeral.asp"
+    },
+    {
+      "path": "stj_sumulas_amostra.html.gz",
+      "sha256": "873c2da67e8ed04613dca48853bede65998d51eccb0dbdf8f53b0614fb89b648",
+      "origin": "stj_sumulas_amostra.html",
+      "source": "stj_sumulas",
+      "official_url": "https://processo.stj.jus.br/SCON/pesquisar.jsp?livre=%40docn&b=SUMU&p=true&numDocsPagina=50&i={i}"
+    },
+    {
+      "path": "stj_sumulas_amostra_golden.json.gz",
+      "sha256": "91dec8afc21b7594487d78d2da3006851c8182539d2ac15bc810060efdd212a4",
+      "origin": "stj_sumulas_amostra_golden.json",
+      "source": "stj_sumulas",
+      "official_url": "https://processo.stj.jus.br/SCON/pesquisar.jsp?livre=%40docn&b=SUMU&p=true&numDocsPagina=50&i={i}"
+    },
+    {
+      "path": "stj_temas_amostra.csv.gz",
+      "sha256": "2aaf6e3459d1b641584373040947a22dfc1c2eee988c65e0addc833509fad004",
+      "origin": "stj_temas_amostra.csv",
+      "source": "stj_temas",
+      "official_url": "https://dadosabertos.web.stj.jus.br/dataset/4238da2f-c07b-4c1a-b345-4402accacdcf/resource/df29da13-7d6b-41ba-ad96-cd1a5bbd191c/download/temas.csv"
+    },
+    {
+      "path": "stj_temas_amostra_golden.json.gz",
+      "sha256": "d9dad0a6d29b56dc7329a1007bdee94c3653cac39e96dd829ba44c5ebdf5ad3c",
+      "origin": "stj_temas_amostra_golden.json",
+      "source": "stj_temas",
+      "official_url": "https://dadosabertos.web.stj.jus.br/dataset/4238da2f-c07b-4c1a-b345-4402accacdcf/resource/df29da13-7d6b-41ba-ad96-cd1a5bbd191c/download/temas.csv"
+    },
+    {
+      "path": "tjmg_sumulas_indice.html.gz",
+      "sha256": "36edad0db2ed1343acca4b7cb13ec3fe7c1939250abe550ea1cb64507e6e750b",
+      "origin": "tjmg_sumulas_indice.html",
+      "source": "tjmg_sumulas",
+      "official_url": "https://www.tjmg.jus.br/portal-tjmg/jurisprudencia/consulta-de-jurisprudencia/lista-de-sumulas.htm"
+    },
+    {
+      "path": "tjpe_sumulas_indice.html.gz",
+      "sha256": "879ba502a86628585af0eae8b7fa6bceb0dbd95b16a5c78b7b5b2c194c99f34c",
+      "origin": "tjpe_sumulas_indice.html",
+      "source": "tjpe_sumulas",
+      "official_url": "https://portal.tjpe.jus.br/servicos/consulta/sumulas"
+    },
+    {
+      "path": "stf_sv_amostra/lista.html.gz",
+      "sha256": "e052b45a1dddf05535b9c95fa87e7c2f298a3dcb08fb3fee87daa733a47ded34",
+      "origin": "stf_sv_amostra/lista.html",
+      "source": "stf_sumulas_vinculantes",
+      "official_url": "https://portal.stf.jus.br/jurisprudencia/sumariosumulas.asp?base=26"
+    },
+    {
+      "path": "stf_sv_amostra/sumula_1185.html.gz",
+      "sha256": "2f10100c3803004dc9f6a7f1920a5b855d3d5a1124cdce1c0d6dc0b1d31a88d9",
+      "origin": "stf_sv_amostra/sumula_1185.html",
+      "source": "stf_sumulas_vinculantes",
+      "official_url": "https://portal.stf.jus.br/jurisprudencia/sumariosumulas.asp?base=26"
+    },
+    {
+      "path": "stf_teses_amostra/com.json.gz",
+      "sha256": "512b795e653dc103293292c2d62641431ef896ebc34fe0b64c6141f98b075794",
+      "origin": "stf_teses_amostra/com.json",
+      "source": "stf_teses_rg",
+      "official_url": "https://portal.stf.jus.br/repercussaogeral/retornartesesrepercussaogeral.asp"
+    },
+    {
+      "path": "stf_teses_amostra/sem.json.gz",
+      "sha256": "f29531b0730fdaa216a2a2842913541c7214fa570beff1ca604327ac75bbb4d8",
+      "origin": "stf_teses_amostra/sem.json",
+      "source": "stf_teses_rg",
+      "official_url": "https://portal.stf.jus.br/repercussaogeral/retornartesesrepercussaogeral.asp"
+    },
+    {
+      "path": "tjmg_sumulas_amostra.pdf.gz",
+      "sha256": "7dd6b9482815d61c569cbee1abad665f0181afae3eb612fb4ddfc95513257973",
+      "origin": "tjmg_sumulas_amostra.pdf",
+      "source": "tjmg_sumulas",
+      "official_url": "https://www.tjmg.jus.br/portal-tjmg/jurisprudencia/consulta-de-jurisprudencia/lista-de-sumulas.htm"
+    },
+    {
+      "path": "tjmg_sumulas_amostra.pdf.txt.gz",
+      "sha256": "b47e775ff575033fc17adcf90884c0ff75efa601ef03246646a3b1152ba19320",
+      "origin": "tjmg_sumulas_amostra.pdf",
+      "derivation": "pypdf 6.21.3; scanned by Windows Defender; isolated page extraction",
+      "source": "tjmg_sumulas",
+      "official_url": "https://www.tjmg.jus.br/portal-tjmg/jurisprudencia/consulta-de-jurisprudencia/lista-de-sumulas.htm"
+    },
+    {
+      "path": "tjpe_sumulas_amostra/livro_110a172.pdf.gz",
+      "sha256": "0c1cc42f836a4e0ce10b1dd4f92ab990b795da838ed5709f86556149b4c7b31b",
+      "origin": "tjpe_sumulas_amostra/livro_110a172.pdf",
+      "source": "tjpe_sumulas",
+      "official_url": "https://portal.tjpe.jus.br/servicos/consulta/sumulas"
+    },
+    {
+      "path": "tjpe_sumulas_amostra/livro_110a172.pdf.txt.gz",
+      "sha256": "157c0ebf9e737e1177a19ccfca462d53da7194cbc508a05803e33952faf48676",
+      "origin": "tjpe_sumulas_amostra/livro_110a172.pdf",
+      "derivation": "pypdf 6.21.3; scanned by Windows Defender; isolated page extraction",
+      "source": "tjpe_sumulas",
+      "official_url": "https://portal.tjpe.jus.br/servicos/consulta/sumulas"
+    },
+    {
+      "path": "tjpe_sumulas_amostra/livro_93a109.pdf.gz",
+      "sha256": "6ea6452830db0f1fa8962c939c7995681685e5d756d96ddd432a0ca1b60ee127",
+      "origin": "tjpe_sumulas_amostra/livro_93a109.pdf",
+      "source": "tjpe_sumulas",
+      "official_url": "https://portal.tjpe.jus.br/servicos/consulta/sumulas"
+    },
+    {
+      "path": "tjpe_sumulas_amostra/livro_93a109.pdf.txt.gz",
+      "sha256": "2a6b1ed1832ac5a3ba2c11931e981dd06f3e3a0525e6a05d39f8b0ee894b745d",
+      "origin": "tjpe_sumulas_amostra/livro_93a109.pdf",
+      "derivation": "pypdf 6.21.3; scanned by Windows Defender; isolated page extraction",
+      "source": "tjpe_sumulas",
+      "official_url": "https://portal.tjpe.jus.br/servicos/consulta/sumulas"
+    },
+    {
+      "path": "tjpe_sumulas_amostra/livro_ate92.pdf.gz",
+      "sha256": "7dc998845068bf5ff3e237ff0778a08020df46e454b943e5cba631c3c66328f7",
+      "origin": "tjpe_sumulas_amostra/livro_ate92.pdf",
+      "source": "tjpe_sumulas",
+      "official_url": "https://portal.tjpe.jus.br/servicos/consulta/sumulas"
+    },
+    {
+      "path": "tjpe_sumulas_amostra/livro_ate92.pdf.txt.gz",
+      "sha256": "4bffac096b62cd2104f91d644e6b153163c7803f6f32bd1558ba531dd17e48ef",
+      "origin": "tjpe_sumulas_amostra/livro_ate92.pdf",
+      "derivation": "pypdf 6.21.3; scanned by Windows Defender; isolated page extraction",
+      "source": "tjpe_sumulas",
+      "official_url": "https://portal.tjpe.jus.br/servicos/consulta/sumulas"
+    }
+  ],
+  "origin_commit": "e243ec4bf91aead633cc0427adb76b3ecbc19458",
+  "scope": "Official-source parser regression evidence; no operational logs, secrets or consumer classifications."
+}

@@ -141,3 +141,50 @@ implementações privadas, dados operacionais, dumps e credenciais ficaram fora.
   A migração **não está completa** enquanto o extrator antigo continuar como dependência.
 
 Commit inicial da proposta: `feat(core): extract standalone Brazilian legislation package`.
+
+## Jurisprudence validation
+
+Run `python -m pytest -q --cov=leis_brasileiras --cov-report=term`. The 86% floor
+remains in place. The new suites cover all six parsers, source replay, schemas,
+source identities, observed situation, dated evidence, individual judgments,
+archive reproducibility, hostile text, SSRF, command payloads, malformed/oversized
+input, cross-call state, tampering and PDF isolation. Unit network/scanner doubles
+do not prove live-source availability or antivirus installation.
+
+State parser fixtures contain real PDF excerpts and scanned extracted text; the
+PDF worker test exercises the child on a real excerpt with the scan gate mocked.
+Actual historical reprocessing uses the real scanner via
+`tools/build_jurisprudence_reference.py`; live captures are a separate validation.
+See [jurisprudence](jurisprudence.md).
+
+### Jurisprudence incorporation — verified 2026-10-28
+
+- Windows, Python 3.14.3: full suite **952 tests passed**, zero failures/skips.
+  After the final aggregate PDF-text guard, all **240 jurisprudence regressions**
+  passed, including its new abuse case; the 713 legislative tests remain unchanged.
+- Coverage: **89.62%**, above the unchanged 86% gate. Measurement combines the full
+  suite with final regressions; prior line mappings for amended modules were removed
+  before remeasurement. Logs, JUnit and coverage JSON are local under `dist/`.
+- Six historical sources reproduced **4,631 identities**, with no differences in
+  thesis, summary, submitted question, update-note or cancellation-note text against
+  the existing source projections. All four historical state PDFs passed real
+  Windows Defender scans and isolated page extraction.
+- Live captures observed on 2026-10-27/28: STJ precedents **2,369**, STJ summaries
+  **676**, STF theses **1,292**, STF binding summaries **63**, TJPE summaries **172**,
+  TJMG summaries **91**: **4,663 records**. Five STJ records have no type in the CSV
+  and retain that uncertainty under their official sequential source identities.
+- The six-source live archive was replay-verified and reproduced byte for byte:
+  SHA-256 `af7a39e03132dd8a1f8e92a867a464730f979d2bc8ac51cf7b354f12cb147d57`.
+- The 15-law inventory and both legislative archive formats validated successfully;
+  historical legislative export remains **6,276 records**.
+- Wheel/sdist built; packaged code/catalogs/schemas matched the checkout. A clean
+  installation using isolated Python passed `pip check`, both catalogs, schema
+  discovery, document validation and source replay without importing the checkout.
+- GitHub Actions now exercises the added suites and installed jurisprudence catalog.
+  Remote CI was not run in this local implementation. The PDF worker was exercised
+  on Windows; a supplemental local Linux run could not start because the registered
+  Ubuntu WSL distributions' virtual disks were unavailable. This does not describe
+  the configuration of other WSL distributions or the developer's IDE.
+- No consumer migration, database write, embedding request, package release or
+  production deployment was performed. Licensing and MCP implementation remain
+  separate pending work.

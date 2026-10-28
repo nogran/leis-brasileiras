@@ -1,6 +1,6 @@
 # Public roadmap and consumer compatibility
 
-The existing PR #1 is open for review. This increment establishes the public corpus
+PR #1 has been merged. The legislative increment established the public corpus
 model alongside the historical export. It does not migrate any consumer, publish a
 package/dataset, or provide an MCP server.
 
@@ -48,3 +48,12 @@ Migration-specific deployment and persistence instructions belong with each cons
 
 See [MCP contract](mcp-contract.md). Stdio first is the recommended implementation path;
 hosting or both distributions remain a product decision, not an implemented capability.
+
+## Jurisprudence incorporation
+
+The public package now owns standalone capture/validation/archiving for six official
+jurisprudence sources, plus the validation contract for individual judgments.
+The extraction and ingestion used by existing consumers remain independent until
+a separately tested integration. Source JSON fields are preserved for comparison;
+consumer thresholds, embeddings and production tables are not exported as public policy.
+See [the capability and limitations](jurisprudence.md).

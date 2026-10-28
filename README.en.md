@@ -1,4 +1,4 @@
-# Leis Brasileiras — Brazilian legislation in JSON with Python
+# Leis Brasileiras — Brazilian legislation and jurisprudence in JSON with Python
 
 [Português](README.md) · [Data format](docs/format.md) · [Validation](docs/validation.md) · [Transition plan](docs/transition.md) · [Licensing pending](docs/licensing.md)
 
@@ -12,7 +12,7 @@ provision identifiers, official sources and a versioned corpus.
 It is intended for legaltech developers, researchers and teams that need Brazilian
 legislation as structured data. Basic usage requires no database, Docker or OpenAI key.
 
-**Project status:** extraction core under review in [PR #1](https://github.com/nogran/leis-brasileiras/pull/1).
+**Project status:** legislative core merged in [PR #1](https://github.com/nogran/leis-brasileiras/pull/1); the library and CLI also include jurisprudence.
 No package or corpus release, hosted API or MCP server is available in this delivery.
 Licensing is pending; see the [current licensing review](docs/licensing.md).
 
@@ -351,3 +351,22 @@ Derived from the Justina legislative pipeline core. The selected history preserv
 human authors, dates and attribution; message bodies with private context were omitted.
 See the [history review](docs/history-review.json) and [integration plan](docs/transition.md).
 This delivery does not change private repositories or complete Justina's migration.
+
+## Jurisprudence library and CLI
+
+Six official sources are now supported: STJ qualified precedents and summaries,
+STF general-repercussion theses and binding summaries, and TJPE/TJMG summaries.
+The dated historical reference contains 4,631 records; it is not proof of current
+coverage or validity. `jurisprudence-v1` preserves source records and evidence,
+explicit observation precision, content hashes and unknown legal validity.
+
+```bash
+leis-brasileiras jurisprudence catalog
+leis-brasileiras jurisprudence extract stj_temas --output corpus/jurisprudence
+leis-brasileiras jurisprudence verify-capture CAPTURE
+```
+
+PDF processing requires ClamAV or Windows Defender and uses a bounded child process.
+Individual judgments have an explicit validation contract, without bulk collection.
+See [the jurisprudence guide](docs/jurisprudence.md). The MCP server remains planned;
+no private consumer or production database is migrated by this increment.

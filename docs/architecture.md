@@ -1,6 +1,7 @@
 # Public legislative corpus architecture
 
-Leis Brasileiras is a public legislative data project with planned MCP access.
+Leis Brasileiras is a public Brazilian legal data project covering legislation and
+jurisprudence, with planned MCP access.
 The Python library and CLI currently extract, validate and package official-source
 observations. No MCP server, hosted API, search index or package release is delivered.
 Consumers choose their own retrieval, storage and application policies.
@@ -67,3 +68,12 @@ no runtime fallback disables checks. They can be replaced without changing the c
 
 The planned MCP SDK will be introduced only with its own interoperability tests,
 timeouts, concurrency bounds, observability and upgrade/rollback plan.
+
+## Jurisprudence boundary
+
+The `jurisprudence` subpackage owns six official-source adapters, pure parsers,
+source-bound identities, provenance, standalone validation, captures and local archives.
+It shares no persistence or retrieval policy with a consumer. Raw observations can
+be replayed to verify the derived document; PDF adapters scan and isolate extraction.
+The legislative parser and multipart compatibility format are unchanged.
+See [jurisprudence](jurisprudence.md) for schema and source boundaries.
