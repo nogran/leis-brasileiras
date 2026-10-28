@@ -3,40 +3,27 @@
 [English](README.en.md) · [Formato e fontes](docs/format.md) · [Validação](docs/validation.md) · [Transição](docs/transition.md) · [Licenciamento pendente](docs/licensing.md)
 
 **Leis Brasileiras** é um projeto Python para extrair e validar textos de **15 normas
-federais brasileiras** a partir de fontes oficiais do Planalto. Gera arquivos JSON e
+federais brasileiras** a partir de fontes oficiais do Planalto e **seis fontes de
+jurisprudência do STJ, STF, TJPE e TJMG**. Gera arquivos JSON e
 um corpus versionado com fontes, datas de captura e verificações de integridade,
-para pesquisa e consulta de textos legislativos. O objetivo do projeto é oferecer
+para pesquisa e consulta de legislação e jurisprudência. O objetivo do projeto é oferecer
 um **servidor MCP para consulta estruturada e busca textual em legislação brasileira**,
 com identificação de dispositivos, fontes oficiais e corpus versionado.
 
 Destina-se a desenvolvedores de legaltech, pesquisadores e equipes que precisam
-transformar legislação brasileira em dados estruturados. O uso básico funciona sem
+transformar legislação e jurisprudência brasileiras em dados estruturados. O uso básico funciona sem
 banco de dados, Docker ou chave de OpenAI.
 
 **Estado do projeto:** núcleo legislativo integrado pelo [PR #1](https://github.com/nogran/leis-brasileiras/pull/1); biblioteca e CLI também incluem jurisprudência.
 Não há pacote ou corpus publicado em releases, API hospedada ou servidor MCP nesta
 entrega. O licenciamento está pendente; consulte os [termos atuais](docs/licensing.md).
 
-## Jurisprudência incorporada
-
-Além das 15 normas federais, a biblioteca e CLI extraem e validam seis fontes de
-jurisprudência: precedentes qualificados e súmulas do STJ, teses de repercussão geral
-e súmulas vinculantes do STF, súmulas do TJPE e do TJMG. Incluem captura bruta,
-proveniência, situação observada, verificação por reprocessamento e ZIP versionado.
-As referências históricas somam 4.631 registros; isso não comprova atualização atual.
-
-```bash
-leis-brasileiras jurisprudence catalog
-leis-brasileiras jurisprudence extract stj_temas --output corpus/jurisprudence
-```
-
-PDFs exigem ClamAV ou Windows Defender. Consulte [cobertura, comandos, formatos,
-acórdãos individuais e limites](docs/jurisprudence.md). O servidor MCP continua planejado.
-
-## Casos de uso: dados estruturados e pesquisa legislativa
+## Casos de uso: dados estruturados e pesquisa jurídica
 
 - **Legislação brasileira em JSON:** extrair textos do Planalto com identificação
   dos dispositivos, hierarquia, fonte e data de observação.
+- **Jurisprudência em JSON:** extrair precedentes e súmulas dos tribunais cobertos,
+  preservando a fonte, a situação observada e a evidência de cada captura.
 - **Corpus para NLP jurídico:** preparar uma referência reproduzível para análise
   textual e experimentos, preservando os limites da cobertura e das datas.
 - **Consulta via MCP, planejada:** localizar normas, consultar artigos identificados
@@ -94,6 +81,36 @@ verdade do catálogo; os links apontam para as páginas oficiais utilizadas pelo
 | `L9099` | Lei dos Juizados Especiais Cíveis e Criminais | [Lei 9.099/1995](https://www.planalto.gov.br/ccivil_03/leis/l9099.htm) |
 | `LEP` | Lei de Execução Penal | [Lei 7.210/1984](https://www.planalto.gov.br/ccivil_03/leis/l7210compilado.htm) |
 
+## Jurisprudência coberta e fontes oficiais
+
+O catálogo cobre seis fontes de quatro tribunais, não toda a jurisprudência brasileira.
+Esta tabela é derivada de [`sources.json`](src/leis_brasileiras/jurisprudence/sources.json),
+a fonte de verdade do catálogo; os links apontam para os endpoints e páginas oficiais
+utilizados pelos extratores. Na pesquisa paginada do STJ, o link abre a primeira página.
+
+| Identificador na CLI | Tribunal | Conteúdo coberto | Fonte oficial |
+|---|---|---|---|
+| `stj_temas` | STJ — Superior Tribunal de Justiça | Temas repetitivos, controvérsias, IAC, PUIL e SIRDR; inclui registros sem tese | [Dados abertos — CSV de precedentes](https://dadosabertos.web.stj.jus.br/dataset/4238da2f-c07b-4c1a-b345-4402accacdcf/resource/df29da13-7d6b-41ba-ad96-cd1a5bbd191c/download/temas.csv) |
+| `stj_sumulas` | STJ — Superior Tribunal de Justiça | Súmulas, inclusive canceladas | [SCON — pesquisa de súmulas](https://processo.stj.jus.br/SCON/pesquisar.jsp?livre=%40docn&b=SUMU&p=true&numDocsPagina=50&i=1) |
+| `stf_teses_rg` | STF — Supremo Tribunal Federal | Repercussão geral: listas com e sem tese | [Portal — teses de repercussão geral](https://portal.stf.jus.br/repercussaogeral/retornartesesrepercussaogeral.asp) |
+| `stf_sumulas_vinculantes` | STF — Supremo Tribunal Federal | Súmulas vinculantes: índice e enunciados | [Portal — súmulas vinculantes](https://portal.stf.jus.br/jurisprudencia/sumariosumulas.asp?base=26) |
+| `tjpe_sumulas` | TJPE — Tribunal de Justiça de Pernambuco | Súmulas dos livros oficiais do tribunal (PDF) | [Portal — livros de súmulas](https://portal.tjpe.jus.br/servicos/consulta/sumulas) |
+| `tjmg_sumulas` | TJMG — Tribunal de Justiça do Estado de Minas Gerais | Enunciados de súmulas no PDF consolidado do tribunal | [Portal — lista de súmulas](https://www.tjmg.jus.br/portal-tjmg/jurisprudencia/consulta-de-jurisprudencia/lista-de-sumulas.htm) |
+
+As referências históricas somam **4.631 registros**, observados entre julho e agosto
+de 2026; esse total não comprova cobertura ou vigência atuais. Cada captura preserva
+a evidência bruta, a proveniência e a situação observada. Acórdãos individuais têm
+contrato de validação, mas não coleta em massa. PDFs exigem ClamAV ou Windows Defender.
+
+```bash
+leis-brasileiras jurisprudence catalog
+leis-brasileiras jurisprudence extract stj_temas --output corpus/jurisprudence
+leis-brasileiras jurisprudence verify-capture "CAMINHO_DA_CAPTURA"
+```
+
+Veja [comandos, formatos, datas por fonte e limites](docs/jurisprudence.md).
+O servidor MCP continua planejado.
+
 ## Formatos públicos
 
 `canonical-v1` representa unidades legislativas inteiras, sem divisão por tamanho ou
@@ -105,6 +122,11 @@ parágrafos ainda não têm identidade própria. Veja a [arquitetura](docs/archi
 `legacy-blocks-v1` preserva o contrato histórico, incluindo partes e overlap. Continua
 sendo o padrão da API/CLI para compatibilidade; os exemplos novos abaixo selecionam
 explicitamente `canonical-v1`. Estratégias de RAG pertencem aos consumidores.
+
+`jurisprudence-v1` representa registros de jurisprudência com identidade pública,
+texto, fonte, data de observação, hashes e vigência jurídica desconhecida. Capturas
+e pacotes usam `jurisprudence-capture-v1` e `jurisprudence-corpus-v1`. Veja o
+[guia de jurisprudência](docs/jurisprudence.md).
 
 ## Exemplo do JSON histórico de compatibilidade
 
@@ -138,14 +160,15 @@ Docker nem chave de OpenAI.
 
 ### 1. Obter o código
 
-O núcleo descrito aqui está na branch de revisão `codex/extraction-core`:
+A biblioteca e a CLI de legislação e jurisprudência estão na branch `main`:
 
 ```bash
-git clone --branch codex/extraction-core https://github.com/nogran/leis-brasileiras.git
+git clone --branch main https://github.com/nogran/leis-brasileiras.git
 cd leis-brasileiras
 ```
 
-Se você já tem essa branch no computador, entre na pasta existente.
+Se você já tem o repositório no computador, entre na pasta existente e use uma
+versão que inclua a integração de jurisprudência do [PR #2](https://github.com/nogran/leis-brasileiras/pull/2).
 
 ### 2. Criar o ambiente e instalar
 
