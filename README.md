@@ -1,4 +1,4 @@
-# Leis Brasileiras — legislação brasileira em JSON com Python
+# Leis Brasileiras — legislação e jurisprudência em JSON com Python
 
 [English](README.en.md) · [Formato e fontes](docs/format.md) · [Validação](docs/validation.md) · [Transição](docs/transition.md) · [Licenciamento pendente](docs/licensing.md)
 
@@ -13,9 +13,25 @@ Destina-se a desenvolvedores de legaltech, pesquisadores e equipes que precisam
 transformar legislação brasileira em dados estruturados. O uso básico funciona sem
 banco de dados, Docker ou chave de OpenAI.
 
-**Estado do projeto:** núcleo de extração em revisão no [PR #1](https://github.com/nogran/leis-brasileiras/pull/1).
+**Estado do projeto:** núcleo legislativo integrado pelo [PR #1](https://github.com/nogran/leis-brasileiras/pull/1); biblioteca e CLI também incluem jurisprudência.
 Não há pacote ou corpus publicado em releases, API hospedada ou servidor MCP nesta
 entrega. O licenciamento está pendente; consulte os [termos atuais](docs/licensing.md).
+
+## Jurisprudência incorporada
+
+Além das 15 normas federais, a biblioteca e CLI extraem e validam seis fontes de
+jurisprudência: precedentes qualificados e súmulas do STJ, teses de repercussão geral
+e súmulas vinculantes do STF, súmulas do TJPE e do TJMG. Incluem captura bruta,
+proveniência, situação observada, verificação por reprocessamento e ZIP versionado.
+As referências históricas somam 4.631 registros; isso não comprova atualização atual.
+
+```bash
+leis-brasileiras jurisprudence catalog
+leis-brasileiras jurisprudence extract stj_temas --output corpus/jurisprudence
+```
+
+PDFs exigem ClamAV ou Windows Defender. Consulte [cobertura, comandos, formatos,
+acórdãos individuais e limites](docs/jurisprudence.md). O servidor MCP continua planejado.
 
 ## Casos de uso: dados estruturados e pesquisa legislativa
 

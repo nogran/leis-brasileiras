@@ -105,3 +105,10 @@ The baseline has 15 laws, 6,276 records and 23 multipart groups in 54 parts:
 
 References: [LexML identities](https://projeto.lexml.gov.br/documentacao/Parte-2-LexML-URN.pdf),
 [JSON Schema 2020-12](https://json-schema.org/draft/2020-12/json-schema-validation).
+
+## Jurisprudence formats
+
+`jurisprudence-v1`, `jurisprudence-capture-v1` and `jurisprudence-corpus-v1` are
+separate contracts with packaged JSON Schemas. They identify court/type/number,
+source text, observation precision, SHA-256 and unmodified source projection.
+Observed situation never establishes current legal validity. [Full contract](jurisprudence.md).

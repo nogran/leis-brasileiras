@@ -73,3 +73,15 @@ Health checks must distinguish serving an old explicitly identified release from
 - [HTTP security](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http)
 - [Security practices](https://modelcontextprotocol.io/docs/2026-07-28/tutorials/security/security_best_practices)
 - [Official Python SDK](https://github.com/modelcontextprotocol/python-sdk)
+
+## Planned jurisprudence operations
+
+The corpus implementation now supplies six jurisprudence sources, but these MCP
+operations remain proposals: `list_jurisprudence_sources`, `get_jurisprudence` by
+public identity (court/type/number or an unclassified official source-record ID) and corpus revision, and `search_jurisprudence` with bounded
+text, court/type filters and pagination. Results must preserve observation dates,
+precision, evidence hashes, unknown validity, cancelled/no-thesis records and
+explicit historical/sample coverage. They must not imply a judicial holding has
+been checked today or infer precedent authority from its type. Individual judgment
+context and review provenance must remain visible where that capability is added.
+The same read-only, byte, paging, authorization and abuse limits above apply.

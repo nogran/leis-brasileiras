@@ -1,0 +1,293 @@
+{
+  "schema_version": 1,
+  "natural_key": [
+    "court",
+    "doc_type",
+    "number"
+  ],
+  "measured_at": "2026-09-05",
+  "sources": [
+    {
+      "extractor_id": "stj_temas",
+      "output_slug": "stj_temas",
+      "official_url": "https://dadosabertos.web.stj.jus.br/dataset/4238da2f-c07b-4c1a-b345-4402accacdcf/resource/df29da13-7d6b-41ba-ad96-cd1a5bbd191c/download/temas.csv",
+      "historical_minimum_total": 2347,
+      "historical_counts": [
+        {
+          "court": "STJ",
+          "doc_type": "controversia",
+          "situation": "Cancelada",
+          "count": 335
+        },
+        {
+          "court": "STJ",
+          "doc_type": "controversia",
+          "situation": "Em Afetação",
+          "count": 6
+        },
+        {
+          "court": "STJ",
+          "doc_type": "controversia",
+          "situation": "Pendente",
+          "count": 25
+        },
+        {
+          "court": "STJ",
+          "doc_type": "controversia",
+          "situation": "Sem processo vinculado",
+          "count": 6
+        },
+        {
+          "court": "STJ",
+          "doc_type": "controversia",
+          "situation": "Sobrestada",
+          "count": 1
+        },
+        {
+          "court": "STJ",
+          "doc_type": "controversia",
+          "situation": "Vinculada a Tema",
+          "count": 452
+        },
+        {
+          "court": "STJ",
+          "doc_type": "iac",
+          "situation": "Acórdão Publicado",
+          "count": 2
+        },
+        {
+          "court": "STJ",
+          "doc_type": "iac",
+          "situation": "Admitido",
+          "count": 3
+        },
+        {
+          "court": "STJ",
+          "doc_type": "iac",
+          "situation": "Cancelado",
+          "count": 1
+        },
+        {
+          "court": "STJ",
+          "doc_type": "iac",
+          "situation": "Em Julgamento",
+          "count": 1
+        },
+        {
+          "court": "STJ",
+          "doc_type": "iac",
+          "situation": "Trânsito em Julgado",
+          "count": 15
+        },
+        {
+          "court": "STJ",
+          "doc_type": "puil",
+          "situation": "Acórdão Publicado - RE Pendente",
+          "count": 1
+        },
+        {
+          "court": "STJ",
+          "doc_type": "puil",
+          "situation": "Cancelado",
+          "count": 1
+        },
+        {
+          "court": "STJ",
+          "doc_type": "puil",
+          "situation": "Trânsito em Julgado",
+          "count": 25
+        },
+        {
+          "court": "STJ",
+          "doc_type": "sirdr",
+          "situation": "Finalizada determinação de suspensão",
+          "count": 1
+        },
+        {
+          "court": "STJ",
+          "doc_type": "sirdr",
+          "situation": "Prejudicada",
+          "count": 2
+        },
+        {
+          "court": "STJ",
+          "doc_type": "sirdr",
+          "situation": "Suspensão deferida",
+          "count": 1
+        },
+        {
+          "court": "STJ",
+          "doc_type": "sirdr",
+          "situation": "Suspensão indeferida",
+          "count": 5
+        },
+        {
+          "court": "STJ",
+          "doc_type": "sirdr",
+          "situation": "Vinculada a tema repetitivo",
+          "count": 2
+        },
+        {
+          "court": "STJ",
+          "doc_type": "tema_repetitivo",
+          "situation": "Acórdão Publicado",
+          "count": 58
+        },
+        {
+          "court": "STJ",
+          "doc_type": "tema_repetitivo",
+          "situation": "Acórdão Publicado - RE Pendente",
+          "count": 33
+        },
+        {
+          "court": "STJ",
+          "doc_type": "tema_repetitivo",
+          "situation": "Afetado",
+          "count": 132
+        },
+        {
+          "court": "STJ",
+          "doc_type": "tema_repetitivo",
+          "situation": "Afetado - Possível Revisão de Tese",
+          "count": 4
+        },
+        {
+          "court": "STJ",
+          "doc_type": "tema_repetitivo",
+          "situation": "Cancelado",
+          "count": 192
+        },
+        {
+          "court": "STJ",
+          "doc_type": "tema_repetitivo",
+          "situation": "Em Julgamento",
+          "count": 19
+        },
+        {
+          "court": "STJ",
+          "doc_type": "tema_repetitivo",
+          "situation": "Mérito Julgado",
+          "count": 2
+        },
+        {
+          "court": "STJ",
+          "doc_type": "tema_repetitivo",
+          "situation": "Revisado",
+          "count": 15
+        },
+        {
+          "court": "STJ",
+          "doc_type": "tema_repetitivo",
+          "situation": "Sem Processo Vinculado",
+          "count": 3
+        },
+        {
+          "court": "STJ",
+          "doc_type": "tema_repetitivo",
+          "situation": "Sobrestado",
+          "count": 12
+        },
+        {
+          "court": "STJ",
+          "doc_type": "tema_repetitivo",
+          "situation": "Trânsito em Julgado",
+          "count": 992
+        }
+      ]
+    },
+    {
+      "extractor_id": "stj_sumulas",
+      "output_slug": "stj_sumulas",
+      "official_url": "https://processo.stj.jus.br/SCON/pesquisar.jsp?livre=%40docn&b=SUMU&p=true&numDocsPagina=50&i={i}",
+      "historical_minimum_total": 676,
+      "historical_counts": [
+        {
+          "court": "STJ",
+          "doc_type": "sumula",
+          "situation": "cancelada",
+          "count": 29
+        },
+        {
+          "court": "STJ",
+          "doc_type": "sumula",
+          "situation": "em_vigor",
+          "count": 647
+        }
+      ]
+    },
+    {
+      "extractor_id": "stf_teses_rg",
+      "output_slug": "stf_teses",
+      "official_url": "https://portal.stf.jus.br/repercussaogeral/retornartesesrepercussaogeral.asp",
+      "historical_minimum_total": 1284,
+      "historical_counts": [
+        {
+          "court": "STF",
+          "doc_type": "tese_repercussao_geral",
+          "situation": null,
+          "count": 1284
+        }
+      ]
+    },
+    {
+      "extractor_id": "stf_sumulas_vinculantes",
+      "output_slug": "stf_sumulas_vinculantes",
+      "official_url": "https://portal.stf.jus.br/jurisprudencia/sumariosumulas.asp?base=26",
+      "historical_minimum_total": 63,
+      "historical_counts": [
+        {
+          "court": "STF",
+          "doc_type": "sumula_vinculante",
+          "situation": "em_vigor",
+          "count": 63
+        }
+      ]
+    },
+    {
+      "extractor_id": "tjpe_sumulas",
+      "output_slug": "tjpe_sumulas",
+      "official_url": "https://portal.tjpe.jus.br/servicos/consulta/sumulas",
+      "historical_minimum_total": 172,
+      "historical_counts": [
+        {
+          "court": "TJPE",
+          "doc_type": "sumula_tj",
+          "situation": "em_vigor",
+          "count": 170
+        },
+        {
+          "court": "TJPE",
+          "doc_type": "sumula_tj",
+          "situation": "revogada",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "extractor_id": "tjmg_sumulas",
+      "output_slug": "tjmg_sumulas",
+      "official_url": "https://www.tjmg.jus.br/portal-tjmg/jurisprudencia/consulta-de-jurisprudencia/lista-de-sumulas.htm",
+      "historical_minimum_total": 89,
+      "historical_counts": [
+        {
+          "court": "TJMG",
+          "doc_type": "sumula_tj",
+          "situation": "alterada",
+          "count": 1
+        },
+        {
+          "court": "TJMG",
+          "doc_type": "sumula_tj",
+          "situation": "cancelada",
+          "count": 10
+        },
+        {
+          "court": "TJMG",
+          "doc_type": "sumula_tj",
+          "situation": "em_vigor",
+          "count": 78
+        }
+      ]
+    }
+  ]
+}
