@@ -14,7 +14,7 @@ Destina-se a desenvolvedores de legaltech, pesquisadores e equipes que precisam
 transformar legislação e jurisprudência brasileiras em dados estruturados. O uso básico funciona sem
 banco de dados, Docker ou chave de OpenAI.
 
-**Estado do projeto:** núcleo legislativo integrado pelo [PR #1](https://github.com/nogran/leis-brasileiras/pull/1); biblioteca e CLI também incluem jurisprudência.
+**Estado do projeto:** núcleo legislativo integrado pelo [PR #1](https://github.com/nogran/leis-brasileiras/pull/1) e jurisprudência oficial integrada pelo [PR #2](https://github.com/nogran/leis-brasileiras/pull/2); biblioteca e CLI incluem ambos.
 Não há pacote ou corpus publicado em releases, API hospedada ou servidor MCP nesta
 entrega. O licenciamento está pendente; consulte os [termos atuais](docs/licensing.md).
 

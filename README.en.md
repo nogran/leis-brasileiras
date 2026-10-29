@@ -13,7 +13,7 @@ provision identifiers, official sources and a versioned corpus.
 It is intended for legaltech developers, researchers and teams that need Brazilian
 legislation and case law as structured data. Basic usage requires no database, Docker or OpenAI key.
 
-**Project status:** legislative core merged in [PR #1](https://github.com/nogran/leis-brasileiras/pull/1); the library and CLI also include jurisprudence.
+**Project status:** legislative core merged in [PR #1](https://github.com/nogran/leis-brasileiras/pull/1) and official jurisprudence merged in [PR #2](https://github.com/nogran/leis-brasileiras/pull/2); the library and CLI include both.
 No package or corpus release, hosted API or MCP server is available in this delivery.
 Licensing is pending; see the [current licensing review](docs/licensing.md).
 
