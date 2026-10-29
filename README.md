@@ -14,7 +14,7 @@ Destina-se a desenvolvedores de legaltech, pesquisadores e equipes que precisam
 transformar legislação e jurisprudência brasileiras em dados estruturados. O uso básico funciona sem
 banco de dados, Docker ou chave de OpenAI.
 
-**Estado do projeto:** núcleo legislativo integrado pelo [PR #1](https://github.com/nogran/leis-brasileiras/pull/1); biblioteca e CLI também incluem jurisprudência.
+**Estado do projeto:** núcleo legislativo integrado pelo [PR #1](https://github.com/nogran/leis-brasileiras/pull/1) e jurisprudência oficial integrada pelo [PR #2](https://github.com/nogran/leis-brasileiras/pull/2); biblioteca e CLI incluem ambos.
 Não há pacote ou corpus publicado em releases, API hospedada ou servidor MCP nesta
 entrega. O licenciamento está pendente; consulte os [termos atuais](docs/licensing.md).
 
@@ -294,11 +294,35 @@ acima **não publicam** nada. Não copie diretórios privados de dados para o re
 
 ## Qualidade, atualização e limites
 
-O corpus histórico de compatibilidade contém **6.276 blocos**, incluindo ementas, anexos e signatários,
-com capturas registradas em julho/agosto de 2026. Há **23 grupos multipartes em
-54 partes**, incluindo anexo e signatários. Os 6.276 blocos não correspondem a
-artigos únicos; consulte o
-[inventário reproduzível](docs/source-inventory.json).
+<!-- article-inventory:start -->
+
+Contagens diagnósticas das capturas históricas. **Nenhuma norma tem completude estrutural certificada.**
+
+Artigos contam uma identidade por componente; ocorrências incluem repetições e redações observadas. O censo independente encontra candidatos no HTML, não determina vigência nem prova todas as delimitações.
+
+| Lei | Observação | Candidatos no HTML | Artigos estruturados | Ocorrências | Divergências |
+|---|---|---:|---:|---:|---:|
+| CF88 | 2026-07-07 | 425 | 425 | 514 | 2 |
+| CDC | 2026-07-07 | 130 | 130 | 130 | 2 |
+| CLT | 2026-07-07 | 1019 | 1019 | 1029 | 2 |
+| CC | 2026-07-07 | 2083 | 2083 | 2083 | 2 |
+| CPC | 2026-07-07 | 1073 | 1073 | 1073 | 2 |
+| CP | 2026-07-07 | 422 | 432 | 434 | 3 |
+| LGPD | 2026-07-07 | 79 | 79 | 80 | 2 |
+| ECA | 2026-07-07 | 324 | 324 | 325 | 2 |
+| LI | 2026-07-07 | 91 | 91 | 91 | 2 |
+| LMP | 2026-07-07 | 57 | 57 | 60 | 3 |
+| LC123 | 2026-07-07 | 132 | 132 | 158 | 2 |
+| LT | 2026-07-07 | 22 | 22 | 30 | 2 |
+| CADPOS | 2026-07-07 | 19 | 19 | 25 | 2 |
+| L9099 | 2026-07-13 | — | 99 | 99 | 3 |
+| LEP | 2026-08-18 | 218 | 218 | 219 | 2 |
+
+L9099 não possui HTML histórico nesta referência. Uma captura nova não recompõe essa evidência. Partes de recuperação não são artigos ou redações; o novo corpus não gera partes com overlap.
+
+[Reconciliation / Reconciliação](docs/source-inventory.json)
+
+<!-- article-inventory:end -->
 
 - **Proveniência:** manifestos registram fontes, datas, versões do parser e hashes.
   Capturas novas e a referência histórica são distribuições distintas.

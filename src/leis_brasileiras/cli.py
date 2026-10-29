@@ -49,12 +49,12 @@ def main(argv=None) -> int:
     extract.add_argument("laws",nargs="+",choices=[*SIGLAS,"ALL"])
     extract.add_argument("--output",type=Path,required=True)
     extract.add_argument("--force",action="store_true",help="Explicit fresh capture (all runs are fresh)")
-    extract.add_argument("--format", choices=[CANONICAL_FORMAT, LEGACY_FORMAT], default=LEGACY_FORMAT,
-                         help="Representation; historical default retained for compatibility")
+    extract.add_argument("--format", choices=[CANONICAL_FORMAT], default=CANONICAL_FORMAT,
+                         help="Evidence-bound observation; legacy generation is disabled")
     validate = commands.add_parser("validate",help="Validate article JSONs, including multipart integrity")
     validate.add_argument("path",type=Path)
     validate.add_argument("--strict",action="store_true")
-    validate.add_argument("--format", choices=[CANONICAL_FORMAT, LEGACY_FORMAT], default=LEGACY_FORMAT)
+    validate.add_argument("--format", choices=[CANONICAL_FORMAT, LEGACY_FORMAT], default=CANONICAL_FORMAT)
     integrity = commands.add_parser("integrity")
     integrity.add_argument("path",type=Path)
     verify = commands.add_parser("verify-capture")

@@ -2,10 +2,10 @@
 import hashlib
 import json
 
-CANONICAL_FORMAT = "canonical-v1"
-CAPTURE_VERSION = 2
-CORPUS_VERSION = 2
-CANONICAL_PARSER_VERSION = "legislative-units@1"
+CANONICAL_FORMAT = "observed-law-v1"
+CAPTURE_VERSION = 3
+CORPUS_VERSION = 3
+CANONICAL_PARSER_VERSION = "observed-legislation@1"
 MAX_DOCUMENT_BYTES = 64 * 1024 * 1024
 
 

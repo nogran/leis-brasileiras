@@ -90,8 +90,8 @@ def verify_capture(directory: Path, strict: bool = True) -> dict:
     if law not in SIGLAS or manifest["source_url"] != LEIS_CONFIG[law]["url"]:
         raise ValueError("Unknown law or source mismatch")
     version = manifest.get("format_version")
-    if version not in (1, CAPTURE_VERSION):
-        raise ValueError("Unsupported manifest version")
+    if version != CAPTURE_VERSION:
+        raise ValueError("Historical manifest: replay requires its original parser; new generation is disabled")
     canonical = version == CAPTURE_VERSION
     if canonical and manifest.get("format") != CANONICAL_FORMAT:
         raise ValueError("Unknown capture format")
@@ -131,7 +131,7 @@ def verify_capture(directory: Path, strict: bool = True) -> dict:
         regenerated = extract_html((directory / "source.html").read_bytes(), law,
                                    manifest["captured_at"], format=CANONICAL_FORMAT)
         if (document != regenerated.canonical
-                or regenerated.clean_text != (directory / "clean.txt").read_text(encoding="utf-8")):
+                or regenerated.clean_text != (directory / "clean.txt").read_bytes().decode("utf-8")):
             raise ValueError("Canonical capture does not reproduce from source")
         return manifest
     articles = json.loads((directory/(base+".json")).read_text(encoding="utf-8"))

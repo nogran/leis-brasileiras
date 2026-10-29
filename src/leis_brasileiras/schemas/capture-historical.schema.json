@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:leis-brasileiras:schema:capture:2",
+  "type": "object",
+  "properties": {
+    "format_version": {
+      "const": 2
+    },
+    "format": {
+      "const": "canonical-v1"
+    },
+    "law": {
+      "type": "string"
+    },
+    "captured_at": {
+      "type": "string"
+    },
+    "recorded_at": {
+      "type": "string"
+    },
+    "source_url": {
+      "type": "string"
+    },
+    "extractor_version": {
+      "type": "string"
+    },
+    "parser_version": {
+      "type": "string"
+    },
+    "raw_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "content_hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "temporal_semantics": {
+      "type": "string"
+    },
+    "document_revision": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "files": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "bytes": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "sha256",
+          "bytes"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "format_version",
+    "format",
+    "law",
+    "captured_at",
+    "recorded_at",
+    "source_url",
+    "extractor_version",
+    "parser_version",
+    "raw_sha256",
+    "content_hash",
+    "temporal_semantics",
+    "document_revision",
+    "files"
+  ],
+  "additionalProperties": false
+}

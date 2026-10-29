@@ -13,7 +13,7 @@ provision identifiers, official sources and a versioned corpus.
 It is intended for legaltech developers, researchers and teams that need Brazilian
 legislation and case law as structured data. Basic usage requires no database, Docker or OpenAI key.
 
-**Project status:** legislative core merged in [PR #1](https://github.com/nogran/leis-brasileiras/pull/1); the library and CLI also include jurisprudence.
+**Project status:** legislative core merged in [PR #1](https://github.com/nogran/leis-brasileiras/pull/1) and official jurisprudence merged in [PR #2](https://github.com/nogran/leis-brasileiras/pull/2); the library and CLI include both.
 No package or corpus release, hosted API or MCP server is available in this delivery.
 Licensing is pending; see the [current licensing review](docs/licensing.md).
 
@@ -295,11 +295,35 @@ corpora should be attached to releases only after publication approval; these co
 
 ## Quality, updates and limitations
 
-The historical compatibility reference contains **6,276 blocks**, including preambles, annexes and
-signatures, observed in July/August 2026. It includes **23 multipart groups in 54
-parts**, including an annex and signatures. The 6,276 blocks are not a count of
-unique articles; see the
-[reproducible inventory](docs/source-inventory.json).
+<!-- article-inventory:start -->
+
+Diagnostic counts from historical captures. **No law has certified structural completeness.**
+
+Articles count one identity per component; occurrences include repeats and observed wording. The independent HTML census finds candidates; it does not establish validity or prove every boundary.
+
+| Law | Observation | HTML candidates | Structured articles | Occurrences | Discrepancies |
+|---|---|---:|---:|---:|---:|
+| CF88 | 2026-07-07 | 425 | 425 | 514 | 2 |
+| CDC | 2026-07-07 | 130 | 130 | 130 | 2 |
+| CLT | 2026-07-07 | 1019 | 1019 | 1029 | 2 |
+| CC | 2026-07-07 | 2083 | 2083 | 2083 | 2 |
+| CPC | 2026-07-07 | 1073 | 1073 | 1073 | 2 |
+| CP | 2026-07-07 | 422 | 432 | 434 | 3 |
+| LGPD | 2026-07-07 | 79 | 79 | 80 | 2 |
+| ECA | 2026-07-07 | 324 | 324 | 325 | 2 |
+| LI | 2026-07-07 | 91 | 91 | 91 | 2 |
+| LMP | 2026-07-07 | 57 | 57 | 60 | 3 |
+| LC123 | 2026-07-07 | 132 | 132 | 158 | 2 |
+| LT | 2026-07-07 | 22 | 22 | 30 | 2 |
+| CADPOS | 2026-07-07 | 19 | 19 | 25 | 2 |
+| L9099 | 2026-07-13 | — | 99 | 99 | 3 |
+| LEP | 2026-08-18 | 218 | 218 | 219 | 2 |
+
+L9099 has no historical HTML in this reference. A new capture cannot recreate that evidence. Retrieval parts are not articles or readings; the new corpus does not generate overlapping parts.
+
+[Reconciliation / Reconciliação](docs/source-inventory.json)
+
+<!-- article-inventory:end -->
 
 - **Provenance:** manifests record sources, dates, parser versions and hashes.
   Fresh captures and historical references are separate distributions.

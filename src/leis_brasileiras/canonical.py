@@ -1,129 +1,108 @@
-"""Legislative units from the shared parser, before legacy segmentation and overrides."""
-from copy import deepcopy
-from datetime import date, datetime
+"""Observed legislation from intact evidence; no legal consolidation or editorial repair."""
+from collections import OrderedDict
 import re
-import unicodedata
 
 from .catalog import by_sigla
-from .curation import load_curation
-from .extraction import LEIS_CONFIG, parse_law
-from .models import CANONICAL_FORMAT, CANONICAL_PARSER_VERSION, digest, text_digest
-from .transport import MAX_HTML_BYTES
+from .evidence import OBSERVATION_CONTRACT, observation, seal, text_digest
+from .models import CANONICAL_FORMAT, CANONICAL_PARSER_VERSION
+from .reconciliation import reconcile, source_article_census
+from .source_map import html_map, text_map
+
+ARTICLE = re.compile(r"^Art\s*\.?(?:\s*\.)?\s*(\d+(?:\.\d{3})*)(?:\s*[-–]\s*([A-Z]+)|([A-Z]+))?(?=[.\sº°o-]|$)")
+HEADING = re.compile(r"^(?:LIVRO|TÍTULO|TITULO|SUBTÍTULO|CAPÍTULO|CAPITULO|SEÇÃO|SECAO|SUBSEÇÃO)\b")
+ANNEX = re.compile(r"^ANEXO(?:\s+([IVXLCDM]+|\d+))?(?:\s|$)")
+ADCT = "ATO DAS DISPOSIÇÕES CONSTITUCIONAIS TRANSITÓRIAS"
 
 
-def slug(label: str) -> str:
-    folded = unicodedata.normalize("NFKD", label).encode("ascii", "ignore").decode().lower()
-    return re.sub(r"[^a-z0-9]+", "-", folded).strip("-")
+def extract_document(source: bytes | str, law: str, observed_at: str, *,
+                     precision: str = "timestamp", raw_sha256=None,
+                     prior_redactions=None) -> dict:
+    """Bytes are captured HTML; strings are incomplete historical derivations.
 
-
-def unit_kind(label: str) -> str:
-    if re.match(r"^Art\.\s*\d", label):
-        return "article"
-    if label.startswith("ANEXO"):
-        return "annex"
-    if label.startswith("SIGNAT"):
-        return "signatories"
-    if label == "EMENTA":
-        return "preamble_or_summary"
-    return "other"
-
-
-def observation_date(value: str, precision: str) -> str:
-    if precision == "date":
-        return date.fromisoformat(value).isoformat()
-    if precision != "timestamp":
-        raise ValueError("Unknown observation precision")
-    timestamp = datetime.fromisoformat(value.replace("Z", "+00:00"))
-    if timestamp.tzinfo is None:
-        raise ValueError("Observation timestamp requires timezone")
-    return timestamp.date().isoformat()
-
-
-def extract_document(clean_text: str, law: str, observed_at: str, *,
-                     precision: str = "timestamp", raw_sha256: str | None = None,
-                     prior_redactions: list[dict] | None = None) -> dict:
-    """Extract article-level structure without guessing legal validity or merging overlaps.
-
-    Duplicate occurrences stay in readings with quality=ambiguous. Consumers must not
-    choose a reading by length or assume the last occurrence is legally applicable.
-    This function does not fetch links, execute text, or persist anything.
+    The source-order transcript is NOT a consolidated reading. Mixed markings have
+    no single text; callers retrieve fragments or occurrences explicitly.
+    A detached hash cannot promote derived text into primary evidence.
     """
     entry = by_sigla(law)
     if entry is None:
         raise ValueError("Unknown law")
-    if not isinstance(clean_text, str) or not clean_text or len(clean_text.encode("utf-8")) > MAX_HTML_BYTES:
-        raise ValueError("Invalid or excessive clean text")
-    day = observation_date(observed_at, precision)
-    cfg = LEIS_CONFIG[law]
-    occurrences = []
-    legacy, _ = parse_law(clean_text, law, cfg["versao"], cfg["url"], day, cfg,
-                          units_out=occurrences)
-    law_id = entry["public_id"]
-    aliases = {}
-    for record in legacy:
-        base = re.sub(r" \(Parte \d+/\d+\)$", "", record["artigo"])
-        aliases.setdefault(base, []).append({"id": record["id"], "label": record["artigo"]})
-    units = {}
-    components = {}
-    for occurrence in occurrences:
-        label = occurrence["label"]
-        kind = unit_kind(label)
-        component = occurrence["component"]
-        if kind == "annex":
-            component = slug(label)
-        component_id = f"{law_id}!{component}"
-        components.setdefault(component_id, {"id": component_id, "label": component,
-                                              "parent_id": law_id})
-        locator = re.sub(r"\s*\(ADCT\)$", "", label)
-        if kind == "article":
-            locator = locator.replace(".", "")  # Art. 1.337 and Art. 1337 share identity.
-        unit_id = f"{component_id}/{slug(locator)}"
-        unit = units.setdefault(unit_id, {
-            "id": unit_id, "parent_id": component_id, "kind": kind,
-            "label": label, "order": len(units) + 1, "quality": "observed",
-            "text": None, "text_sha256": None, "readings": [], "legacy_aliases": [],
-            "legal_validity": {"status": "unknown", "valid_from": None,
-                               "valid_to": None, "evidence": []},
-        })
-        reading = {key: deepcopy(occurrence[key]) for key in (
-            "text", "source_text", "hierarchy", "rubric", "observed_status", "metadata")}
-        reading["text_sha256"] = text_digest(reading["text"])
-        unit["readings"].append(reading)
-        if len(unit["readings"]) == 1:
-            unit["text"] = reading["text"]
-            unit["text_sha256"] = reading["text_sha256"]
-        else:
-            unit["quality"] = "ambiguous"
-            unit["text"] = unit["text_sha256"] = None
-        # Aliases describe correspondence, not proof of equal text/metadata.
-        unit["legacy_aliases"] = deepcopy(aliases.get(label, []))
+    if raw_sha256 is not None or prior_redactions is not None:
+        raise ValueError("Supply captured bytes, not detached hashes or redactions")
+    observed = observation(observed_at, precision)
+    mapping = html_map(source, entry.get("parse", {}).get("encoding")) if isinstance(source, bytes) else text_map(source)
+    blocks = OrderedDict()
+    for item in mapping["texts"]:
+        if item["kind"] == "content":
+            key = item["block"] or item["path"]
+            blocks.setdefault(key, []).append(item)
+    units, components = OrderedDict(), OrderedDict()
+    component = "main"
+    current = None
+    reading = None
+    hierarchy = []
+
+    def start(kind, label, locator, path):
+        nonlocal current, reading
+        component_id = f"{entry['public_id']}!{component}"
+        components.setdefault(component_id, {"id": component_id, "label": component, "parent_id": entry["public_id"]})
+        identity = f"{component_id}/{locator}"
+        current = units.setdefault(identity, {"id": identity, "parent_id": component_id,
+            "locator": f"{component}/{locator.removeprefix('art-')}", "kind": kind,
+            "label": label, "order": len(units) + 1, "readings": [],
+            "legal_validity": "unknown", "text": None, "text_sha256": None})
+        reading = {"id": f"{identity}/occurrence-{len(current['readings']) + 1}",
+                   "source_order": path, "evidence_ids": [], "source_text": "", "text": None,
+                   "text_sha256": None, "hierarchy": list(hierarchy), "source_statements": [],
+                   "dates": [], "mixed_markings": False}
+        current["readings"].append(reading)
+
+    for path, items in blocks.items():
+        literal = "".join(item["text"] for item in items)
+        normalized = re.sub(r"\s+", " ", literal).strip()
+        match = ARTICLE.match(normalized)
+        if normalized == ADCT:
+            component, hierarchy = "adct", []
+            start("heading", normalized, "heading-" + text_digest(path)[:16], path)
+        elif ANNEX.match(normalized):
+            component = "annex-" + text_digest(path)[:16]
+            hierarchy = []
+            start("annex", normalized, "heading", path)
+        elif match:
+            suffix = match[2] or match[3]
+            number = match[1].replace(".", "") + ("-" + suffix if suffix else "")
+            start("article", match[0].rstrip(), "art-" + number, path)
+        elif HEADING.match(normalized):
+            hierarchy = [{"text": literal, "evidence_ids": [item["id"] for item in items]}]
+            start("heading", normalized, "heading-" + text_digest(path)[:16], path)
+        elif current is None:
+            start("unclassified", "", "unclassified-" + text_digest(path)[:16], path)
+        for item in items:
+            reading["evidence_ids"].append(item["id"])
+            reading["source_text"] += item["text"]
+            # Mentions are literal observations, not conclusions about the container.
+            for marker in re.finditer(r"\b(?:revogad[oa]s?|vetad[oa]s?|suprimid[oa]s?|cancelad[oa]s?)\b", item["text"], re.I):
+                reading["source_statements"].append({"literal": marker[0], "evidence_id": item["id"],
+                    "start": marker.start(), "end": marker.end(), "target": None})
+    by_id = {item["id"]: item for item in mapping["texts"]}
     if not any(unit["kind"] == "article" for unit in units.values()):
-        raise ValueError("No legislative article identified")
-    curation_revision, annotations = load_curation(law)
-    document = {
-        "format": CANONICAL_FORMAT,
-        "law": {"id": law_id, "aliases": [law], "name": entry["nome"],
-                "designation": entry["numero"], "jurisdiction": "BR-federal",
-                "authority": None, "issued_on": None, "external_identifiers": []},
-        "provenance": {"source_url": cfg["url"], "observed_at": observed_at,
-                       "observation_precision": precision, "raw_sha256": raw_sha256,
-                       "clean_sha256": text_digest(clean_text),
-                       "basis": "source-html" if raw_sha256 else "historical-clean-text",
-                       "parser_version": CANONICAL_PARSER_VERSION,
-                       "curation_revision": curation_revision},
-        "structure_depth": "article", "components": list(components.values()),
-        "units": list(units.values()), "editorial_annotations": annotations,
-        "prior_redactions": deepcopy(prior_redactions or []),
-        "limitations": ["Observation is not a determination of legal validity",
-                        "Paragraphs and clauses are preserved as text, not addressable nodes",
-                        "Hierarchy and source metadata may be incomplete",
-                        "Editorial assertions require independent evidence review",
-                        "Repeated labels retain all readings; no automatic resolution"],
-    }
-    # Content revision excludes capture time, so repeated observation is not a new text.
-    document["content_revision"] = digest({"law": document["law"],
-                                            "components": document["components"],
-                                            "units": document["units"],
-                                            "prior_redactions": document["prior_redactions"]})
-    document["revision"] = digest(document)
-    return document
+        raise ValueError("No legislative articles identified; retain raw source for diagnosis")
+    for unit in units.values():
+        for occurrence in unit["readings"]:
+            marks = {bool(by_id[key]["struck_by"]) for key in occurrence["evidence_ids"] if by_id[key]["text"].strip()}
+            occurrence["mixed_markings"] = len(marks) > 1
+            occurrence["text_sha256"] = text_digest(occurrence["source_text"])
+            if not occurrence["mixed_markings"]:
+                occurrence["text"] = occurrence["source_text"]
+        unit["quality"] = "ambiguous" if len(unit["readings"]) > 1 or any(r["mixed_markings"] for r in unit["readings"]) else "observed"
+        if unit["quality"] == "observed":
+            unit["text"] = unit["readings"][0]["text"]
+            unit["text_sha256"] = text_digest(unit["text"])
+    census = source_article_census(source, mapping["encoding"]) if isinstance(source, bytes) else None
+    result = {"format": CANONICAL_FORMAT, "observation_contract": OBSERVATION_CONTRACT,
+        "law": {"id": entry["public_id"], "aliases": [law]},
+        "provenance": {"source_url": entry["url"], "observation": observed,
+            "basis": "source-html" if isinstance(source, bytes) else "historical-clean-text",
+            "raw_sha256": mapping["raw_sha256"], "parser_version": CANONICAL_PARSER_VERSION},
+        "components": list(components.values()), "units": list(units.values()), "evidence": mapping,
+        "reconciliation": reconcile(mapping, list(units.values()), census)}
+    return seal(result)

@@ -27,7 +27,7 @@ class Capture:
     canonical: dict | None = None
 
 
-def extract_html(raw_html: bytes, law: str, captured_at: str, *, format: str = LEGACY_FORMAT) -> Capture:
+def extract_html(raw_html: bytes, law: str, captured_at: str, *, format: str = CANONICAL_FORMAT) -> Capture:
     """Parse a trusted catalog identity and untrusted HTML bytes without executing content.
 
     captured_at must include a timezone; observation is not legal validity. Application
@@ -35,8 +35,8 @@ def extract_html(raw_html: bytes, law: str, captured_at: str, *, format: str = L
     """
     if law not in LEIS_CONFIG:
         raise ValueError("Unknown law code")
-    if format not in (LEGACY_FORMAT, CANONICAL_FORMAT):
-        raise ValueError("Unknown capture format")
+    if format != CANONICAL_FORMAT:
+        raise ValueError("Legacy generation disabled: use observed-law-v1; historical files remain evidence")
     if not isinstance(raw_html, bytes) or not raw_html or len(raw_html) > MAX_HTML_BYTES:
         raise ValueError("Invalid HTML bytes or size")
     timestamp = datetime.fromisoformat(captured_at.replace("Z", "+00:00"))
@@ -44,11 +44,10 @@ def extract_html(raw_html: bytes, law: str, captured_at: str, *, format: str = L
         raise ValueError("Capture timestamp requires a timezone")
     date = timestamp.date().isoformat()
     cfg = LEIS_CONFIG[law]
-    clean = html_to_clean_text(raw_html, law, cfg)
+    clean = ""
     if format == CANONICAL_FORMAT:
-        prior = harvest_redacoes_riscadas(raw_html, law, cfg)
-        document = extract_document(clean, law, captured_at, raw_sha256=sha256(raw_html),
-                                    prior_redactions=prior)
+        document = extract_document(raw_html, law, captured_at)
+        clean = "".join(item["text"] for item in document["evidence"]["texts"] if item["kind"] == "content")
         return Capture(law, captured_at, cfg["url"], raw_html, clean, [], {}, document)
     articles, stats = parse_law(clean, law, cfg["versao"], cfg["url"], date, cfg)
     prior = harvest_redacoes_riscadas(raw_html, law, cfg)
@@ -72,6 +71,11 @@ def json_bytes(value) -> bytes:
 
 def write_capture(capture: Capture, root: Path) -> Path:
     """Write a new immutable capture directory. Existing captures are never overwritten."""
+    if capture.canonical is None:
+        raise ValueError("Legacy export disabled")
+    from .canonical_validation import validate_document
+    if not validate_document(capture.canonical)["ok"]:
+        raise ValueError("Invalid observed document")
     root = Path(root)
     root.mkdir(parents=True, exist_ok=True)
     stamp = datetime.fromisoformat(capture.captured_at.replace("Z", "+00:00")).strftime("%Y%m%dT%H%M%S%f%z")

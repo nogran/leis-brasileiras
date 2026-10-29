@@ -37,9 +37,7 @@ def split_com_overlap(texto: str, max_chars: int = 6000, overlap_chars: int = 40
 
 def parse_legacy(clean_text, law, version, source_url, observed_date, config):
     """Compatibility facade over the shared parser, preserving the historical payload."""
-    from .extraction import parse_law
-
-    return parse_law(clean_text, law, version, source_url, observed_date, config)
+    raise ValueError("Legacy generation disabled; inspect historical artifacts without regenerating them")
 
 
 def measure_records(records: list[dict]) -> dict:

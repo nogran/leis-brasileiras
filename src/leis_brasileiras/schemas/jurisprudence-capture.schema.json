@@ -1,5 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:leis-brasileiras:schema:jurisprudence-capture:observed-1",
   "type": "object",
   "required": [
     "format",
@@ -12,7 +13,7 @@
   "additionalProperties": false,
   "properties": {
     "format": {
-      "const": "jurisprudence-capture-v1"
+      "const": "jurisprudence-capture-v2"
     },
     "source": {
       "enum": [

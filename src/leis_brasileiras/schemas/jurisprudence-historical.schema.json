@@ -1,0 +1,155 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "format",
+    "parser_version",
+    "source",
+    "observed_at",
+    "observation_precision",
+    "coverage",
+    "records"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "format": {
+      "const": "jurisprudence-v1"
+    },
+    "parser_version": {
+      "const": "jurisprudence@1"
+    },
+    "source": {
+      "enum": [
+        "stj_temas",
+        "stj_sumulas",
+        "stf_teses_rg",
+        "stf_sumulas_vinculantes",
+        "tjpe_sumulas",
+        "tjmg_sumulas"
+      ]
+    },
+    "observed_at": {
+      "type": "string",
+      "maxLength": 200000
+    },
+    "observation_precision": {
+      "enum": [
+        "day",
+        "instant"
+      ]
+    },
+    "coverage": {
+      "enum": [
+        "source_snapshot",
+        "sample"
+      ]
+    },
+    "records": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 20000,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "court",
+          "type",
+          "number",
+          "text",
+          "has_thesis",
+          "source_url",
+          "observed_at",
+          "observation_precision",
+          "situation",
+          "situation_basis",
+          "legal_validity",
+          "content_sha256",
+          "source_record"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 200000
+          },
+          "court": {
+            "enum": [
+              "STJ",
+              "STF",
+              "TJPE",
+              "TJMG"
+            ]
+          },
+          "type": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 200000
+          },
+          "number": {
+            "type": "string",
+            "pattern": "^[0-9]{1,6}$"
+          },
+          "text": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 200000
+          },
+          "has_thesis": {
+            "type": "boolean"
+          },
+          "source_url": {
+            "type": "string",
+            "maxLength": 200000
+          },
+          "observed_at": {
+            "type": "string",
+            "maxLength": 200000
+          },
+          "observation_precision": {
+            "enum": [
+              "day",
+              "instant"
+            ]
+          },
+          "situation": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 200000
+          },
+          "situation_basis": {
+            "enum": [
+              "unknown",
+              "parser_classification",
+              "dated_source_observation"
+            ]
+          },
+          "legal_validity": {
+            "const": "unknown"
+          },
+          "content_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "source_record": {
+            "type": "object",
+            "required": [
+              "source",
+              "tipo",
+              "numero",
+              "has_thesis",
+              "url_fonte",
+              "hash",
+              "extracted_at"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

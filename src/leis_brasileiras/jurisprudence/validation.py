@@ -39,6 +39,10 @@ def load_json(path: Path) -> object:
 
 
 def validate_document(value: dict) -> dict:
+    from .observed import FORMAT as OBSERVED_FORMAT, validate_observed
+
+    if isinstance(value, dict) and value.get("format") == OBSERVED_FORMAT:
+        return validate_observed(value)
     if not isinstance(value, dict) or set(value) != {
         "format", "parser_version", "source", "observed_at", "observation_precision", "coverage", "records"
     }:
