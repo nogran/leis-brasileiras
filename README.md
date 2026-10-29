@@ -14,7 +14,7 @@ Destina-se a desenvolvedores de legaltech, pesquisadores e equipes que precisam
 transformar legislação e jurisprudência brasileiras em dados estruturados. O uso básico funciona sem
 banco de dados, Docker ou chave de OpenAI.
 
-**Estado do projeto:** núcleo legislativo integrado pelo [PR #1](https://github.com/nogran/leis-brasileiras/pull/1) e jurisprudência oficial integrada pelo [PR #2](https://github.com/nogran/leis-brasileiras/pull/2); biblioteca e CLI incluem ambos.
+**Estado do projeto:** núcleo legislativo e jurisprudência oficial integrados; biblioteca e CLI incluem ambos.
 Não há pacote ou corpus publicado em releases, API hospedada ou servidor MCP nesta
 entrega. O licenciamento está pendente; consulte os [termos atuais](docs/licensing.md).
 
@@ -167,8 +167,7 @@ git clone --branch main https://github.com/nogran/leis-brasileiras.git
 cd leis-brasileiras
 ```
 
-Se você já tem o repositório no computador, entre na pasta existente e use uma
-versão que inclua a integração de jurisprudência do [PR #2](https://github.com/nogran/leis-brasileiras/pull/2).
+Se você já tem o repositório no computador, entre na pasta existente e atualize a branch `main` (`git pull`).
 
 ### 2. Criar o ambiente e instalar
 
