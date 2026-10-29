@@ -13,7 +13,7 @@ provision identifiers, official sources and a versioned corpus.
 It is intended for legaltech developers, researchers and teams that need Brazilian
 legislation and case law as structured data. Basic usage requires no database, Docker or OpenAI key.
 
-**Project status:** legislative core merged in [PR #1](https://github.com/nogran/leis-brasileiras/pull/1) and official jurisprudence merged in [PR #2](https://github.com/nogran/leis-brasileiras/pull/2); the library and CLI include both.
+**Project status:** legislative core and official jurisprudence integrated; the library and CLI include both.
 No package or corpus release, hosted API or MCP server is available in this delivery.
 Licensing is pending; see the [current licensing review](docs/licensing.md).
 
@@ -115,21 +115,23 @@ The MCP server remains planned.
 
 ## Public formats
 
-`canonical-v1` represents whole legislative units without size-based splitting or
-overlap. It records public identity, order, observed hierarchy, source readings,
-provenance and separate editorial annotations. Ambiguous identities retain all
-readings without selecting a legally effective text. Current granularity is at the
-article level; paragraphs and items do not yet have their own identities. See the
-[architecture](docs/architecture.md).
+`observed-law-v1` is the library and CLI default. It reads preserved HTML and
+identifies articles by law and component, including ADCT. Occurrences, markings,
+official notes, tables and evidence references remain available. Ambiguous wording
+is never silently selected; struck fragments remain retrievable.
 
-`legacy-blocks-v1` preserves the historical contract, including parts and overlap.
-It remains the API/CLI default for compatibility; new examples below explicitly
-select `canonical-v1`. RAG strategies belong to consumers.
+`observed-jurisprudence-v1` retains original records, unknown fields, records without
+holdings and repeated occurrences from all six sources. Both formats share
+`source-observation-v1`, defining provenance, date precision and hash semantics.
+Legal validity stays unknown; literal source mentions are not legal conclusions.
 
-`jurisprudence-v1` represents jurisprudence records with public identity, text, source,
-observation date, hashes and unknown legal validity. Captures and bundles use
-`jurisprudence-capture-v1` and `jurisprudence-corpus-v1`. See the
-[jurisprudence guide](docs/jurisprudence.md).
+Public capture generation of `legacy-blocks-v1`, `canonical-v1` and
+`jurisprudence-v1` is disabled. Historical files remain evidence. New exports contain
+no synthetic tombstones or editorial legal annotations. This is a breaking change;
+consumers need an adapter. See [formats](docs/format.md) and [transition](docs/transition.md).
+
+Documents and diagnostic archives carry `complete=false`. Successful validation
+establishes consistency and replay, not structural completeness or legal validity.
 
 ## Historical compatibility JSON example
 
@@ -170,8 +172,7 @@ git clone --branch main https://github.com/nogran/leis-brasileiras.git
 cd leis-brasileiras
 ```
 
-If you already have the repository locally, enter the existing directory and use a
-revision that includes the jurisprudence integration from [PR #2](https://github.com/nogran/leis-brasileiras/pull/2).
+If you already have the repository locally, enter the existing directory and update the `main` branch (`git pull`).
 
 ### 2. Create the environment and install
 
@@ -204,19 +205,19 @@ versions; `pyproject.toml` declares compatible ranges.
 Start with the Consumer Protection Code (`CDC`):
 
 ```bash
-leis-brasileiras extract CDC --format canonical-v1 --output corpus/captures
+leis-brasileiras extract CDC --format observed-law-v1 --output corpus/captures
 ```
 
 A successful result includes `law`, `capture` (the newly created directory) and
 `status: "validated"`. The directory contains `canonical.json`, `clean.txt`,
-`source.html` and `manifest.json` with provenance and hashes. Observed struck-out
-readings are stored separately from units inside the canonical document.
+`source.html` and `manifest.json` with provenance and hashes. Struck markings remain on evidence fragments linked to occurrences.
+The manifest exposes `complete=false`.
 These files are stored locally.
 
 To extract every law in the catalog:
 
 ```bash
-leis-brasileiras extract ALL --force --format canonical-v1 --output corpus/captures
+leis-brasileiras extract ALL --force --format observed-law-v1 --output corpus/captures
 ```
 
 ### 4. Check the capture
@@ -226,11 +227,11 @@ specific capture directory, not the parent `corpus/captures` directory:
 
 ```bash
 leis-brasileiras verify-capture "PATH_TO_CAPTURE"
-leis-brasileiras validate "PATH_TO_CAPTURE" --format canonical-v1
+leis-brasileiras validate "PATH_TO_CAPTURE" --format observed-law-v1
 ```
 
 `verify-capture` checks the complete capture, including hashes and reproduction from
-HTML; `validate --format canonical-v1` checks document identities, relationships,
+HTML; `validate --format observed-law-v1` checks document identities, relationships,
 readings and revisions. `integrity` only handles the historical format. Discover options with:
 
 ```bash
@@ -253,12 +254,12 @@ from leis_brasileiras.capture import extract_html
 
 result = extract_html(Path("official-source.html").read_bytes(), "CDC",
                       "2026-07-07T12:00:00-03:00",  # actual observation time
-                      format="canonical-v1")
+                      format="observed-law-v1")
 print(result.canonical["units"][0]["id"])
 ```
 
 `extract_html` performs no network access or persistence. It returns the document in
-`result.canonical`, cleaned text and original HTML. `write_capture` is the filesystem adapter; a database
+`result.canonical`, a source-order transcript and original HTML. `write_capture` is the filesystem adapter; a database
 integration can consume the same result without duplicating the parser. Application
 database IDs are not part of the public corpus.
 
@@ -282,7 +283,7 @@ To try the historical reference **without accessing external sources after
 installation**, use the legislative fixtures included in this repository:
 
 ```bash
-python tools/build_reference.py --format canonical-v1 --version reference-2026-08 --output dist/reference.zip
+python -m tools.build_reference --format observed-law-v1 --version reference-2026-08 --output dist/reference.zip
 ```
 
 The result is `dist/reference.zip`, containing historical reference data rather than a
@@ -303,9 +304,9 @@ Articles count one identity per component; occurrences include repeats and obser
 
 | Law | Observation | HTML candidates | Structured articles | Occurrences | Discrepancies |
 |---|---|---:|---:|---:|---:|
-| CF88 | 2026-07-07 | 425 | 425 | 514 | 2 |
+| CF88 | 2026-07-07 | 424 | 424 | 514 | 2 |
 | CDC | 2026-07-07 | 130 | 130 | 130 | 2 |
-| CLT | 2026-07-07 | 1019 | 1019 | 1029 | 2 |
+| CLT | 2026-07-07 | 1022 | 1022 | 1029 | 2 |
 | CC | 2026-07-07 | 2083 | 2083 | 2083 | 2 |
 | CPC | 2026-07-07 | 1073 | 1073 | 1073 | 2 |
 | CP | 2026-07-07 | 422 | 432 | 434 | 3 |
@@ -314,7 +315,7 @@ Articles count one identity per component; occurrences include repeats and obser
 | LI | 2026-07-07 | 91 | 91 | 91 | 2 |
 | LMP | 2026-07-07 | 57 | 57 | 60 | 3 |
 | LC123 | 2026-07-07 | 132 | 132 | 158 | 2 |
-| LT | 2026-07-07 | 22 | 22 | 30 | 2 |
+| LT | 2026-07-07 | 23 | 23 | 30 | 2 |
 | CADPOS | 2026-07-07 | 19 | 19 | 25 | 2 |
 | L9099 | 2026-07-13 | — | 99 | 99 | 3 |
 | LEP | 2026-08-18 | 218 | 218 | 219 | 2 |
@@ -332,7 +333,7 @@ L9099 has no historical HTML in this reference. A new capture cannot recreate th
   failures recorded in the [validation report](docs/validation.md). Offline tests
   do not establish current access to the sources.
 - **Historical coverage:** 14 instruments have raw HTML fixtures; L9099 has cleaned
-  text and JSON. Struck-out text is stored separately and is not a complete amendment
+  text and JSON. Struck-out fragments retain their evidence links and are not a complete amendment
   or legal-validity history.
 - **Multipart compatibility:** in the historical format, preserve identifiers and account for overlap when assembling
   text; concatenating parts directly repeats passages. See [format and limits](docs/format.md).
@@ -391,13 +392,13 @@ complete. See the [transition roadmap](docs/transition.md).
 ```bash
 python -m pip install -r requirements-dev.lock .
 python -m pytest -q --cov=leis_brasileiras
-python tools/build_inventory.py --check
-python tools/build_reference.py --version test-reference --output dist/test-reference.zip
-python tools/build_reference.py --format canonical-v1 --version test-reference --output dist/test-canonical.zip
+python -m tools.build_inventory --check
+python -m tools.build_reference --version test-reference --output dist/test-reference.zip
+python -m tools.build_reference --format observed-law-v1 --version test-reference --output dist/test-canonical.zip
 python -m build
 ```
 
-The suite compares all 15 law JSONs, checks HTML completeness for the 14 available
+The suite preserves all 15 historical references and reconciles candidates in the 14 available
 sources, and tests numbering, overlap, duplicates and part sizes. Abuse tests cover
 external URLs, exfiltration attempts, active content, malicious instructions treated
 as text, malformed input, volume and capture isolation. Tests make no paid calls and

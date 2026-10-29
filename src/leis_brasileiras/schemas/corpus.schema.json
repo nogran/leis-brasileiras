@@ -60,6 +60,9 @@
         ],
         "additionalProperties": false
       }
+    },
+    "complete": {
+      "type": "boolean"
     }
   },
   "required": [
@@ -72,7 +75,8 @@
     "selection",
     "coverage",
     "license_status",
-    "files"
+    "files",
+    "complete"
   ],
   "additionalProperties": false
 }

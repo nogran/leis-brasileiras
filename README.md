@@ -14,7 +14,7 @@ Destina-se a desenvolvedores de legaltech, pesquisadores e equipes que precisam
 transformar legislação e jurisprudência brasileiras em dados estruturados. O uso básico funciona sem
 banco de dados, Docker ou chave de OpenAI.
 
-**Estado do projeto:** núcleo legislativo integrado pelo [PR #1](https://github.com/nogran/leis-brasileiras/pull/1) e jurisprudência oficial integrada pelo [PR #2](https://github.com/nogran/leis-brasileiras/pull/2); biblioteca e CLI incluem ambos.
+**Estado do projeto:** núcleo legislativo e jurisprudência oficial integrados; biblioteca e CLI incluem ambos.
 Não há pacote ou corpus publicado em releases, API hospedada ou servidor MCP nesta
 entrega. O licenciamento está pendente; consulte os [termos atuais](docs/licensing.md).
 
@@ -113,20 +113,24 @@ O servidor MCP continua planejado.
 
 ## Formatos públicos
 
-`canonical-v1` representa unidades legislativas inteiras, sem divisão por tamanho ou
-overlap. Mantém identidade pública, ordem, hierarquia observada, leituras da fonte,
-proveniência e anotações editoriais separadas. Identidades ambíguas conservam todas as
-leituras, sem eleger um texto vigente. A granularidade atual é de artigo; incisos e
-parágrafos ainda não têm identidade própria. Veja a [arquitetura](docs/architecture.md).
+`observed-law-v1` é o padrão da biblioteca e da CLI. Parte do HTML preservado,
+identifica artigos por lei e componente (inclusive ADCT), conserva ocorrências,
+marcações, notas oficiais, tabelas e referências à evidência. Redações ambíguas não
+recebem uma escolha automática. Fragmentos riscados continuam recuperáveis.
 
-`legacy-blocks-v1` preserva o contrato histórico, incluindo partes e overlap. Continua
-sendo o padrão da API/CLI para compatibilidade; os exemplos novos abaixo selecionam
-explicitamente `canonical-v1`. Estratégias de RAG pertencem aos consumidores.
+`observed-jurisprudence-v1` preserva registros originais, campos desconhecidos,
+registros sem tese e ocorrências repetidas das seis fontes. Ambos compartilham
+`source-observation-v1`, com proveniência, precisão de datas e hashes definidos.
+Vigência permanece desconhecida; menções da fonte não são conclusões jurídicas.
 
-`jurisprudence-v1` representa registros de jurisprudência com identidade pública,
-texto, fonte, data de observação, hashes e vigência jurídica desconhecida. Capturas
-e pacotes usam `jurisprudence-capture-v1` e `jurisprudence-corpus-v1`. Veja o
-[guia de jurisprudência](docs/jurisprudence.md).
+A geração de `legacy-blocks-v1`, `canonical-v1` e `jurisprudence-v1` foi desativada
+nas capturas públicas. Arquivos antigos permanecem como evidência histórica.
+Não há exportação de lápides ou anotações editoriais. A mudança é incompatível e
+requer adaptação dos consumidores. Veja [formatos](docs/format.md) e
+[transição](docs/transition.md).
+
+`complete=false` acompanha os documentos e os pacotes diagnósticos. Passar na
+validação comprova consistência e reprodução, não completude estrutural nem vigência.
 
 ## Exemplo do JSON histórico de compatibilidade
 
@@ -167,8 +171,7 @@ git clone --branch main https://github.com/nogran/leis-brasileiras.git
 cd leis-brasileiras
 ```
 
-Se você já tem o repositório no computador, entre na pasta existente e use uma
-versão que inclua a integração de jurisprudência do [PR #2](https://github.com/nogran/leis-brasileiras/pull/2).
+Se você já tem o repositório no computador, entre na pasta existente e atualize a branch `main` (`git pull`).
 
 ### 2. Criar o ambiente e instalar
 
@@ -203,18 +206,18 @@ dono: disponibilidade do código não deve ser interpretada como licença conced
 Comece pelo Código de Defesa do Consumidor (`CDC`):
 
 ```bash
-leis-brasileiras extract CDC --format canonical-v1 --output corpus/captures
+leis-brasileiras extract CDC --format observed-law-v1 --output corpus/captures
 ```
 
 Em caso de sucesso, a saída inclui `law`, `capture` (o caminho da pasta criada) e
 `status: "validated"`. Essa pasta contém `canonical.json`, `clean.txt`, `source.html`
-e `manifest.json`. Redações riscadas observadas ficam no documento canônico, separadas
-das unidades. O manifesto registra proveniência e hashes. Os arquivos ficam no seu computador.
+e `manifest.json`. Marcações riscadas ficam nos fragmentos de evidência referenciados
+pelas ocorrências. O manifesto registra proveniência, hashes e `complete=false`.
 
 Para extrair todas as leis do catálogo:
 
 ```bash
-leis-brasileiras extract ALL --force --format canonical-v1 --output corpus/captures
+leis-brasileiras extract ALL --force --format observed-law-v1 --output corpus/captures
 ```
 
 ### 4. Conferir a captura
@@ -224,11 +227,11 @@ daquela captura, e não a pasta geral `corpus/captures`:
 
 ```bash
 leis-brasileiras verify-capture "CAMINHO_DA_CAPTURA"
-leis-brasileiras validate "CAMINHO_DA_CAPTURA" --format canonical-v1
+leis-brasileiras validate "CAMINHO_DA_CAPTURA" --format observed-law-v1
 ```
 
 `verify-capture` confere o conjunto da captura, incluindo hashes e reprodução a partir
-do HTML; `validate --format canonical-v1` verifica identidades, relações, leituras e
+do HTML; `validate --format observed-law-v1` verifica identidades, relações, leituras e
 revisões do documento. `integrity` atende somente ao formato histórico. Consulte as opções com:
 
 ```bash
@@ -238,7 +241,8 @@ leis-brasileiras extract --help
 
 Cada extração é nova e imutável; `--force` explicita essa intenção. A saída informa o
 caminho de cada captura. O comando de extração retorna erro se qualquer lei falhar.
-Falhas de rede, formato, integridade ou avisos impedem o selo de captura validada.
+Falhas de rede, formato e integridade impedem a validação. Divergências de estrutura
+permanecem no relatório e impedem declarar completude, inclusive em pacotes locais.
 Uma captura gravada que reprove na validação permanece disponível para investigação,
 mas o comando `bundle` a rejeita. Nunca execute o HTML coletado no navegador.
 
@@ -252,7 +256,7 @@ capture = extract_html(
     Path("captura-oficial.html").read_bytes(),
     law="CDC",
     captured_at="2026-07-07T12:00:00-03:00",  # use o horário real da sua captura
-    format="canonical-v1",
+    format="observed-law-v1",
 )
 print(capture.canonical["units"][0]["id"])
 ```
@@ -281,7 +285,7 @@ Para experimentar **sem acessar as fontes externas após a instalação**, repro
 referência histórica revisada usando as fixtures legislativas incluídas no repositório:
 
 ```bash
-python tools/build_reference.py --format canonical-v1 --version reference-2026-08 --output dist/reference.zip
+python -m tools.build_reference --format observed-law-v1 --version reference-2026-08 --output dist/reference.zip
 ```
 
 O resultado é `dist/reference.zip`. Ele contém os dados históricos de referência,
@@ -302,9 +306,9 @@ Artigos contam uma identidade por componente; ocorrências incluem repetições 
 
 | Lei | Observação | Candidatos no HTML | Artigos estruturados | Ocorrências | Divergências |
 |---|---|---:|---:|---:|---:|
-| CF88 | 2026-07-07 | 425 | 425 | 514 | 2 |
+| CF88 | 2026-07-07 | 424 | 424 | 514 | 2 |
 | CDC | 2026-07-07 | 130 | 130 | 130 | 2 |
-| CLT | 2026-07-07 | 1019 | 1019 | 1029 | 2 |
+| CLT | 2026-07-07 | 1022 | 1022 | 1029 | 2 |
 | CC | 2026-07-07 | 2083 | 2083 | 2083 | 2 |
 | CPC | 2026-07-07 | 1073 | 1073 | 1073 | 2 |
 | CP | 2026-07-07 | 422 | 432 | 434 | 3 |
@@ -313,7 +317,7 @@ Artigos contam uma identidade por componente; ocorrências incluem repetições 
 | LI | 2026-07-07 | 91 | 91 | 91 | 2 |
 | LMP | 2026-07-07 | 57 | 57 | 60 | 3 |
 | LC123 | 2026-07-07 | 132 | 132 | 158 | 2 |
-| LT | 2026-07-07 | 22 | 22 | 30 | 2 |
+| LT | 2026-07-07 | 23 | 23 | 30 | 2 |
 | CADPOS | 2026-07-07 | 19 | 19 | 25 | 2 |
 | L9099 | 2026-07-13 | — | 99 | 99 | 3 |
 | LEP | 2026-08-18 | 218 | 218 | 219 | 2 |
@@ -331,7 +335,7 @@ L9099 não possui HTML histórico nesta referência. Uma captura nova não recom
   na [validação da proposta](docs/validation.md). Os testes offline não comprovam
   acesso atual às fontes.
 - **Cobertura histórica:** 14 normas têm HTML bruto nas fixtures; L9099 possui texto
-  limpo e JSON. Redações riscadas ficam separadas e não formam um histórico completo
+  limpo e JSON. Redações riscadas permanecem vinculadas à fonte; não formam um histórico completo
   de vigência.
 - **Compatibilidade multipartes:** no formato histórico, preserve os identificadores e trate o overlap ao recompor
   o texto; concatenar as partes diretamente repete trechos. Veja [formato e limites](docs/format.md).
@@ -391,14 +395,15 @@ núcleo público. Veja o [plano de transição](docs/transition.md).
 ```bash
 python -m pip install -r requirements-dev.lock .
 python -m pytest -q --cov=leis_brasileiras
-python tools/build_inventory.py --check
-python tools/build_reference.py --version test-reference --output dist/test-reference.zip
-python tools/build_reference.py --format canonical-v1 --version test-reference --output dist/test-canonical.zip
+python -m tools.build_inventory --check
+python -m tools.build_reference --version test-reference --output dist/test-reference.zip
+python -m tools.build_reference --format observed-law-v1 --version test-reference --output dist/test-canonical.zip
 python -m build
 ```
 
-A suíte compara os JSONs das 15 leis, verifica completude do HTML das 14 fontes com
-captura disponível e testa numeração, overlap, duplicatas e tamanho das partes. Testes
+A suíte reconcilia rótulos nas 14 fontes HTML, verifica preservação e reprodução,
+e mantém explícita a falta de evidência de L9099. Testes históricos de partes e
+overlap permanecem diagnósticos do formato antigo. Testes
 de abuso cobrem URLs externas, tentativa de exfiltração, conteúdo ativo, instruções
 maliciosas tratadas como texto, entradas malformadas, volume e isolamento de capturas.
 Não há chamadas pagas nem acesso ao banco nos testes.

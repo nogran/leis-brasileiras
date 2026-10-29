@@ -45,7 +45,7 @@ def source_article_census(raw: bytes, encoding: str | None = None) -> dict:
         normalized = re.sub(r"\s+", " ", block).strip()
         if normalized == "ATO DAS DISPOSIÇÕES CONSTITUCIONAIS TRANSITÓRIAS":
             component = "adct"
-        match = re.match(r"Art[\s.]*([0-9]+(?:\.[0-9]{3})*)(?:\s*[-–]\s*([A-Z]+)|([A-Z]+))?(?=[.\sº°o-]|$)", normalized)
+        match = re.match(r"Art[\s.]*([0-9]+(?:\.[0-9]{3})*)(?:\s*[-–]\s*([A-Z]+)(?![A-Za-z])|([A-Z]+)(?![A-Za-z]))?(?=[.\sº°o-]|$)", normalized)
         if match:
             suffix = match[2] or match[3]
             number = match[1].replace(".", "") + ("-" + suffix if suffix else "")

@@ -25,7 +25,7 @@ def main(argv=None) -> int:
     from .jurisprudence.catalog import SOURCE_IDS
     operations = jurisprudence.add_subparsers(dest="juris_command", required=True)
     operations.add_parser("catalog", help="List official sources and dated historical counts")
-    jextract = operations.add_parser("extract", help="Capture and validate one complete official source")
+    jextract = operations.add_parser("extract", help="Capture and validate an official-source observation")
     jextract.add_argument("source", choices=SOURCE_IDS)
     jextract.add_argument("--output", type=Path, required=True)
     jextract.add_argument("--scanner", type=Path, help="ClamAV executable or Windows MpCmdRun.exe")
@@ -80,7 +80,7 @@ def main(argv=None) -> int:
                     capture = extract_html(raw,law,datetime.now(timezone.utc).isoformat(),format=args.format)
                     path = write_capture(capture,args.output)
                     verify_capture(path)
-                    print(json.dumps({"law":law,"capture":str(path),"status":"validated"}))
+                    print(json.dumps({"law":law,"capture":str(path),"status":"validated","complete":capture.canonical["reconciliation"]["complete"]}))
                 except Exception as exc:
                     # No response bodies, ambient credentials or query strings in output.
                     failed.append({"law":law,"error_type":type(exc).__name__})

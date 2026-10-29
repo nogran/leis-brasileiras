@@ -1,4 +1,4 @@
-"""Expose editorial assertions separately; legacy overrides are not source quotations."""
+"""Inspect the historical registry for audit only; never included in observation exports."""
 import json
 from pathlib import Path
 

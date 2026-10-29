@@ -63,6 +63,9 @@
         ],
         "additionalProperties": false
       }
+    },
+    "complete": {
+      "type": "boolean"
     }
   },
   "required": [
@@ -78,7 +81,8 @@
     "content_hash",
     "temporal_semantics",
     "document_revision",
-    "files"
+    "files",
+    "complete"
   ],
   "additionalProperties": false
 }

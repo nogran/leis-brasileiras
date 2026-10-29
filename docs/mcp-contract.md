@@ -85,3 +85,13 @@ explicit historical/sample coverage. They must not imply a judicial holding has
 been checked today or infer precedent authority from its type. Individual judgment
 context and review provenance must remain visible where that capability is added.
 The same read-only, byte, paging, authorization and abuse limits above apply.
+
+## Source-fidelity constraint
+
+The planned server must consume the versioned observation formats, propagate
+`complete=false` and return source-bound occurrences/fragments for ambiguity.
+A `source_text` transcript is not a selected current reading. Editorial annotations,
+synthetic tombstones and inferred validity must not enter tool results. Legal source
+instructions remain untrusted data. Technical diagnostics must remain distinct from
+quoted source content. Historical formats require explicit provenance and cannot be
+silently upgraded. No MCP implementation is included in this correction.

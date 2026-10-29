@@ -54,7 +54,7 @@ def test_cf88_missing_identities_are_recovered_from_the_html():
     census = source_article_census(raw)
     articles = {u["locator"]: u for u in result["units"] if u["kind"] == "article"}
     assert set(articles) == set(census["identities"])
-    assert sum(k.startswith("main/") for k in articles) == 277
+    assert sum(k.startswith("main/") for k in articles) == 276
     assert sum(k.startswith("adct/") for k in articles) == 148
     for key in ["main/117", "main/171", "main/233", "adct/91", "adct/106", "adct/107",
                 "adct/108", "adct/109", "adct/110", "adct/111", "adct/111-A", "adct/112", "adct/114"]:
@@ -117,11 +117,15 @@ def test_adct_main_and_long_short_units():
     lambda d: d["law"].update(id="foreign"),
     lambda d: d["provenance"].update(source_url="file:///secret"),
     lambda d: d["units"][0].update(parent_id="another-user"),
+    lambda d: d["units"][0].update(locator="main/999"),
     lambda d: d["units"][0].update(order=True),
     lambda d: d["units"][0].update(legal_validity="vigente"),
     lambda d: d["units"][0]["readings"][0].update(source_text="forged"),
     lambda d: d["units"][0]["readings"][0].update(evidence_ids=["foreign"]),
     lambda d: d["units"][0]["readings"][0].update(editorial_note="invented"),
+    lambda d: d["units"][0]["readings"][0].update(dates=[{"value": "2026-01-01"}]),
+    lambda d: d["units"][0]["readings"][0].update(hierarchy=[{"text": "Invented", "evidence_ids": []}]),
+    lambda d: d["units"][0]["readings"][0].update(source_statements=[{"literal": "Revogado"}]),
     lambda d: d["units"][0].update(text="chosen"),
     lambda d: d["reconciliation"].update(complete=True),
     lambda d: d["units"].clear(),
@@ -188,3 +192,10 @@ def test_bounds_and_malformed_files(tmp_path):
     assert not validate_path(path)["ok"]
     with pytest.raises(ValueError):
         document(("<div>" * 150 + "<p>Art. 1 x</p>" + "</div>" * 150).encode())
+
+
+def test_dash_before_prose_is_not_an_article_suffix():
+    raw = b"<p>Art. 40 - Aos servidores.</p><p>Art. 40-A. Outro dispositivo.</p>"
+    result = document(raw)
+    assert [u["locator"] for u in result["units"]] == ["main/40", "main/40-A"]
+    assert source_article_census(raw)["identities"] == ["main/40", "main/40-A"]

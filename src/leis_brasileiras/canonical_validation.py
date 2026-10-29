@@ -1,6 +1,7 @@
 """Bounded consistency checks. Source authenticity requires replay against captured bytes."""
 import json
 from pathlib import Path
+import re
 
 from .catalog import by_sigla
 from .evidence import OBSERVATION_CONTRACT, observation, text_digest, verify_seal
@@ -79,6 +80,12 @@ def check_document(document):
                 or unit["kind"] not in {"article", "heading", "annex", "unclassified"}):
             raise ValueError("Unit identity or classification")
         ids.add(unit["id"])
+        component_label = unit["parent_id"].removeprefix(entry["public_id"] + "!")
+        local_id = unit["id"].removeprefix(unit["parent_id"] + "/")
+        if unit["locator"] != component_label + "/" + local_id.removeprefix("art-"):
+            raise ValueError("Unit locator mismatch")
+        if unit["kind"] == "article" and not re.fullmatch(r"art-\d+(?:-[A-Z]+)?", local_id):
+            raise ValueError("Article identity")
         for number, reading in enumerate(unit["readings"], 1):
             if set(reading) != {"id", "source_order", "evidence_ids", "source_text", "text",
                                "text_sha256", "hierarchy", "source_statements", "dates", "mixed_markings"}:
@@ -97,11 +104,17 @@ def check_document(document):
                 raise ValueError("Text or marking mismatch")
             if reading["dates"]:
                 raise ValueError("Dates require an implemented source-bound event adapter")
-            for statement in reading["source_statements"]:
-                evidence = texts[statement["evidence_id"]]
-                if (statement["evidence_id"] not in refs or statement["target"] is not None
-                        or evidence["text"][statement["start"]:statement["end"]] != statement["literal"]):
-                    raise ValueError("Unsupported source assertion")
+            statements = []
+            for key in refs:
+                for match in re.finditer(r"\b(?:revogad[oa]s?|vetad[oa]s?|suprimid[oa]s?|cancelad[oa]s?)\b", texts[key]["text"], re.I):
+                    statements.append({"literal": match[0], "evidence_id": key,
+                        "start": match.start(), "end": match.end(), "target": None})
+            if reading["source_statements"] != statements:
+                raise ValueError("Unsupported source assertion")
+            for heading in reading["hierarchy"]:
+                if (set(heading) != {"text", "evidence_ids"} or not heading["evidence_ids"]
+                        or heading["text"] != "".join(texts[key]["text"] for key in heading["evidence_ids"])):
+                    raise ValueError("Unsupported hierarchy text")
         ambiguous = len(unit["readings"]) > 1 or any(r["mixed_markings"] for r in unit["readings"])
         text = None if ambiguous else unit["readings"][0]["text"]
         if (unit["quality"] != ("ambiguous" if ambiguous else "observed")

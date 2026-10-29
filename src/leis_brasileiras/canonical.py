@@ -8,7 +8,7 @@ from .models import CANONICAL_FORMAT, CANONICAL_PARSER_VERSION
 from .reconciliation import reconcile, source_article_census
 from .source_map import html_map, text_map
 
-ARTICLE = re.compile(r"^Art\s*\.?(?:\s*\.)?\s*(\d+(?:\.\d{3})*)(?:\s*[-–]\s*([A-Z]+)|([A-Z]+))?(?=[.\sº°o-]|$)")
+ARTICLE = re.compile(r"^Art\s*\.?(?:\s*\.)?\s*(\d+(?:\.\d{3})*)(?:\s*[-–]\s*([A-Z]+)(?![A-Za-z])|([A-Z]+)(?![A-Za-z]))?(?=[.\sº°o-]|$)")
 HEADING = re.compile(r"^(?:LIVRO|TÍTULO|TITULO|SUBTÍTULO|CAPÍTULO|CAPITULO|SEÇÃO|SECAO|SUBSEÇÃO)\b")
 ANNEX = re.compile(r"^ANEXO(?:\s+([IVXLCDM]+|\d+))?(?:\s|$)")
 ADCT = "ATO DAS DISPOSIÇÕES CONSTITUCIONAIS TRANSITÓRIAS"
@@ -30,11 +30,13 @@ def extract_document(source: bytes | str, law: str, observed_at: str, *,
         raise ValueError("Supply captured bytes, not detached hashes or redactions")
     observed = observation(observed_at, precision)
     mapping = html_map(source, entry.get("parse", {}).get("encoding")) if isinstance(source, bytes) else text_map(source)
-    blocks = OrderedDict()
+    blocks = []
     for item in mapping["texts"]:
         if item["kind"] == "content":
             key = item["block"] or item["path"]
-            blocks.setdefault(key, []).append(item)
+            if not blocks or blocks[-1][0] != key:
+                blocks.append((key, []))
+            blocks[-1][1].append(item)
     units, components = OrderedDict(), OrderedDict()
     component = "main"
     current = None
@@ -56,7 +58,7 @@ def extract_document(source: bytes | str, law: str, observed_at: str, *,
                    "dates": [], "mixed_markings": False}
         current["readings"].append(reading)
 
-    for path, items in blocks.items():
+    for path, items in blocks:
         literal = "".join(item["text"] for item in items)
         normalized = re.sub(r"\s+", " ", literal).strip()
         match = ARTICLE.match(normalized)

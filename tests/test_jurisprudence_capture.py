@@ -66,6 +66,23 @@ def frozen_pages(raw, scanner=None):
     raise AssertionError("Unknown PDF fixture")
 
 
+@pytest.mark.parametrize("mutation", [
+    lambda d: d["records"][0].update(number="invented-number"),
+    lambda d: d["records"][0].update(editorial_note="generated legal explanation"),
+    lambda d: d["records"][0]["readings"][0].update(location="/rows/-1"),
+    lambda d: d["records"][0]["readings"][0].update(dates=[{"value": "2026-01-01"}]),
+    lambda d: d["records"][0]["readings"][0].update(source_statements=[{"literal": "Cancelado"}]),
+])
+def test_observed_rejects_unsupported_assertions_even_after_resealing(mutation):
+    from leis_brasileiras.evidence import seal
+    batch = Batch("stj_temas", FixtureClient("stj_temas"))
+    value = parse_batch(batch, "2026-07-20", sample=True)
+    mutation(value)
+    seal(value)
+    with pytest.raises(ValueError):
+        validate_document(value)
+
+
 def sample_capture(tmp_path, monkeypatch, identifier="stj_temas"):
     monkeypatch.setattr(capture_module, "extract_pages", frozen_pages)
     batch = Batch(identifier, FixtureClient(identifier))

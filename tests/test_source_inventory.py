@@ -25,8 +25,8 @@ def test_source_counts_do_not_hide_missing_evidence_or_divergences(measured):
     assert len(measured) == 15
     by_law = {row["law"]: row for row in measured}
     cf = by_law["CF88"]
-    assert cf["articles_by_component"] == {"main": 277, "adct": 148}
-    assert cf["source_article_candidates"] == cf["structured_articles"] == 425
+    assert cf["articles_by_component"] == {"main": 276, "adct": 148}
+    assert cf["source_article_candidates"] == cf["structured_articles"] == 424
     assert not cf["reconciliation"]["missing_identities"]
     assert by_law["L9099"]["source_article_candidates"] is None
     assert by_law["L9099"]["raw_sha256"] is None

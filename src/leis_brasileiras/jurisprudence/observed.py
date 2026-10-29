@@ -188,6 +188,8 @@ def validate_observed(value):
     identities = set()
     total = 0
     for record in value["records"]:
+        if set(record) != {"id", "number", "court", "collection", "legal_validity", "readings", "related_evidence"}:
+            raise ValueError("Unexpected record fields")
         if (record["id"] in identities or record["court"] != identifier.split("_")[0].upper()
                 or record["collection"] != identifier or record["legal_validity"] != "unknown"
                 or not record["id"].startswith(f"br:{identifier}:") or not record["readings"]):
@@ -198,41 +200,75 @@ def validate_observed(value):
             if item["kind"] != "html" or not any(e["path"] == link["path"] for e in item["map"]["elements"]):
                 raise ValueError("Related evidence does not resolve")
         for index, reading in enumerate(record["readings"], 1):
+            if set(reading) != {"id", "source_id", "location", "source_record", "source_text", "text_sha256",
+                               "fields", "thesis_presence", "situation", "dates", "source_statements"}:
+                raise ValueError("Unexpected occurrence fields")
             total += 1
             item = sources[reading["source_id"]]
             location = reading["location"]
             if reading["id"] != record["id"] + f"/occurrence-{index}":
                 raise ValueError("Occurrence identity")
             if item["kind"] == "csv":
+                if not re.fullmatch(r"/rows/\d+", location):
+                    raise ValueError("Invalid row locator")
                 original = item["rows"][int(location.removeprefix("/rows/"))]
                 fields = dict(zip(item["header"], original))
                 text = fields.get("teseFirmada", "")
                 thesis = bool(text.strip())
+                source_number = fields.get("sequencialPrecedente") or None
             elif item["kind"] == "json":
+                if not re.fullmatch(r"/\d+", location):
+                    raise ValueError("Invalid record locator")
                 original = item["records"][int(location.removeprefix("/"))]
                 fields = original
                 text = original.get("descricaoTese", "")
                 thesis = item["request_form"] == "com"
+                source_number = str(original["numeroTema"]) if original.get("numeroTema") is not None else None
             elif item["kind"] == "html":
                 nodes = [n for n in item["map"]["texts"] if n["kind"] == "content"
                          and n["path"].startswith(location + "/")]
                 original = {"evidence_ids": [n["id"] for n in nodes]}
                 text = "".join(n["text"] for n in nodes)
                 fields, thesis = {}, None
+                if identifier == "stj_sumulas":
+                    paths = [e["path"] for e in item["map"]["elements"] if e["path"].startswith(location + "/")
+                             and "numeroSumula" in e["attributes"].get("class", [])]
+                    candidate = "".join(n["text"] for n in nodes if any(n["path"].startswith(p + "/") for p in paths)).strip()
+                    source_number = candidate if candidate.isdigit() else None
+                else:
+                    found = re.search(r"S[úu]mula\s+Vinculante\s+(\d+)", text, re.I)
+                    source_number = found[1] if found else None
             elif item["kind"] == "pdf":
+                if not re.fullmatch(r"/page-transcript/\d+:\d+", location):
+                    raise ValueError("Invalid PDF locator")
                 start, end = map(int, location.removeprefix("/page-transcript/").split(":"))
                 original = {"start": start, "end": end}
-                text = "\n".join(p["text"] for p in item["pages"])[start:end]
+                transcript = "\n".join(p["text"] for p in item["pages"])
+                if not 0 <= start < end <= len(transcript):
+                    raise ValueError("Invalid PDF span")
+                text = transcript[start:end]
                 fields, thesis = {}, None
+                pattern = r"(?im)^\s*ENUNCIADO\s+0*(\d+)\b" if identifier == "tjmg_sumulas" else r"(?im)^\s*S[úu]mula\s*\n\s*0*(\d+)\b"
+                found = re.match(pattern, text)
+                source_number = found[1] if found else None
             else:
                 raise ValueError("Unknown evidence kind")
+            identity = (f"br:{identifier}:{source_number}" if source_number is not None else
+                        f"br:{identifier}:unclassified:{item['id']}:{location}")
+            if record["number"] != source_number or record["id"] != identity:
+                raise ValueError("Identity is not bound to source record")
             if (reading["source_record"] != original or reading["fields"] != fields
                     or reading["source_text"] != text or reading["text_sha256"] != text_digest(text)
                     or reading["thesis_presence"] is not thesis or reading["situation"] != fields.get("situacao")):
                 raise ValueError("Source projection mismatch")
-            for note in reading["source_statements"]:
-                if note["target"] is not None or text[note["start"]:note["end"]] != note["literal"]:
-                    raise ValueError("Unsupported source statement")
+            dates = [{"source_field": key, "literal": val, "value": None, "precision": None}
+                     for key, val in fields.items() if key.startswith("data")]
+            if reading["dates"] != dates:
+                raise ValueError("Unsupported temporal assertion")
+            statements = [{"literal": m[0], "start": m.start(), "end": m.end(), "target": None}
+                          for m in re.finditer(r"\b(?:cancelad[oa]s?|revogad[oa]s?|alterad[oa]s?)\b", text, re.I)]
+            if reading["source_statements"] != statements:
+                raise ValueError("Unsupported source statement")
     if value["reconciliation"] != {"complete": False, "structure": "incomplete",
             "discrepancies": ["field_and_boundary_review_required"],
             "source_records": total, "structured_identities": len(identities)}:

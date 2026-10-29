@@ -126,6 +126,8 @@ def verify_capture(directory: Path, strict: bool = True) -> dict:
         document = json.loads((directory / "canonical.json").read_text(encoding="utf-8"))
         if not validate_document(document)["ok"] or document["revision"] != manifest["document_revision"]:
             raise ValueError("Canonical validation failed")
+        if manifest["complete"] is not document["reconciliation"]["complete"]:
+            raise ValueError("Completeness provenance mismatch")
         if manifest["parser_version"] != document["provenance"]["parser_version"]:
             raise ValueError("Parser provenance mismatch")
         regenerated = extract_html((directory / "source.html").read_bytes(), law,
@@ -134,34 +136,6 @@ def verify_capture(directory: Path, strict: bool = True) -> dict:
                 or regenerated.clean_text != (directory / "clean.txt").read_bytes().decode("utf-8")):
             raise ValueError("Canonical capture does not reproduce from source")
         return manifest
-    articles = json.loads((directory/(base+".json")).read_text(encoding="utf-8"))
-    if not isinstance(articles,list) or not articles:
-        raise ValueError("Empty or invalid article payload")
-    for record in articles:
-        if (not isinstance(record,dict) or record.get("lei") != law
-                or record.get("url_fonte") != manifest["source_url"]
-                or record.get("data_extracao") != timestamp.date().isoformat()
-                or "capture_id" in record):
-            raise ValueError("Article provenance or application identifier mismatch")
-    prior = json.loads((directory/(base+"_riscadas.json")).read_text(encoding="utf-8"))
-    if (prior.get("lei") != law or prior.get("url_fonte") != manifest["source_url"]
-            or prior.get("data_extracao") != timestamp.date().isoformat()
-            or not isinstance(prior.get("riscadas"),list)
-            or prior.get("total") != len(prior["riscadas"]) or "capture_id" in prior):
-        raise ValueError("Historical sidecar provenance mismatch")
-    from .extraction import hash_texto
-    if any(not isinstance(r,dict) or not isinstance(r.get("texto"),str)
-           or r.get("hash") != hash_texto(r["texto"]) for r in prior["riscadas"]):
-        raise ValueError("Historical sidecar content hash mismatch")
-    from .capture import extract_html
-    regenerated = extract_html((directory/"source.html").read_bytes(),law,manifest["captured_at"])
-    if (regenerated.clean_text != (directory/(base+"_clean.txt")).read_text(encoding="utf-8")
-            or regenerated.articles != articles or regenerated.prior_redactions != prior):
-        raise ValueError("Capture does not reproduce from its raw source with this extractor")
-    validation = validate_articles(directory/(base+".json"),strict)
-    if not validation["ok"]:
-        raise ValueError(f"Capture validation failed: {json.dumps(validation)}")
-    return manifest
 
 
 def build_release(captures: list[Path], output: Path, version: str, *,
@@ -186,6 +160,7 @@ def build_release(captures: list[Path], output: Path, version: str, *,
                "parser_version":PARSER_VERSION,"laws":sorted(laws),"license_status":"pending owner decision",
                "files":{name:{"sha256":sha256(data),"bytes":len(data)} for name,data in payloads.items()}}
     release.update(format_version=CORPUS_VERSION, format=formats.pop(),
+                   complete=all(manifest["complete"] for _, manifest in verified),
                    selection=sorted(selection), coverage="full-catalog" if set(laws) == set(SIGLAS) else "selected-laws")
     if release["format"] == CANONICAL_FORMAT:
         release["parser_version"] = CANONICAL_PARSER_VERSION

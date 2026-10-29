@@ -1,0 +1,226 @@
+{
+  "kind": "technical-legacy-assertion-audit",
+  "format_version": 1,
+  "overrides": [
+    {
+      "law": "LGPD",
+      "target": "CAPÍTULO IX",
+      "kind": "capitulo_nome",
+      "historical_assertion": "Da Autoridade Nacional de Proteção de Dados (ANPD) e do Conselho Nacional de Proteção de Dados Pessoais e da Privacidade",
+      "new_export": "excluded",
+      "reason": "registry assertion is not source-bound evidence; extract original wording instead"
+    },
+    {
+      "law": "CF88",
+      "target": "TÍTULO IX",
+      "kind": "titulo_nome",
+      "historical_assertion": "Das Disposições Constitucionais Gerais",
+      "new_export": "excluded",
+      "reason": "registry assertion is not source-bound evidence; extract original wording instead"
+    },
+    {
+      "law": "CLT",
+      "target": "Art. 554",
+      "kind": "notas_legais",
+      "historical_assertion": [
+        {
+          "tipo": "nao_recepcionado_cf88",
+          "referencia": "CF88 Art. 8°",
+          "raw": "Não recepcionado pela CF88 Art. 8° (destituição de diretoria sindical pelo governo). Doutrinariamente inaplicável desde 05/10/1988 (promulgação da CF88)."
+        }
+      ],
+      "new_export": "excluded",
+      "reason": "registry assertion is not source-bound evidence; extract original wording instead"
+    },
+    {
+      "law": "CLT",
+      "target": "Art. 555",
+      "kind": "notas_legais",
+      "historical_assertion": [
+        {
+          "tipo": "nao_recepcionado_cf88",
+          "referencia": "CF88 Art. 8°",
+          "raw": "Não recepcionado pela CF88 Art. 8° (cassação de carta de filiação sindical). Doutrinariamente inaplicável desde 05/10/1988."
+        }
+      ],
+      "new_export": "excluded",
+      "reason": "registry assertion is not source-bound evidence; extract original wording instead"
+    },
+    {
+      "law": "CLT",
+      "target": "Art. 571",
+      "kind": "notas_legais",
+      "historical_assertion": [
+        {
+          "tipo": "nao_recepcionado_cf88",
+          "referencia": "CF88 Art. 8°",
+          "raw": "Não recepcionado pela CF88 Art. 8° (enquadramento sindical por categoria). Doutrinariamente inaplicável desde 05/10/1988."
+        }
+      ],
+      "new_export": "excluded",
+      "reason": "registry assertion is not source-bound evidence; extract original wording instead"
+    },
+    {
+      "law": "CLT",
+      "target": "Art. 572",
+      "kind": "notas_legais",
+      "historical_assertion": [
+        {
+          "tipo": "nao_recepcionado_cf88",
+          "referencia": "CF88 Art. 8°",
+          "raw": "Não recepcionado pela CF88 Art. 8° (criação de federações por categoria). Doutrinariamente inaplicável desde 05/10/1988."
+        }
+      ],
+      "new_export": "excluded",
+      "reason": "registry assertion is not source-bound evidence; extract original wording instead"
+    },
+    {
+      "law": "CLT",
+      "target": "Art. 575",
+      "kind": "notas_legais",
+      "historical_assertion": [
+        {
+          "tipo": "nao_recepcionado_cf88",
+          "referencia": "CF88 Art. 8°",
+          "raw": "Não recepcionado pela CF88 Art. 8° (regras para confederações sindicais). Doutrinariamente inaplicável desde 05/10/1988."
+        }
+      ],
+      "new_export": "excluded",
+      "reason": "registry assertion is not source-bound evidence; extract original wording instead"
+    },
+    {
+      "law": "CP",
+      "target": "Art. 121-A",
+      "kind": "remover_alteracao",
+      "historical_assertion": [
+        "Lei nº 13.968, de 2019"
+      ],
+      "new_export": "excluded",
+      "reason": "registry assertion is not source-bound evidence; extract original wording instead"
+    }
+  ],
+  "synthetic_records": [
+    {
+      "law": "CADPOS",
+      "article": "Art. 11",
+      "legacy_source_hash": "3fb24b48c5c670bc",
+      "historical_text_sha256": "1738422049bc9f801412f7d25a30e5a736884c97444c4486737752c6e4840178",
+      "fixture": "tests/fixtures/baseline/cadastro_positivo_2026-07-07.json.gz",
+      "fixture_sha256": "8f310db3d82ee16684fd269ff642be493477878fe8a94d4a17ac2c63304aef11"
+    },
+    {
+      "law": "CF88",
+      "article": "Art. 171",
+      "legacy_source_hash": "f399a507d4ccb014",
+      "historical_text_sha256": "54e68739ef75a1f2d63323c4d5b40bd9eab1136845905a2389c1f4c5740ed35a",
+      "fixture": "tests/fixtures/baseline/cf88_2026-07-07.json.gz",
+      "fixture_sha256": "948775f2a6620a99b28efe81037ebeba4ecfbf4246b82fcd3a4e820a4257fdff"
+    },
+    {
+      "law": "CF88",
+      "article": "Art. 117",
+      "legacy_source_hash": "6036a841727da98f",
+      "historical_text_sha256": "a9f3fae24addaf4ec535b1a0c9462eeb1df571950e2b81da7dd4a41a87083c45",
+      "fixture": "tests/fixtures/baseline/cf88_2026-07-07.json.gz",
+      "fixture_sha256": "948775f2a6620a99b28efe81037ebeba4ecfbf4246b82fcd3a4e820a4257fdff"
+    },
+    {
+      "law": "CF88",
+      "article": "Art. 233",
+      "legacy_source_hash": "65d2ccf8fb04dd14",
+      "historical_text_sha256": "2fd7cc3ee6455b3a824358a8c48a47d0dd626a6eb128a75512ac8f7b48dcfaa3",
+      "fixture": "tests/fixtures/baseline/cf88_2026-07-07.json.gz",
+      "fixture_sha256": "948775f2a6620a99b28efe81037ebeba4ecfbf4246b82fcd3a4e820a4257fdff"
+    },
+    {
+      "law": "CLT",
+      "article": "Art. 597",
+      "legacy_source_hash": "f465ef0d92a232f4",
+      "historical_text_sha256": "5282916aeed0339a873033d97b171e80e97a99309b35381c61d5ee9dd23ac70b",
+      "fixture": "tests/fixtures/baseline/clt_2026-07-07.json.gz",
+      "fixture_sha256": "ae53ea6aa3ff4fd004bd4f080f2d3139f8de34b130e68588980e0bea11c58153"
+    },
+    {
+      "law": "CC",
+      "article": "Art. 1.621",
+      "legacy_source_hash": "d0acb737c40b9be5",
+      "historical_text_sha256": "64c7ad8451b08bb46957cc4f921cd6e4f35591a18a5e5097e0b19b72d40d6b1e",
+      "fixture": "tests/fixtures/baseline/codigo_civil_2026-07-07.json.gz",
+      "fixture_sha256": "c33417045a6113f9fbf21dd23dd234314897c9404010fe52fbcc1711a16d761f"
+    },
+    {
+      "law": "CC",
+      "article": "Art. 1.622",
+      "legacy_source_hash": "08e7046e2e72636d",
+      "historical_text_sha256": "a70222d61dab7992574d2a7fb572d4675d032cb7388ec61a30394ee5d27f58a7",
+      "fixture": "tests/fixtures/baseline/codigo_civil_2026-07-07.json.gz",
+      "fixture_sha256": "c33417045a6113f9fbf21dd23dd234314897c9404010fe52fbcc1711a16d761f"
+    },
+    {
+      "law": "CC",
+      "article": "Art. 1.623",
+      "legacy_source_hash": "b04c0794d3d3aa86",
+      "historical_text_sha256": "f6ce228cbf5df7c95b0dd5aa359eef5a16523b2a9749bb8445603d62c15f147e",
+      "fixture": "tests/fixtures/baseline/codigo_civil_2026-07-07.json.gz",
+      "fixture_sha256": "c33417045a6113f9fbf21dd23dd234314897c9404010fe52fbcc1711a16d761f"
+    },
+    {
+      "law": "CC",
+      "article": "Art. 1.624",
+      "legacy_source_hash": "1791145e38b6ea8e",
+      "historical_text_sha256": "fd3c4667d9f5a2846efbe6693ab190e39198844ff150b381706bfc36324d49e3",
+      "fixture": "tests/fixtures/baseline/codigo_civil_2026-07-07.json.gz",
+      "fixture_sha256": "c33417045a6113f9fbf21dd23dd234314897c9404010fe52fbcc1711a16d761f"
+    },
+    {
+      "law": "CC",
+      "article": "Art. 1.625",
+      "legacy_source_hash": "293012537d41cbdf",
+      "historical_text_sha256": "09d208abf00bc5a4708d1c517c1c3d4922f4a5f1ea1328c1f63a08f9243906e2",
+      "fixture": "tests/fixtures/baseline/codigo_civil_2026-07-07.json.gz",
+      "fixture_sha256": "c33417045a6113f9fbf21dd23dd234314897c9404010fe52fbcc1711a16d761f"
+    },
+    {
+      "law": "CC",
+      "article": "Art. 1.626",
+      "legacy_source_hash": "aec58cfa55a924c9",
+      "historical_text_sha256": "cdea42f7e080d3bdb03e604cd15d035bf3875b5b96e1cf884a400f3cef4e05dd",
+      "fixture": "tests/fixtures/baseline/codigo_civil_2026-07-07.json.gz",
+      "fixture_sha256": "c33417045a6113f9fbf21dd23dd234314897c9404010fe52fbcc1711a16d761f"
+    },
+    {
+      "law": "CC",
+      "article": "Art. 1.627",
+      "legacy_source_hash": "95aee8c0b871607c",
+      "historical_text_sha256": "30a99b13aa5ec7cc475cad9d3f15ec95521befc6faa1cafd28897b05b616c1ee",
+      "fixture": "tests/fixtures/baseline/codigo_civil_2026-07-07.json.gz",
+      "fixture_sha256": "c33417045a6113f9fbf21dd23dd234314897c9404010fe52fbcc1711a16d761f"
+    },
+    {
+      "law": "CC",
+      "article": "Art. 1.628",
+      "legacy_source_hash": "f230f8a56f92d69d",
+      "historical_text_sha256": "3c82433606b19ef923326bfdfd943e934f8e6099f96f089f4ef87039f1de53e3",
+      "fixture": "tests/fixtures/baseline/codigo_civil_2026-07-07.json.gz",
+      "fixture_sha256": "c33417045a6113f9fbf21dd23dd234314897c9404010fe52fbcc1711a16d761f"
+    },
+    {
+      "law": "CC",
+      "article": "Art. 1.629",
+      "legacy_source_hash": "067d8c7ed89a874a",
+      "historical_text_sha256": "f6e79244aef893191466edf489e3d54769a2424acb3bc4e78fc45443036a190d",
+      "fixture": "tests/fixtures/baseline/codigo_civil_2026-07-07.json.gz",
+      "fixture_sha256": "c33417045a6113f9fbf21dd23dd234314897c9404010fe52fbcc1711a16d761f"
+    },
+    {
+      "law": "LC123",
+      "article": "Art. 72",
+      "legacy_source_hash": "fa1644f6fb28020f",
+      "historical_text_sha256": "f822c9c3f45de30e594f87d90b5c9283ae2094a3351621486be27fc8d8651d34",
+      "fixture": "tests/fixtures/baseline/lc123_2026-07-07.json.gz",
+      "fixture_sha256": "c4327048775781248ebca3f578e978cb7a67ea7fc2e933a24c148c0580537ebb"
+    }
+  ],
+  "production": null,
+  "legal_validity_determined": false
+}
