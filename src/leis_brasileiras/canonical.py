@@ -13,7 +13,11 @@ from .source_map import decode_source, html_map, text_map
 ARTICLE = re.compile(r"^Art\s*\.?(?:\s*\.)?\s*(\d+(?:\.\d{3})*)(?:\s*[-–]\s*([A-Z]+)(?![A-Za-z])|([A-Z]+)(?![A-Za-z]))?(?=[.\sº°o-]|$)")
 # A following inline fragment that is only more digits, not a word or an inciso.
 _DIGIT_TAIL = re.compile(r"^(\d+)[.º°o]?$")
-HEADING = re.compile(r"^(?:LIVRO|TÍTULO|TITULO|SUBTÍTULO|CAPÍTULO|CAPITULO|SEÇÃO|SECAO|SUBSEÇÃO)\b")
+# The 2026-07-07 capture writes the same heading word in uppercase or title case.
+HEADING = re.compile(
+    r"^(?:LIVRO|TÍTULO|TITULO|SUBTÍTULO|CAPÍTULO|CAPITULO|SEÇÃO|SECAO|SUBSEÇÃO)\b",
+    re.IGNORECASE,
+)
 ANNEX = re.compile(r"^ANEXO(?:\s+([IVXLCDM]+|\d+))?(?:\s|$)")
 ADCT = "ATO DAS DISPOSIÇÕES CONSTITUCIONAIS TRANSITÓRIAS"
 
