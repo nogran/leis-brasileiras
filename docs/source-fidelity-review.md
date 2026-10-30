@@ -28,8 +28,26 @@ A CF88 recupera os artigos principais 117, 171 e 233 e os artigos ADCT 91, 106�
 111-A e 114 antes ausentes. Os rótulos permanecem distintos por componente. A
 contagem 424 refere-se exclusivamente à fixture de 07/07/2026.
 
-No CP, artigos 187–196 aparecem no mapa estrutural mas não no censo independente
-restrito a parágrafos. LMP preserva o byte UTF-16 terminal incompleto. L9099 conserva
+No CP, a fixture de 07/07/2026 contém os artigos 187–196 em quatro parágrafos
+iniciados por rubricas: 187–191 nas linhas 6217–6233 do HTML descomprimido,
+192–193 em 6241–6248, 194–195 em 6251–6256 e 196 em 6263–6266. Os artigos são
+separados por `br`; `Art` e `187` ainda têm uma quebra de linha entre si.
+O censo anterior examinava somente o início do parágrafo e perdia os dez rótulos.
+O DOM reparado recuperava esses rótulos, mas a estruturação absorvia rubricas
+seguintes no artigo anterior ou no cabeçalho do capítulo.
+
+`observed-legislation@2` corrige ambos os mecanismos. O censo independente usa
+limites explícitos de bloco/`br`; nove trechos tipográficos isolados do fluxo,
+incluindo as rubricas antes de 187 e 197, ficam em unidades `unclassified`, sem
+inferir seu destinatário. As dez notas oficiais e todas as marcações permanecem.
+Os `strike` nesse intervalo contêm somente quebras/espaços, sem corpo jurídico a
+reconstruir. O hash SHA-256 dos bytes HTML é
+`5ec15272038b6552a08fe6c3444a3a557033de52dea8a53f0b150b138085c282`;
+a fixture comprimida não foi regravada. São 432 identidades e 434 ocorrências,
+conferidas por rótulo, nota e ordem, sem certificação de completude. A revisão
+geral das demais rubricas, limites, hierarquia e tabelas continua pendente.
+
+LMP preserva o byte UTF-16 terminal incompleto. L9099 conserva
 apenas o derivado histórico com ausência de fonte explícita. Notas, preâmbulos,
 anexos e tabelas ficam preservados, mas a revisão de delimitação segue pendente em
 todas as normas; os pacotes não declaram completude.

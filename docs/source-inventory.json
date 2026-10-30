@@ -8,7 +8,7 @@
     "raw_sha256": "0c36e71cbcd35b24c1982b976feffc01a5ac9147f15c544044211274a59680cc",
     "evidence_basis": "source-html",
     "evidence_file": "source.html",
-    "parser_version": "observed-legislation@1",
+    "parser_version": "observed-legislation@2",
     "source_article_candidates": 424,
     "structured_articles": 424,
     "articles_by_component": {
@@ -36,8 +36,8 @@
       "preservation": "mapped",
       "structure": "incomplete",
       "complete": false,
-      "census_method": "stdlib-htmlparser-paragraph-labels@1",
-      "report_sha256": "381d494d0c820d92d9c915a21438d1d59917acae4160c738b940a3bb2c52a10a",
+      "census_method": "stdlib-htmlparser-block-break-labels@2",
+      "report_sha256": "02886c9dbb40189855464d63826533183382cb9f5cc699b3b63e9b604671f81f",
       "source_occurrence_count": 514
     }
   },
@@ -50,7 +50,7 @@
     "raw_sha256": "c71711ea5bfcc18cc9017cdde4173c3b5be074395ba8c4ca8c98801ee5d0cc2b",
     "evidence_basis": "source-html",
     "evidence_file": "source.html",
-    "parser_version": "observed-legislation@1",
+    "parser_version": "observed-legislation@2",
     "source_article_candidates": 130,
     "structured_articles": 130,
     "articles_by_component": {
@@ -77,8 +77,8 @@
       "preservation": "mapped",
       "structure": "incomplete",
       "complete": false,
-      "census_method": "stdlib-htmlparser-paragraph-labels@1",
-      "report_sha256": "fe736951e5a801e0146720cce88bd527d13f4584a848049b589ddb43dcb3d5a6",
+      "census_method": "stdlib-htmlparser-block-break-labels@2",
+      "report_sha256": "ac2f44977ca2635e6755f639dd9516abb2ae11cbe6fffdbdd7a49e04d0c3e486",
       "source_occurrence_count": 130
     }
   },
@@ -91,7 +91,7 @@
     "raw_sha256": "c5b9b5f1a81af9c6ad47ab151721bc8faa307aeacb77882ee5e9a605e4dd37a3",
     "evidence_basis": "source-html",
     "evidence_file": "source.html",
-    "parser_version": "observed-legislation@1",
+    "parser_version": "observed-legislation@2",
     "source_article_candidates": 1022,
     "structured_articles": 1022,
     "articles_by_component": {
@@ -118,8 +118,8 @@
       "preservation": "mapped",
       "structure": "incomplete",
       "complete": false,
-      "census_method": "stdlib-htmlparser-paragraph-labels@1",
-      "report_sha256": "149f44a33ba8d6c4064543706a127a2dfbd71649a6ff91453f781f19058eda42",
+      "census_method": "stdlib-htmlparser-block-break-labels@2",
+      "report_sha256": "99aad34bd6b87912ac118194e490fa1161cb0232ca3a36477c1c77c0e7fc97c2",
       "source_occurrence_count": 1029
     }
   },
@@ -132,7 +132,7 @@
     "raw_sha256": "86bedd452f26b008ff2f876c53ececee1ba8c15e10b4bd0799ec1d7e7e658e6d",
     "evidence_basis": "source-html",
     "evidence_file": "source.html",
-    "parser_version": "observed-legislation@1",
+    "parser_version": "observed-legislation@2",
     "source_article_candidates": 2083,
     "structured_articles": 2083,
     "articles_by_component": {
@@ -159,8 +159,8 @@
       "preservation": "mapped",
       "structure": "incomplete",
       "complete": false,
-      "census_method": "stdlib-htmlparser-paragraph-labels@1",
-      "report_sha256": "cec7b4475bd31d662c33a2444def2cbeba15e6da3b8544363e1cc2057a08b2a8",
+      "census_method": "stdlib-htmlparser-block-break-labels@2",
+      "report_sha256": "4536056f9d54049f16fc74b45697c63c6cb2f14aa85fea9324b773e16901f5b8",
       "source_occurrence_count": 2083
     }
   },
@@ -173,7 +173,7 @@
     "raw_sha256": "147c7cfff8bd00b8ef489667471a9983ecd85eb9b5096db3527c683583e926e1",
     "evidence_basis": "source-html",
     "evidence_file": "source.html",
-    "parser_version": "observed-legislation@1",
+    "parser_version": "observed-legislation@2",
     "source_article_candidates": 1073,
     "structured_articles": 1073,
     "articles_by_component": {
@@ -200,8 +200,8 @@
       "preservation": "mapped",
       "structure": "incomplete",
       "complete": false,
-      "census_method": "stdlib-htmlparser-paragraph-labels@1",
-      "report_sha256": "32f23d9410473f6e01f91b482f46a09c1bcad3f1aa20793f28f74cace9cddcb2",
+      "census_method": "stdlib-htmlparser-block-break-labels@2",
+      "report_sha256": "a432fdbbba979955dff7a6de059d8884599eddae63dda8b88f49d3a649fd43c1",
       "source_occurrence_count": 1073
     }
   },
@@ -214,48 +214,45 @@
     "raw_sha256": "5ec15272038b6552a08fe6c3444a3a557033de52dea8a53f0b150b138085c282",
     "evidence_basis": "source-html",
     "evidence_file": "source.html",
-    "parser_version": "observed-legislation@1",
-    "source_article_candidates": 422,
+    "parser_version": "observed-legislation@2",
+    "source_article_candidates": 432,
     "structured_articles": 432,
     "articles_by_component": {
       "main": 432
     },
     "observed_occurrences": 434,
     "source_statement_mentions": 67,
-    "unclassified_units": 1,
+    "unclassified_units": 10,
     "tables": 2,
     "text_fragments": 8562,
     "blocks_or_parts": null,
     "complete": false,
     "reconciliation": {
       "missing_identities": [],
-      "extra_identities": [
-        "main/187",
-        "main/188",
-        "main/189",
-        "main/190",
-        "main/191",
-        "main/192",
-        "main/193",
-        "main/194",
-        "main/195",
-        "main/196"
-      ],
+      "extra_identities": [],
       "unmapped_evidence_ids": [],
       "unclassified_units": [
-        "br-federal:decree-law:1940:2848!main/unclassified-c2da528a9838b48a"
+        "br-federal:decree-law:1940:2848!main/unclassified-c2da528a9838b48a",
+        "br-federal:decree-law:1940:2848!main/unclassified-43a9fb3b6cfe8544",
+        "br-federal:decree-law:1940:2848!main/unclassified-28749f33b6033ed1",
+        "br-federal:decree-law:1940:2848!main/unclassified-23fd669f26091582",
+        "br-federal:decree-law:1940:2848!main/unclassified-b178c1903a1cdf65",
+        "br-federal:decree-law:1940:2848!main/unclassified-dc7cdd2321672f3d",
+        "br-federal:decree-law:1940:2848!main/unclassified-3dce4789b053d8c1",
+        "br-federal:decree-law:1940:2848!main/unclassified-8a20c9053d0a5e02",
+        "br-federal:decree-law:1940:2848!main/unclassified-e8d15188e2ec9d84",
+        "br-federal:decree-law:1940:2848!main/unclassified-19c4f5bbd2dddb29"
       ],
       "discrepancies": [
-        "independent_article_census_mismatch",
         "unclassified_content",
         "structural_boundary_review_required"
       ],
       "preservation": "mapped",
       "structure": "incomplete",
       "complete": false,
-      "census_method": "stdlib-htmlparser-paragraph-labels@1",
-      "report_sha256": "8213c0d934bb0eb8b3ffd43decbcddd27950214eae3c8e3ee3fb3a1fc494620c",
-      "source_occurrence_count": 424
+      "census_method": "stdlib-htmlparser-block-break-labels@2",
+      "report_sha256": "5b3d9705ba93c3e1539418d0eb6ef50435cf2bd0dab0dfab7aefabd7116c5cc4",
+      "source_occurrence_count": 434
     }
   },
   {
@@ -267,7 +264,7 @@
     "raw_sha256": "6d5255bbb932fe0a9566e0bcfb4000cc8b7ed6e739ec1cf0053c4c3fa507f2af",
     "evidence_basis": "source-html",
     "evidence_file": "source.html",
-    "parser_version": "observed-legislation@1",
+    "parser_version": "observed-legislation@2",
     "source_article_candidates": 79,
     "structured_articles": 79,
     "articles_by_component": {
@@ -294,8 +291,8 @@
       "preservation": "mapped",
       "structure": "incomplete",
       "complete": false,
-      "census_method": "stdlib-htmlparser-paragraph-labels@1",
-      "report_sha256": "163fa14c3f16a0707794d87a63e61b191a26c066afaf5293f89704b66c545080",
+      "census_method": "stdlib-htmlparser-block-break-labels@2",
+      "report_sha256": "8c1c3834987ef5b3b3642086eb0d58cb2a954e6a546447cd1926af1251316c28",
       "source_occurrence_count": 80
     }
   },
@@ -308,7 +305,7 @@
     "raw_sha256": "4675cbc3661313eac04a7389f6a9795a1a3d59af3c2df1f2163b87d9b432f304",
     "evidence_basis": "source-html",
     "evidence_file": "source.html",
-    "parser_version": "observed-legislation@1",
+    "parser_version": "observed-legislation@2",
     "source_article_candidates": 324,
     "structured_articles": 324,
     "articles_by_component": {
@@ -335,8 +332,8 @@
       "preservation": "mapped",
       "structure": "incomplete",
       "complete": false,
-      "census_method": "stdlib-htmlparser-paragraph-labels@1",
-      "report_sha256": "30c3256ae34cc7bd98a7a7cc587cf0cf32201858d5e404ec74c68c13615b9f66",
+      "census_method": "stdlib-htmlparser-block-break-labels@2",
+      "report_sha256": "389b292b652bfc08f2a39025848276438658f07b16ce444fc6c0ae64f94be4c5",
       "source_occurrence_count": 325
     }
   },
@@ -349,7 +346,7 @@
     "raw_sha256": "86a53975b97629e9ad891127067d3bf84b9eb90ce834b3f9e9df7dec64e49838",
     "evidence_basis": "source-html",
     "evidence_file": "source.html",
-    "parser_version": "observed-legislation@1",
+    "parser_version": "observed-legislation@2",
     "source_article_candidates": 91,
     "structured_articles": 91,
     "articles_by_component": {
@@ -376,8 +373,8 @@
       "preservation": "mapped",
       "structure": "incomplete",
       "complete": false,
-      "census_method": "stdlib-htmlparser-paragraph-labels@1",
-      "report_sha256": "7de9192c967b45ac5c2711d634118156cf7734b60402d7c2d6d7dd3b73e9a5c2",
+      "census_method": "stdlib-htmlparser-block-break-labels@2",
+      "report_sha256": "6ebbbbe34fe17ca040cf602cc1d1097c50015b775bdb47d5e2d652259482de3f",
       "source_occurrence_count": 91
     }
   },
@@ -390,7 +387,7 @@
     "raw_sha256": "5d713f6a40b2819627fb4a6e357dad87ee4df0e2f5fcf0bfb5f329476c19a560",
     "evidence_basis": "source-html",
     "evidence_file": "source.html",
-    "parser_version": "observed-legislation@1",
+    "parser_version": "observed-legislation@2",
     "source_article_candidates": 57,
     "structured_articles": 57,
     "articles_by_component": {
@@ -418,8 +415,8 @@
       "preservation": "mapped",
       "structure": "incomplete",
       "complete": false,
-      "census_method": "stdlib-htmlparser-paragraph-labels@1",
-      "report_sha256": "6bc4128cb8442608d1a878f0ea5c00b20b8006eb8e7b8f4531e2829309d4d3b0",
+      "census_method": "stdlib-htmlparser-block-break-labels@2",
+      "report_sha256": "0cf4e65c3500d8b3de1e22030a3c1eab69d3c1f41fc83bbefab8e172884a336d",
       "source_occurrence_count": 60
     }
   },
@@ -432,7 +429,7 @@
     "raw_sha256": "9504bb42e29c6a0f320975dd0334851319a72e3e6817aa2321cb63ba0b11bce4",
     "evidence_basis": "source-html",
     "evidence_file": "source.html",
-    "parser_version": "observed-legislation@1",
+    "parser_version": "observed-legislation@2",
     "source_article_candidates": 132,
     "structured_articles": 132,
     "articles_by_component": {
@@ -459,8 +456,8 @@
       "preservation": "mapped",
       "structure": "incomplete",
       "complete": false,
-      "census_method": "stdlib-htmlparser-paragraph-labels@1",
-      "report_sha256": "f793e13285047766efa2c3f1f789986b4ddc60f9f2bf4232be156307f0328635",
+      "census_method": "stdlib-htmlparser-block-break-labels@2",
+      "report_sha256": "f3c9913640cfc187e80abf03f5cc44683d7bef9dee3514ba578ec10f21e611a9",
       "source_occurrence_count": 158
     }
   },
@@ -473,7 +470,7 @@
     "raw_sha256": "fdaf040c76d3f6dd9c795d52dbb88f7cd8f9b7f328e1b5a3156395046f540b2e",
     "evidence_basis": "source-html",
     "evidence_file": "source.html",
-    "parser_version": "observed-legislation@1",
+    "parser_version": "observed-legislation@2",
     "source_article_candidates": 23,
     "structured_articles": 23,
     "articles_by_component": {
@@ -500,8 +497,8 @@
       "preservation": "mapped",
       "structure": "incomplete",
       "complete": false,
-      "census_method": "stdlib-htmlparser-paragraph-labels@1",
-      "report_sha256": "fd60554cc4292eef69d7824239e7c548f218eaf4b0d4b8a1d2cac570f697c1ec",
+      "census_method": "stdlib-htmlparser-block-break-labels@2",
+      "report_sha256": "ad274ab1f170e2346a6f86ccabb2d8e0ef431d2fa96bd049f3acf2bd7e5df284",
       "source_occurrence_count": 30
     }
   },
@@ -514,7 +511,7 @@
     "raw_sha256": "7b462e55dc6a711c4058ecc9e1f27206f3d186fa92d9602cf5877b4b5d2bbb56",
     "evidence_basis": "source-html",
     "evidence_file": "source.html",
-    "parser_version": "observed-legislation@1",
+    "parser_version": "observed-legislation@2",
     "source_article_candidates": 19,
     "structured_articles": 19,
     "articles_by_component": {
@@ -541,8 +538,8 @@
       "preservation": "mapped",
       "structure": "incomplete",
       "complete": false,
-      "census_method": "stdlib-htmlparser-paragraph-labels@1",
-      "report_sha256": "6a7eab8eea27ed1feffb2882bff4a208912bbd6b3f12244a88e80a7b1449bfd9",
+      "census_method": "stdlib-htmlparser-block-break-labels@2",
+      "report_sha256": "38225c61694906221c1527b3b7940c06f1826d16049252ed09913ad576a623fa",
       "source_occurrence_count": 25
     }
   },
@@ -555,7 +552,7 @@
     "raw_sha256": null,
     "evidence_basis": "historical-clean-text",
     "evidence_file": "historical-clean.txt",
-    "parser_version": "observed-legislation@1",
+    "parser_version": "observed-legislation@2",
     "source_article_candidates": null,
     "structured_articles": 99,
     "articles_by_component": {
@@ -597,7 +594,7 @@
     "raw_sha256": "5b444d49490bfbbefe3dd35d2248ab2f53493f1fa70cbc846d9b4305537a5fa0",
     "evidence_basis": "source-html",
     "evidence_file": "source.html",
-    "parser_version": "observed-legislation@1",
+    "parser_version": "observed-legislation@2",
     "source_article_candidates": 218,
     "structured_articles": 218,
     "articles_by_component": {
@@ -624,8 +621,8 @@
       "preservation": "mapped",
       "structure": "incomplete",
       "complete": false,
-      "census_method": "stdlib-htmlparser-paragraph-labels@1",
-      "report_sha256": "a21b317549f71484f444bbde0a14fe85a0957e2f1ce5bb40e36d948869a284a7",
+      "census_method": "stdlib-htmlparser-block-break-labels@2",
+      "report_sha256": "7c671cd2d36f2e734f860c8b039448f222e2117432b8ac79c179c8ce2c73f351",
       "source_occurrence_count": 219
     }
   }

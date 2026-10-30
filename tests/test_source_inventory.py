@@ -30,6 +30,13 @@ def test_source_counts_do_not_hide_missing_evidence_or_divergences(measured):
     assert cf["articles_by_component"] == {"main": 276, "adct": 148}
     assert cf["source_article_candidates"] == cf["structured_articles"] == 424
     assert not cf["reconciliation"]["missing_identities"]
+    cp = by_law["CP"]
+    assert cp["source_article_candidates"] == cp["structured_articles"] == 432
+    assert cp["observed_occurrences"] == len(cp["reconciliation"]["source_occurrences"]) == 434
+    assert not cp["reconciliation"]["missing_identities"]
+    assert not cp["reconciliation"]["extra_identities"]
+    assert "independent_article_census_mismatch" not in cp["reconciliation"]["discrepancies"]
+    assert "structural_boundary_review_required" in cp["reconciliation"]["discrepancies"]
     assert by_law["L9099"]["source_article_candidates"] is None
     assert by_law["L9099"]["raw_sha256"] is None
     assert all(row["complete"] is False for row in measured)

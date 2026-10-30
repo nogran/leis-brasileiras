@@ -6,7 +6,7 @@ reprodução da captura, reconciliação independente e limites explícitos. O
 [registro de validação anterior](archive/validation-2026-10-27.md) foi preservado
 como histórico; suas afirmações sobre os formatos antigos não validam esta entrega.
 
-## Resultados locais
+## Resultados da consolidação anterior (PR #6)
 
 Windows, Python 3.14.3, dependências do lock; importação conferida na worktree isolada.
 
@@ -27,12 +27,33 @@ A regressão de rótulo `Art. 40 - Aos servidores` evita interpretar o início d
 como sufixo `40-A`. A fonte histórica permanece inalterada. As contagens são
 recalculadas, não corrigidas manualmente nos READMEs.
 
+## Resultados deste incremento (2026-10-30)
+
+Windows, Python 3.14.3, dependências do lock, no checkout público de
+`leis-brasileiras`. A pasta aninhada não faz parte do commit. Nenhuma fixture
+HTML foi regravada.
+
+| Verificação | Resultado |
+|---|---|
+| Suíte completa | 965 passaram, sem falhas ou skips |
+| Cobertura | 89,33%; piso de 86% mantido |
+| Inventário | `--check` aprovado; relatório completo gerado em `dist/` |
+| Arquivo legislativo | `complete=false`; SHA-256 `ca4357c7c63dd156715eed594a67efd19b4a81ca3b23215d2d8ed9f796a8dcfb` com `--version ci-reference` |
+| CP | 432 identidades e 434 ocorrências; rótulos 187–196 com as notas oficiais; nove rubricas ficam `unclassified` |
+
+As outras 14 normas mantêm as contagens de candidatos, artigos e ocorrências.
+Mudam a revisão do parser (`observed-legislation@2`) e o método do censo
+(`stdlib-htmlparser-block-break-labels@2`), então o hash de reconciliação de
+cada norma também muda. Isso não certifica completude.
+
 ## O que a validação não certifica
 
 Todas as fontes continuam com `complete=false`: o censo de rótulos não comprova
 limites de cada redação, contexto de notas, hierarquia inteira ou semântica de
-tabelas. No CP, o censo restrito a parágrafos não encontra dez rótulos recuperados
-pelo mapa DOM; a divergência é publicada. LMP contém um byte final não decodificado
+tabelas. No CP, o incremento de 30/10/2026 recupera no censo os dez rótulos 187–196
+e separa nove rubricas do fluxo como conteúdo não classificado, sem inferir alvos.
+A igualdade de 432 identidades/434 ocorrências não certifica os demais limites.
+LMP contém um byte final não decodificado
 na fonte UTF-16, preservado e sinalizado. L9099 não tem HTML histórico disponível.
 Nenhuma dessas lacunas recebe texto substituto.
 

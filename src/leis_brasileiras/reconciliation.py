@@ -11,25 +11,31 @@ class ArticleCensus(HTMLParser):
     def __init__(self):
         super().__init__(convert_charrefs=True)
         self.blocks = []
-        self.open_paragraphs = []
+        self.pending = []
         self.ignored = []
+
+    def flush(self):
+        if self.pending:
+            self.blocks.append("".join(self.pending))
+            self.pending = []
 
     def handle_starttag(self, tag, attrs):
         if tag in {"script", "style"}:
             self.ignored.append(tag)
-        if tag == "p":
-            self.open_paragraphs.append([])
+        if not self.ignored and tag in {"p", "br", "div", "td", "th", "li", "blockquote",
+                                        "pre", "h1", "h2", "h3", "h4", "h5", "h6"}:
+            self.flush()
 
     def handle_endtag(self, tag):
         if tag in self.ignored:
             self.ignored.remove(tag)
-        if tag == "p" and self.open_paragraphs:
-            self.blocks.append("".join(self.open_paragraphs.pop()))
+        if not self.ignored and tag in {"p", "div", "td", "th", "li", "blockquote",
+                                        "pre", "h1", "h2", "h3", "h4", "h5", "h6"}:
+            self.flush()
 
     def handle_data(self, data):
         if not self.ignored:
-            for paragraph in self.open_paragraphs:
-                paragraph.append(data)
+            self.pending.append(data)
 
 
 def source_article_census(raw: bytes, encoding: str | None = None) -> dict:
@@ -37,7 +43,7 @@ def source_article_census(raw: bytes, encoding: str | None = None) -> dict:
     reader = ArticleCensus()
     reader.feed(text)
     reader.close()
-    reader.blocks.extend("".join(p) for p in reader.open_paragraphs)
+    reader.flush()
     component = "main"
     identities = set()
     occurrences = []
@@ -53,7 +59,7 @@ def source_article_census(raw: bytes, encoding: str | None = None) -> dict:
             identities.add(key)
             occurrences.append(key)
     return {"identities": sorted(identities), "occurrences": occurrences,
-            "method": "stdlib-htmlparser-paragraph-labels@1"}
+            "method": "stdlib-htmlparser-block-break-labels@2"}
 
 
 def reconcile(source_map: dict, units: list[dict], census: dict | None) -> dict:

@@ -2,16 +2,119 @@
 from collections import OrderedDict
 import re
 
+from bs4 import BeautifulSoup, NavigableString, Tag
+
 from .catalog import by_sigla
 from .evidence import OBSERVATION_CONTRACT, observation, seal, text_digest
 from .models import CANONICAL_FORMAT, CANONICAL_PARSER_VERSION
 from .reconciliation import reconcile, source_article_census
-from .source_map import html_map, text_map
+from .source_map import decode_source, html_map, text_map
 
 ARTICLE = re.compile(r"^Art\s*\.?(?:\s*\.)?\s*(\d+(?:\.\d{3})*)(?:\s*[-–]\s*([A-Z]+)(?![A-Za-z])|([A-Z]+)(?![A-Za-z]))?(?=[.\sº°o-]|$)")
 HEADING = re.compile(r"^(?:LIVRO|TÍTULO|TITULO|SUBTÍTULO|CAPÍTULO|CAPITULO|SEÇÃO|SECAO|SUBSEÇÃO)\b")
 ANNEX = re.compile(r"^ANEXO(?:\s+([IVXLCDM]+|\d+))?(?:\s|$)")
 ADCT = "ATO DAS DISPOSIÇÕES CONSTITUCIONAIS TRANSITÓRIAS"
+
+
+def _blocks(source, mapping):
+    """Keep evidence intact, but expose explicit br boundaries within DOM blocks.
+
+    The evidence lists store elements and texts separately. A traversal of the same
+    pinned DOM parser recovers their interleaving without changing paths or nodes.
+    Whole named headings retain their multi-line context.
+    """
+    epochs = {}
+    if isinstance(source, bytes):
+        decoded, _ = decode_source(source, mapping["encoding"])
+        soup = BeautifulSoup(decoded, "html.parser")
+        records = iter(mapping["texts"])
+        epoch = 0
+        for node in soup.descendants:
+            if isinstance(node, Tag) and node.name == "br":
+                epoch += 1
+            elif isinstance(node, NavigableString):
+                record = next(records)
+                if record["text"] != str(node):
+                    raise ValueError("DOM traversal does not reproduce evidence")
+                epochs[record["id"]] = epoch
+        if next(records, None) is not None:
+            raise ValueError("DOM traversal leaves evidence unvisited")
+    grouped = []
+    for item in mapping["texts"]:
+        if item["kind"] == "content":
+            key = item["block"] or item["path"]
+            if not grouped or grouped[-1][0] != key:
+                grouped.append((key, []))
+            grouped[-1][1].append(item)
+    blocks = []
+    for path, items in grouped:
+        normalized = re.sub(r"\s+", " ", "".join(item["text"] for item in items)).strip()
+        if normalized == ADCT or HEADING.match(normalized) or ANNEX.match(normalized):
+            blocks.append((path, items))
+            continue
+        prior = None
+        for item in items:
+            epoch = epochs.get(item["id"], 0)
+            if prior != epoch:
+                # A split block uses its first text path as the capture-local locator.
+                blocks.append((item["path"] if prior is not None else path, []))
+                prior = epoch
+            blocks[-1][1].append(item)
+    return blocks
+
+
+def _rubric_boundaries(blocks, mapping):
+    """Isolate closed, wholly bold runs next to an article in a broken block flow.
+
+    This recognizes typography only. It assigns no legal role or target to the run.
+    Ordinary paragraph rubrics remain for later review. A flow contains consecutive
+    labels outside DOM blocks or exposed by br splits, plus its closing boundary.
+    A single orphan label is insufficient. Bold emphasis, tables, and open wrappers
+    are not boundaries.
+    """
+    bold_texts = {}
+    for item in mapping["texts"]:
+        if item["kind"] == "content" and item["text"].strip():
+            for match in re.finditer(r"/(?:b|strong)\[\d+\]", item["path"]):
+                bold_texts.setdefault(item["path"][:match.end()], set()).add(item["id"])
+    normalized = [re.sub(r"\s+", " ", "".join(item["text"] for item in items)).strip()
+                  for _, items in blocks]
+    flow_labels = set()
+    run = []
+    for index, ((path, items), text) in enumerate(zip(blocks, normalized)):
+        if ARTICLE.match(text):
+            if items[0]["block"] is None or path != items[0]["block"]:
+                run.append(index)
+            else:
+                if len(run) > 1:
+                    flow_labels.update(run)
+                run = []
+    if len(run) > 1:
+        flow_labels.update(run)
+    previous_flow = []
+    last_flow = False
+    for index, text in enumerate(normalized):
+        previous_flow.append(last_flow)
+        if ARTICLE.match(text):
+            last_flow = index in flow_labels
+    boundaries = set()
+    next_label = False
+    next_flow = False
+    for index in range(len(blocks) - 1, -1, -1):
+        text = normalized[index]
+        if not text:
+            continue
+        items = [item for item in blocks[index][1] if item["text"].strip()]
+        ids = {item["id"] for item in items}
+        if (next_label and (next_flow or previous_flow[index]) and not any(item["table"] for item in items)
+                and not (ARTICLE.match(text) or HEADING.match(text) or ANNEX.match(text) or text == ADCT)):
+            for match in re.finditer(r"/(?:b|strong)\[\d+\]", items[0]["path"]):
+                if bold_texts[items[0]["path"][:match.end()]] == ids:
+                    boundaries.add(index)
+                    break
+        next_label = bool(ARTICLE.match(text))
+        next_flow = index in flow_labels
+    return boundaries
 
 
 def extract_document(source: bytes | str, law: str, observed_at: str, *,
@@ -30,13 +133,8 @@ def extract_document(source: bytes | str, law: str, observed_at: str, *,
         raise ValueError("Supply captured bytes, not detached hashes or redactions")
     observed = observation(observed_at, precision)
     mapping = html_map(source, entry.get("parse", {}).get("encoding")) if isinstance(source, bytes) else text_map(source)
-    blocks = []
-    for item in mapping["texts"]:
-        if item["kind"] == "content":
-            key = item["block"] or item["path"]
-            if not blocks or blocks[-1][0] != key:
-                blocks.append((key, []))
-            blocks[-1][1].append(item)
+    blocks = _blocks(source, mapping)
+    rubric_boundaries = _rubric_boundaries(blocks, mapping)
     units, components = OrderedDict(), OrderedDict()
     component = "main"
     current = None
@@ -58,7 +156,7 @@ def extract_document(source: bytes | str, law: str, observed_at: str, *,
                    "dates": [], "mixed_markings": False}
         current["readings"].append(reading)
 
-    for path, items in blocks:
+    for index, (path, items) in enumerate(blocks):
         literal = "".join(item["text"] for item in items)
         normalized = re.sub(r"\s+", " ", literal).strip()
         match = ARTICLE.match(normalized)
@@ -76,7 +174,7 @@ def extract_document(source: bytes | str, law: str, observed_at: str, *,
         elif HEADING.match(normalized):
             hierarchy = [{"text": literal, "evidence_ids": [item["id"] for item in items]}]
             start("heading", normalized, "heading-" + text_digest(path)[:16], path)
-        elif current is None:
+        elif index in rubric_boundaries or current is None:
             start("unclassified", "", "unclassified-" + text_digest(path)[:16], path)
         for item in items:
             reading["evidence_ids"].append(item["id"])
