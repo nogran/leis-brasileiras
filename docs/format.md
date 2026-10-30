@@ -94,3 +94,14 @@ Historical reference archives are distinct from fresh capture directories. They
 preserve original date precision and missing evidence. Files named
 `*-historical.schema.json` describe earlier contracts only. Old validation helpers
 are diagnostic; new public exporters do not call their lossy transformations.
+
+## Inventory summary and full audit report
+
+The versioned `docs/source-inventory.json` is a summary, not a corpus document.
+It keeps counts, source provenance, parser version, all reported differences and
+`report_sha256` of the full reconciliation object (excluding that hash field).
+Exhaustive source/structured identity and occurrence lists remain in the generated
+`dist/source-fidelity-report.json`, available as a CI artifact for 14 days or
+reproducible from the same commit. `--check --report PATH` verifies the committed
+summary/READMEs while exporting the full report even if those files are stale.
+The observation/capture formats and their embedded reconciliation are unchanged.

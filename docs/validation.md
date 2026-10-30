@@ -12,7 +12,7 @@ Windows, Python 3.14.3, dependências do lock; importação conferida na worktre
 
 | Verificação | Resultado |
 |---|---|
-| Suíte completa, após consolidação | 949 passaram, sem falhas ou skips |
+| Suíte completa, após resumo do inventário | 951 passaram, sem falhas ou skips |
 | Cobertura | 89,12%; piso de 86% mantido |
 | Wheel e sdist | Construídos como 0.2.0.dev1; wheel instalado em ambiente novo fora do repo, catálogos e schema/extrator verificados |
 | Inventário e READMEs | Regeneração determinística e `--check` aprovado |
@@ -45,12 +45,26 @@ consulta atual aos tribunais. Não houve recaptura atual das 15 leis nesta valid
 
 ```bash
 python -m pytest -q --cov=leis_brasileiras --cov-report=term
-python -m tools.build_inventory --check
+python -m tools.build_inventory --check --report dist/source-fidelity-report.json
 python -m tools.build_reference --version fidelity-check --output dist/fidelity-check.zip
 python -m tools.audit_source_fidelity
 python -m tools.audit_legacy_assertions --output dist/legacy-audit.json
 python -m build
 ```
+
+O arquivo versionado `docs/source-inventory.json` contém somente o resumo: contagens,
+componentes, datas, fonte, versão do parser, divergências e hash da reconciliação
+completa. As listas integrais de identidades e ocorrências são geradas no relatório
+`dist/source-fidelity-report.json`; `dist/` não é versionado. O `report_sha256` de
+cada resumo corresponde ao objeto de reconciliação completo, excluído o próprio
+campo de hash, usando a serialização determinística do contrato.
+
+O comando acima recalcula o relatório integral e confere o resumo e os READMEs.
+Uma divergência continua retornando erro; o relatório é salvo mesmo nesse caso
+para investigação. O CI disponibiliza o arquivo como artefato `source-fidelity-report`
+por 14 dias, vinculado à execução. Após expirar, ele pode ser regenerado a partir
+do mesmo commit e das fixtures. Falha de upload aparece no job e não muda os
+resultados da auditoria. Nenhum dado operacional privado entra nesse artefato.
 
 `audit_source_fidelity` retorna 2 quando há estrutura incompleta. Isso é esperado no
 estado atual e não deve virar uma declaração de completude no CI. O CI reprova

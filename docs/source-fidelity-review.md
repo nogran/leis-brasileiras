@@ -21,7 +21,9 @@ somente para diagnóstico. O extrator privado ainda precisa de migração própr
 
 ## Evidência e pendências por fonte
 
-As 15 normas possuem relatório reproduzível em [source-inventory.json](source-inventory.json).
+As 15 normas possuem resumo reproduzível em [source-inventory.json](source-inventory.json).
+As listas completas são geradas localmente ou baixadas do artefato do CI, conforme
+[reprodução da auditoria](validation.md#reprodução).
 A CF88 recupera os artigos principais 117, 171 e 233 e os artigos ADCT 91, 106–112,
 111-A e 114 antes ausentes. Os rótulos permanecem distintos por componente. A
 contagem 424 refere-se exclusivamente à fixture de 07/07/2026.

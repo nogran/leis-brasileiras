@@ -322,7 +322,7 @@ Articles count one identity per component; occurrences include repeats and obser
 
 L9099 has no historical HTML in this reference. A new capture cannot recreate that evidence. Retrieval parts are not articles or readings; the new corpus does not generate overlapping parts.
 
-[Reconciliation / Reconciliação](docs/source-inventory.json)
+[Inventory summary / Resumo](docs/source-inventory.json) · [Full report / Relatório completo](docs/validation.md#reprodução)
 
 <!-- article-inventory:end -->
 

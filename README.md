@@ -324,7 +324,7 @@ Artigos contam uma identidade por componente; ocorrências incluem repetições 
 
 L9099 não possui HTML histórico nesta referência. Uma captura nova não recompõe essa evidência. Partes de recuperação não são artigos ou redações; o novo corpus não gera partes com overlap.
 
-[Reconciliation / Reconciliação](docs/source-inventory.json)
+[Inventory summary / Resumo](docs/source-inventory.json) · [Full report / Relatório completo](docs/validation.md#reprodução)
 
 <!-- article-inventory:end -->
 
