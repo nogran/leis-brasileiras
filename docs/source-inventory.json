@@ -537,23 +537,23 @@
   {
     "law": "L9099",
     "observation": {
-      "value": "2026-07-13",
+      "value": "2026-10-30",
       "precision": "day"
     },
-    "raw_sha256": null,
-    "evidence_basis": "historical-clean-text",
-    "evidence_file": "historical-clean.txt",
+    "raw_sha256": "8eb6a8486ddfe66cfe42cc9258bd455d9cf9c31aed792ade66f6a3aea7df2b90",
+    "evidence_basis": "source-html",
+    "evidence_file": "source.html",
     "parser_version": "observed-legislation@4",
-    "source_article_candidates": null,
+    "source_article_candidates": 99,
     "structured_articles": 99,
     "articles_by_component": {
       "main": 99
     },
-    "observed_occurrences": 99,
+    "observed_occurrences": 106,
     "source_statement_mentions": 4,
     "unclassified_units": 1,
-    "tables": 0,
-    "text_fragments": 286,
+    "tables": 2,
+    "text_fragments": 1090,
     "blocks_or_parts": null,
     "complete": false,
     "reconciliation": {
@@ -561,19 +561,18 @@
       "extra_identities": [],
       "unmapped_evidence_ids": [],
       "unclassified_units": [
-        "br-federal:law:1995:9099!main/unclassified-fbf91218e1a7cf4a"
+        "br-federal:law:1995:9099!main/unclassified-c2da528a9838b48a"
       ],
       "discrepancies": [
-        "raw_source_unavailable",
         "unclassified_content",
         "structural_boundary_review_required"
       ],
       "preservation": "mapped",
       "structure": "incomplete",
       "complete": false,
-      "census_method": null,
-      "report_sha256": "6f5bb971c803db9a7df7ae9c30edf984da5a1c9e64646442a7c3c0c76afdfe55",
-      "source_occurrence_count": null
+      "census_method": "stdlib-htmlparser-block-break-labels@3",
+      "report_sha256": "2e34080c4b59ce25cdfab5382fb70f9ff9bdbadaf23c82eb8ce90834c1a9b01c",
+      "source_occurrence_count": 106
     }
   },
   {

@@ -27,6 +27,12 @@ def reference(law):
     if html.exists():
         evidence = gzip.decompress(html.read_bytes())
         filename = "source.html"
+        # A later HTML capture must not inherit the date of an older derived snapshot.
+        stamp = html.with_name(law["nome_base"] + ".observed-date")
+        if stamp.exists():
+            date = stamp.read_text(encoding="utf-8").strip()
+            if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", date):
+                raise ValueError("Invalid observation date")
     else:
         evidence = gzip.decompress(path.with_name(path.name.removesuffix(".json.gz") + "_clean.txt.gz").read_bytes())
         filename = "historical-clean.txt"

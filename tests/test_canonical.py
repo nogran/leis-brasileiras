@@ -46,8 +46,12 @@ def test_every_reference_is_preserved_and_incompleteness_is_explicit(law):
     assert not report["complete"]
     assert "editorial_annotations" not in result
     if law["sigla"] == "L9099":
-        assert result["provenance"]["raw_sha256"] is None
-        assert "raw_source_unavailable" in report["discrepancies"]
+        assert filename == "source.html"
+        assert result["provenance"]["basis"] == "source-html"
+        assert result["provenance"]["raw_sha256"]
+        assert result["provenance"]["observation"]["value"] == "2026-10-30"
+        assert "raw_source_unavailable" not in report["discrepancies"]
+        assert report["source_identities"]
 
 
 def test_cf88_missing_identities_are_recovered_from_the_html():
