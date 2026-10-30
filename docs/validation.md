@@ -117,8 +117,9 @@ o HTML bruto não é o mesmo.
 Nessa fixture o artigo 57 não aparece como string contígua. O número está partido
 em spans no mesmo parágrafo (`Art. 5`, `7.`, `(VETADO).`). Com `observed-legislation@4`
 esses dígitos viram `main/57`, uma leitura, e `main/5` permanece a leitura que
-define dado pessoal. O texto observado de `main/57` ainda inclui o título `Seção II`,
-porque o detector de cabeçalho exige `SEÇÃO`. Nenhuma vigência é escolhida.
+define dado pessoal. `observed-legislation@5` reconhece o parágrafo `Seção II`
+da mesma fixture como cabeçalho, então ele não permanece no texto de `main/57`.
+Nenhuma vigência é escolhida. O HTML de 07/07/2026 não foi regravado.
 
 ## Número partido em spans — 2026-10-30
 

@@ -75,6 +75,11 @@ already continues into words, and does not invent a number or choose vigência.
 The evidence map remains `html-evidence@1`, unchanged. Segmentation and the
 independent census (`stdlib-htmlparser-block-break-labels@3`) share that digit
 join; the census does not import the segmenter.
+`observed-legislation@5` keeps that behavior and recognizes a heading word
+whether the captured HTML writes it in uppercase or title case (`SEÇÃO` or
+`Seção`, and the same for the other heading words). The 2026-07-07 LGPD
+capture puts `Seção II` in its own paragraph. That paragraph is a heading.
+It is not appended to the previous article. The HTML fixtures are unchanged.
 Reprocessing produces a new document revision; it never overwrites old captures.
 
 ## Jurisprudence
