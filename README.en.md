@@ -290,7 +290,7 @@ The result is `dist/reference.zip`, containing historical reference data rather 
 fresh extraction. The destination must be new; choose another ZIP name for a repeat run.
 
 Archives include a manifest, SHA-256 hashes, sources, dates and package/parser versions.
-The historical reference records date precision and missing raw HTML for L9099. Large
+The reference records date precision. L9099 HTML was captured on 2026-10-30 and does not rewrite the derived text from 2026-07-13. Large
 corpora should be attached to releases only after publication approval; these commands
 **do not publish** anything. Do not copy private data directories into the repository.
 
@@ -317,10 +317,10 @@ Articles count one identity per component; occurrences include repeats and obser
 | LC123 | 2026-07-07 | 132 | 132 | 158 | 2 |
 | LT | 2026-07-07 | 23 | 23 | 30 | 2 |
 | CADPOS | 2026-07-07 | 19 | 19 | 25 | 2 |
-| L9099 | 2026-07-13 | — | 99 | 99 | 3 |
+| L9099 | 2026-10-30 | 99 | 99 | 106 | 2 |
 | LEP | 2026-08-18 | 218 | 218 | 219 | 2 |
 
-L9099 has no historical HTML in this reference. A new capture cannot recreate that evidence. Retrieval parts are not articles or readings; the new corpus does not generate overlapping parts.
+L9099 has HTML captured on 2026-10-30. That file does not rewrite the derived text from 2026-07-13. Retrieval parts are not articles or readings; the new corpus does not generate overlapping parts.
 
 [Inventory summary / Resumo](docs/source-inventory.json) · [Full report / Relatório completo](docs/validation.md#reprodução)
 
@@ -332,8 +332,8 @@ L9099 has no historical HTML in this reference. A new capture cannot recreate th
   A current capture of all 15 instruments remains pending because of connection
   failures recorded in the [validation report](docs/validation.md). Offline tests
   do not establish current access to the sources.
-- **Historical coverage:** 14 instruments have raw HTML fixtures; L9099 has cleaned
-  text and JSON. Struck-out fragments retain their evidence links and are not a complete amendment
+- **Coverage:** all 15 instruments have raw HTML fixtures. L9099 HTML is from
+  2026-10-30; the derived text from 2026-07-13 remains. Struck-out fragments retain their evidence links and are not a complete amendment
   or legal-validity history.
 - **Multipart compatibility:** in the historical format, preserve identifiers and account for overlap when assembling
   text; concatenating parts directly repeats passages. See [format and limits](docs/format.md).
@@ -398,7 +398,7 @@ python -m tools.build_reference --format observed-law-v1 --version test-referenc
 python -m build
 ```
 
-The suite preserves all 15 historical references and reconciles candidates in the 14 available
+The suite preserves all 15 references and reconciles candidates in the 15 HTML
 sources, and tests numbering, overlap, duplicates and part sizes. Abuse tests cover
 external URLs, exfiltration attempts, active content, malicious instructions treated
 as text, malformed input, volume and capture isolation. Tests make no paid calls and

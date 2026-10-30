@@ -292,8 +292,8 @@ O resultado é `dist/reference.zip`. Ele contém os dados históricos de referê
 não uma extração atual. O destino deve ser novo; para repetir, escolha outro nome de ZIP.
 
 Os ZIPs incluem manifesto, hashes SHA-256, fontes, datas, versão do pacote e versão do
-parser. A referência histórica explicita a precisão das datas e a ausência do HTML
-bruto de L9099. Prefira anexar corpus volumosos a releases após aprovação; os comandos
+parser. A referência explicita a precisão das datas. O HTML da L9099 foi
+capturado em 2026-10-30 e não reescreve o texto derivado de 2026-07-13. Prefira anexar corpus volumosos a releases após aprovação; os comandos
 acima **não publicam** nada. Não copie diretórios privados de dados para o repositório.
 
 ## Qualidade, atualização e limites
@@ -319,10 +319,10 @@ Artigos contam uma identidade por componente; ocorrências incluem repetições 
 | LC123 | 2026-07-07 | 132 | 132 | 158 | 2 |
 | LT | 2026-07-07 | 23 | 23 | 30 | 2 |
 | CADPOS | 2026-07-07 | 19 | 19 | 25 | 2 |
-| L9099 | 2026-07-13 | — | 99 | 99 | 3 |
+| L9099 | 2026-10-30 | 99 | 99 | 106 | 2 |
 | LEP | 2026-08-18 | 218 | 218 | 219 | 2 |
 
-L9099 não possui HTML histórico nesta referência. Uma captura nova não recompõe essa evidência. Partes de recuperação não são artigos ou redações; o novo corpus não gera partes com overlap.
+A L9099 tem HTML capturado em 2026-10-30. Esse arquivo não reescreve o texto derivado de 2026-07-13. Partes de recuperação não são artigos ou redações; o novo corpus não gera partes com overlap.
 
 [Inventory summary / Resumo](docs/source-inventory.json) · [Full report / Relatório completo](docs/validation.md#reprodução)
 
@@ -334,8 +334,8 @@ L9099 não possui HTML histórico nesta referência. Uma captura nova não recom
   A coleta atual das 15 normas ainda está pendente por falhas de conexão registradas
   na [validação da proposta](docs/validation.md). Os testes offline não comprovam
   acesso atual às fontes.
-- **Cobertura histórica:** 14 normas têm HTML bruto nas fixtures; L9099 possui texto
-  limpo e JSON. Redações riscadas permanecem vinculadas à fonte; não formam um histórico completo
+- **Cobertura:** as 15 normas têm HTML bruto nas fixtures. O HTML da L9099 é de
+  2026-10-30; o texto derivado de 2026-07-13 permanece. Redações riscadas permanecem vinculadas à fonte; não formam um histórico completo
   de vigência.
 - **Compatibilidade multipartes:** no formato histórico, preserve os identificadores e trate o overlap ao recompor
   o texto; concatenar as partes diretamente repete trechos. Veja [formato e limites](docs/format.md).
@@ -401,8 +401,8 @@ python -m tools.build_reference --format observed-law-v1 --version test-referenc
 python -m build
 ```
 
-A suíte reconcilia rótulos nas 14 fontes HTML, verifica preservação e reprodução,
-e mantém explícita a falta de evidência de L9099. Testes históricos de partes e
+A suíte reconcilia rótulos nas 15 fontes HTML e verifica preservação e reprodução.
+Testes históricos de partes e
 overlap permanecem diagnósticos do formato antigo. Testes
 de abuso cobrem URLs externas, tentativa de exfiltração, conteúdo ativo, instruções
 maliciosas tratadas como texto, entradas malformadas, volume e isolamento de capturas.

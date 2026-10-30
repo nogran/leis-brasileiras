@@ -37,8 +37,14 @@ def test_source_counts_do_not_hide_missing_evidence_or_divergences(measured):
     assert not cp["reconciliation"]["extra_identities"]
     assert "independent_article_census_mismatch" not in cp["reconciliation"]["discrepancies"]
     assert "structural_boundary_review_required" in cp["reconciliation"]["discrepancies"]
-    assert by_law["L9099"]["source_article_candidates"] is None
-    assert by_law["L9099"]["raw_sha256"] is None
+    l9099 = by_law["L9099"]
+    assert l9099["evidence_basis"] == "source-html"
+    assert l9099["evidence_file"] == "source.html"
+    assert l9099["observation"]["value"] == "2026-10-30"
+    assert l9099["source_article_candidates"] == l9099["structured_articles"] == 99
+    assert l9099["raw_sha256"]
+    assert not l9099["reconciliation"]["missing_identities"]
+    assert "raw_source_unavailable" not in l9099["reconciliation"]["discrepancies"]
     assert all(row["complete"] is False for row in measured)
     assert all(row["blocks_or_parts"] is None for row in measured)
 

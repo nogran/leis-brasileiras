@@ -57,8 +57,9 @@ outside paragraphs. Soft line breaks and inline tags do not terminate a label.
 This traversal does not import the BeautifulSoup segmenter. The reconciliation lists missing/extra identities,
 source occurrences, unmapped fragments and unclassified units. Equal article counts
 do not certify boundaries, note targets or table semantics. `complete=false` remains
-mandatory while these reviews are unresolved. L9099's historical clean text cannot
-be promoted to raw evidence with a detached hash.
+mandatory while these reviews are unresolved. L9099's HTML was captured on
+2026-10-30. That file does not replace the derived text dated 2026-07-13, and the
+older text does not receive this HTML hash.
 
 `observed-legislation@3` keeps closed, wholly bold runs that precede a label inside
 the article of that label, in source order, ahead of the label and its notes. The

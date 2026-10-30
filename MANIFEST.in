@@ -1,6 +1,6 @@
 recursive-include src/leis_brasileiras *.yml *.json
 recursive-include src/leis_brasileiras/schemas *.json
-recursive-include tests *.py *.gz
+recursive-include tests *.py *.gz *.observed-date
 include tests/fixtures/jurisprudence/manifest.json
 recursive-include docs *.md *.json
 recursive-include tools *.py

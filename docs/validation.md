@@ -55,8 +55,9 @@ e guarda cada rubrica dentro do artigo do rótulo seguinte, sem número inventad
 e sem vigência.
 A igualdade de 432 identidades/434 ocorrências não certifica os demais limites.
 LMP contém um byte final não decodificado
-na fonte UTF-16, preservado e sinalizado. L9099 não tem HTML histórico disponível.
-Nenhuma dessas lacunas recebe texto substituto.
+na fonte UTF-16, preservado e sinalizado. A L9099 tem HTML capturado em
+2026-10-30; esse arquivo não reescreve o texto derivado de 2026-07-13.
+Nenhuma lacuna recebe texto substituto.
 
 Jurisprudência mantém ocorrências duplicadas (inclusive sumário/corpo nos PDFs),
 campos não interpretados e situações desconhecidas. Preservação não permite declarar
@@ -136,4 +137,11 @@ mantêm candidatos, artigos e ocorrências. O `report_sha256` muda nas normas co
 HTML, porque o método do censo (`stdlib-htmlparser-block-break-labels@3`) entra
 no objeto hasheado. L9099 não tem censo, então o hash de reconciliação dela
 permanece. `complete=false` permanece.
+
+## HTML da L9099 — 2026-10-30
+
+A captura veio de `https://www.planalto.gov.br/ccivil_03/leis/l9099.htm` em
+2026-10-30. A data de observação é essa. O texto derivado de 2026-07-13
+permanece em `tests/fixtures/baseline/` e não é redatado com estes bytes.
+Candidatos e artigos estruturados: 99. `complete=false` permanece.
 

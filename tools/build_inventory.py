@@ -64,9 +64,9 @@ def readme_inventory(rows, language):
         lines.append(f"| {row['law']} | {row['observation']['value']} | {census if census is not None else '—'} | "
                      f"{row['structured_articles']} | {row['observed_occurrences']} | {len(row['reconciliation']['discrepancies'])} |")
     lines.extend(["",
-        ("L9099 não possui HTML histórico nesta referência. Uma captura nova não recompõe essa evidência. "
+        ("A L9099 tem HTML capturado em 2026-10-30. Esse arquivo não reescreve o texto derivado de 2026-07-13. "
          "Partes de recuperação não são artigos ou redações; o novo corpus não gera partes com overlap."
-         if pt else "L9099 has no historical HTML in this reference. A new capture cannot recreate that evidence. "
+         if pt else "L9099 has HTML captured on 2026-10-30. That file does not rewrite the derived text from 2026-07-13. "
          "Retrieval parts are not articles or readings; the new corpus does not generate overlapping parts."),
         "", "[Inventory summary / Resumo](docs/source-inventory.json) · "
         "[Full report / Relatório completo](docs/validation.md#reprodução)", "", END])
