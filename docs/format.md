@@ -51,12 +51,25 @@ Tables retain their DOM evidence, without inferring row meanings. Unclassified
 material is preserved and reported. No minimum text length discards short articles.
 No overlap, chunking, tombstone or editorial registry is part of the new export.
 
-An independent stdlib HTMLParser traversal counts paragraph-start article candidates
-against the BeautifulSoup segmenter. The reconciliation lists missing/extra identities,
+An independent stdlib HTMLParser traversal counts article candidates at explicit
+block and `br` boundaries, including multiple labels in one paragraph and labels
+outside paragraphs. Soft line breaks and inline tags do not terminate a label.
+This traversal does not import the BeautifulSoup segmenter. The reconciliation lists missing/extra identities,
 source occurrences, unmapped fragments and unclassified units. Equal article counts
 do not certify boundaries, note targets or table semantics. `complete=false` remains
 mandatory while these reviews are unresolved. L9099's historical clean text cannot
 be promoted to raw evidence with a detached hash.
+
+`observed-legislation@3` keeps closed, wholly bold runs that precede a label inside
+the article of that label, in source order, ahead of the label and its notes. The
+article is created from the captured `Art.` label. A bold run with no following
+label does not receive an invented number. A single orphan label, ordinary bold
+paragraphs, inline emphasis, open bold wrappers, and table cells do not trigger
+this join. Multi-line named headings keep their context. `legal_validity` stays
+`unknown`.
+The evidence map remains `html-evidence@1`, unchanged; only segmentation and the
+independent census (`stdlib-htmlparser-block-break-labels@2`) have new revisions.
+Reprocessing produces a new document revision; it never overwrites old captures.
 
 ## Jurisprudence
 
