@@ -69,3 +69,7 @@ def test_lgpd_fixture_keeps_article_5_and_recognizes_57():
     assert len(article["readings"]) == 1
     assert "(VETADO)" in article["text"]
     assert "dado pessoal" not in article["text"]
+    assert "Seção II" not in article["text"]
+    headings = [unit for unit in document["units"] if unit["kind"] == "heading" and "Conselho Nacional" in (unit.get("text") or "")]
+    assert len(headings) == 1
+    assert headings[0]["text"].lstrip().startswith("Seção II")
