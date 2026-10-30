@@ -8,7 +8,7 @@
     "raw_sha256": "0c36e71cbcd35b24c1982b976feffc01a5ac9147f15c544044211274a59680cc",
     "evidence_basis": "source-html",
     "evidence_file": "source.html",
-    "parser_version": "observed-legislation@2",
+    "parser_version": "observed-legislation@3",
     "source_article_candidates": 424,
     "structured_articles": 424,
     "articles_by_component": {
@@ -50,7 +50,7 @@
     "raw_sha256": "c71711ea5bfcc18cc9017cdde4173c3b5be074395ba8c4ca8c98801ee5d0cc2b",
     "evidence_basis": "source-html",
     "evidence_file": "source.html",
-    "parser_version": "observed-legislation@2",
+    "parser_version": "observed-legislation@3",
     "source_article_candidates": 130,
     "structured_articles": 130,
     "articles_by_component": {
@@ -91,7 +91,7 @@
     "raw_sha256": "c5b9b5f1a81af9c6ad47ab151721bc8faa307aeacb77882ee5e9a605e4dd37a3",
     "evidence_basis": "source-html",
     "evidence_file": "source.html",
-    "parser_version": "observed-legislation@2",
+    "parser_version": "observed-legislation@3",
     "source_article_candidates": 1022,
     "structured_articles": 1022,
     "articles_by_component": {
@@ -132,7 +132,7 @@
     "raw_sha256": "86bedd452f26b008ff2f876c53ececee1ba8c15e10b4bd0799ec1d7e7e658e6d",
     "evidence_basis": "source-html",
     "evidence_file": "source.html",
-    "parser_version": "observed-legislation@2",
+    "parser_version": "observed-legislation@3",
     "source_article_candidates": 2083,
     "structured_articles": 2083,
     "articles_by_component": {
@@ -173,7 +173,7 @@
     "raw_sha256": "147c7cfff8bd00b8ef489667471a9983ecd85eb9b5096db3527c683583e926e1",
     "evidence_basis": "source-html",
     "evidence_file": "source.html",
-    "parser_version": "observed-legislation@2",
+    "parser_version": "observed-legislation@3",
     "source_article_candidates": 1073,
     "structured_articles": 1073,
     "articles_by_component": {
@@ -214,7 +214,7 @@
     "raw_sha256": "5ec15272038b6552a08fe6c3444a3a557033de52dea8a53f0b150b138085c282",
     "evidence_basis": "source-html",
     "evidence_file": "source.html",
-    "parser_version": "observed-legislation@2",
+    "parser_version": "observed-legislation@3",
     "source_article_candidates": 432,
     "structured_articles": 432,
     "articles_by_component": {
@@ -222,7 +222,7 @@
     },
     "observed_occurrences": 434,
     "source_statement_mentions": 67,
-    "unclassified_units": 10,
+    "unclassified_units": 1,
     "tables": 2,
     "text_fragments": 8562,
     "blocks_or_parts": null,
@@ -232,16 +232,7 @@
       "extra_identities": [],
       "unmapped_evidence_ids": [],
       "unclassified_units": [
-        "br-federal:decree-law:1940:2848!main/unclassified-c2da528a9838b48a",
-        "br-federal:decree-law:1940:2848!main/unclassified-43a9fb3b6cfe8544",
-        "br-federal:decree-law:1940:2848!main/unclassified-28749f33b6033ed1",
-        "br-federal:decree-law:1940:2848!main/unclassified-23fd669f26091582",
-        "br-federal:decree-law:1940:2848!main/unclassified-b178c1903a1cdf65",
-        "br-federal:decree-law:1940:2848!main/unclassified-dc7cdd2321672f3d",
-        "br-federal:decree-law:1940:2848!main/unclassified-3dce4789b053d8c1",
-        "br-federal:decree-law:1940:2848!main/unclassified-8a20c9053d0a5e02",
-        "br-federal:decree-law:1940:2848!main/unclassified-e8d15188e2ec9d84",
-        "br-federal:decree-law:1940:2848!main/unclassified-19c4f5bbd2dddb29"
+        "br-federal:decree-law:1940:2848!main/unclassified-c2da528a9838b48a"
       ],
       "discrepancies": [
         "unclassified_content",
@@ -251,7 +242,7 @@
       "structure": "incomplete",
       "complete": false,
       "census_method": "stdlib-htmlparser-block-break-labels@2",
-      "report_sha256": "5b3d9705ba93c3e1539418d0eb6ef50435cf2bd0dab0dfab7aefabd7116c5cc4",
+      "report_sha256": "fdcd81ff898af64db1d7e16f4bb5932b376c12c7428825296ddaefeb7411a2ab",
       "source_occurrence_count": 434
     }
   },
@@ -264,7 +255,7 @@
     "raw_sha256": "6d5255bbb932fe0a9566e0bcfb4000cc8b7ed6e739ec1cf0053c4c3fa507f2af",
     "evidence_basis": "source-html",
     "evidence_file": "source.html",
-    "parser_version": "observed-legislation@2",
+    "parser_version": "observed-legislation@3",
     "source_article_candidates": 79,
     "structured_articles": 79,
     "articles_by_component": {
@@ -305,7 +296,7 @@
     "raw_sha256": "4675cbc3661313eac04a7389f6a9795a1a3d59af3c2df1f2163b87d9b432f304",
     "evidence_basis": "source-html",
     "evidence_file": "source.html",
-    "parser_version": "observed-legislation@2",
+    "parser_version": "observed-legislation@3",
     "source_article_candidates": 324,
     "structured_articles": 324,
     "articles_by_component": {
@@ -346,7 +337,7 @@
     "raw_sha256": "86a53975b97629e9ad891127067d3bf84b9eb90ce834b3f9e9df7dec64e49838",
     "evidence_basis": "source-html",
     "evidence_file": "source.html",
-    "parser_version": "observed-legislation@2",
+    "parser_version": "observed-legislation@3",
     "source_article_candidates": 91,
     "structured_articles": 91,
     "articles_by_component": {
@@ -387,7 +378,7 @@
     "raw_sha256": "5d713f6a40b2819627fb4a6e357dad87ee4df0e2f5fcf0bfb5f329476c19a560",
     "evidence_basis": "source-html",
     "evidence_file": "source.html",
-    "parser_version": "observed-legislation@2",
+    "parser_version": "observed-legislation@3",
     "source_article_candidates": 57,
     "structured_articles": 57,
     "articles_by_component": {
@@ -429,7 +420,7 @@
     "raw_sha256": "9504bb42e29c6a0f320975dd0334851319a72e3e6817aa2321cb63ba0b11bce4",
     "evidence_basis": "source-html",
     "evidence_file": "source.html",
-    "parser_version": "observed-legislation@2",
+    "parser_version": "observed-legislation@3",
     "source_article_candidates": 132,
     "structured_articles": 132,
     "articles_by_component": {
@@ -470,7 +461,7 @@
     "raw_sha256": "fdaf040c76d3f6dd9c795d52dbb88f7cd8f9b7f328e1b5a3156395046f540b2e",
     "evidence_basis": "source-html",
     "evidence_file": "source.html",
-    "parser_version": "observed-legislation@2",
+    "parser_version": "observed-legislation@3",
     "source_article_candidates": 23,
     "structured_articles": 23,
     "articles_by_component": {
@@ -511,7 +502,7 @@
     "raw_sha256": "7b462e55dc6a711c4058ecc9e1f27206f3d186fa92d9602cf5877b4b5d2bbb56",
     "evidence_basis": "source-html",
     "evidence_file": "source.html",
-    "parser_version": "observed-legislation@2",
+    "parser_version": "observed-legislation@3",
     "source_article_candidates": 19,
     "structured_articles": 19,
     "articles_by_component": {
@@ -552,7 +543,7 @@
     "raw_sha256": null,
     "evidence_basis": "historical-clean-text",
     "evidence_file": "historical-clean.txt",
-    "parser_version": "observed-legislation@2",
+    "parser_version": "observed-legislation@3",
     "source_article_candidates": null,
     "structured_articles": 99,
     "articles_by_component": {
@@ -594,7 +585,7 @@
     "raw_sha256": "5b444d49490bfbbefe3dd35d2248ab2f53493f1fa70cbc846d9b4305537a5fa0",
     "evidence_basis": "source-html",
     "evidence_file": "source.html",
-    "parser_version": "observed-legislation@2",
+    "parser_version": "observed-legislation@3",
     "source_article_candidates": 218,
     "structured_articles": 218,
     "articles_by_component": {

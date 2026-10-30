@@ -36,10 +36,11 @@ O censo anterior examinava somente o início do parágrafo e perdia os dez rótu
 O DOM reparado recuperava esses rótulos, mas a estruturação absorvia rubricas
 seguintes no artigo anterior ou no cabeçalho do capítulo.
 
-`observed-legislation@2` corrige ambos os mecanismos. O censo independente usa
-limites explícitos de bloco/`br`; nove trechos tipográficos isolados do fluxo,
-incluindo as rubricas antes de 187 e 197, ficam em unidades `unclassified`, sem
-inferir seu destinatário. As dez notas oficiais e todas as marcações permanecem.
+`observed-legislation@3` corrige ambos os mecanismos. O censo independente usa
+limites explícitos de bloco/`br`. As nove rubricas do fluxo entram no artigo do
+rótulo seguinte (187–190, 192–194, 196 e 197), antes do rótulo e da nota, sem
+número inventado e sem vigência. As dez notas oficiais e todas as marcações
+permanecem.
 Os `strike` nesse intervalo contêm somente quebras/espaços, sem corpo jurídico a
 reconstruir. O hash SHA-256 dos bytes HTML é
 `5ec15272038b6552a08fe6c3444a3a557033de52dea8a53f0b150b138085c282`;

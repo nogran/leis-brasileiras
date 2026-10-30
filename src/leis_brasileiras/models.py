@@ -5,7 +5,7 @@ import json
 CANONICAL_FORMAT = "observed-law-v1"
 CAPTURE_VERSION = 3
 CORPUS_VERSION = 3
-CANONICAL_PARSER_VERSION = "observed-legislation@2"
+CANONICAL_PARSER_VERSION = "observed-legislation@3"
 MAX_DOCUMENT_BYTES = 64 * 1024 * 1024
 
 

@@ -60,12 +60,13 @@ do not certify boundaries, note targets or table semantics. `complete=false` rem
 mandatory while these reviews are unresolved. L9099's historical clean text cannot
 be promoted to raw evidence with a detached hash.
 
-`observed-legislation@2` isolates closed, wholly bold runs immediately before labels
-in a flow of consecutive articles exposed outside DOM blocks or by `br` splits,
-including the flow's closing boundary. These runs become capture-local `unclassified`
-units, without an inferred rubric target or hierarchy level. A single orphan label,
-ordinary bold paragraphs, inline emphasis, open bold wrappers, and table cells do
-not trigger this reassignment. Multi-line named headings keep their context.
+`observed-legislation@3` keeps closed, wholly bold runs that precede a label inside
+the article of that label, in source order, ahead of the label and its notes. The
+article is created from the captured `Art.` label. A bold run with no following
+label does not receive an invented number. A single orphan label, ordinary bold
+paragraphs, inline emphasis, open bold wrappers, and table cells do not trigger
+this join. Multi-line named headings keep their context. `legal_validity` stays
+`unknown`.
 The evidence map remains `html-evidence@1`, unchanged; only segmentation and the
 independent census (`stdlib-htmlparser-block-break-labels@2`) have new revisions.
 Reprocessing produces a new document revision; it never overwrites old captures.

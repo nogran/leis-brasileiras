@@ -216,31 +216,38 @@ def test_cp_labels_notes_and_rubric_boundaries_follow_the_frozen_html():
     # expected references are independent of the segmenter's selected boundaries.
     labels = {187: 4713, 188: 4718, 189: 4723, 190: 4728, 191: 4731,
               192: 4742, 193: 4747, 194: 4753, 195: 4755, 196: 4765}
+    caption_before = {187: 4711, 188: 4716, 189: 4721, 190: 4726, 192: 4740,
+                      193: 4745, 194: 4751, 196: 4763}
     for number, node in labels.items():
         unit = articles[f"main/{number}"]
         assert len(unit["readings"]) == 1
         reading = unit["readings"][0]
         assert reading["source_order"] == texts[f"text-{node}"]["path"]
-        assert [key for key in reading["evidence_ids"] if texts[key]["text"].strip()] == [
-            f"text-{node}", f"text-{node + 1}"]
+        expected = [f"text-{node}", f"text-{node + 1}"]
+        if number in caption_before:
+            expected.insert(0, f"text-{caption_before[number]}")
+        assert [key for key in reading["evidence_ids"] if texts[key]["text"].strip()] == expected
         assert " ".join(texts[f"text-{node}"]["text"].split()).startswith((f"Art. {number}.", f"Art {number}."))
         assert " ".join(texts[f"text-{node + 1}"]["text"].split()) == "(Revogado pela Lei nº 9.279, de 14.5.1996)"
         assert reading["source_statements"] == [{"literal": "Revogado", "evidence_id": f"text-{node + 1}",
                                                   "start": 1, "end": 9, "target": None}]
         assert unit["legal_validity"] == "unknown"
-    # Include the first and last surrounding rubrics, not just those formerly
-    # attached to an article. No semantic target is inferred from typography.
-    captions = {4711: "Violação de privilégio de invenção", 4716: "Falsa atribuição de privilégio",
-                4721: "Usurpação ou indevida exploração de modelo ou desenho privilegiado",
-                4726: "Falsa declaração de depósito em modelo ou desenho",
-                4740: "Violação do direito de marca", 4745: "Uso indevido de armas, brasões e distintivos públicos",
-                4751: "Marca com falsa indicação de procedência", 4763: "Concorrência desleal",
-                4774: "Atentado contra a liberdade de trabalho"}
+    # Rubrics join the article of the following label. No article number is invented.
+    captions = {4711: ("Violação de privilégio de invenção", "main/187"),
+                4716: ("Falsa atribuição de privilégio", "main/188"),
+                4721: ("Usurpação ou indevida exploração de modelo ou desenho privilegiado", "main/189"),
+                4726: ("Falsa declaração de depósito em modelo ou desenho", "main/190"),
+                4740: ("Violação do direito de marca", "main/192"),
+                4745: ("Uso indevido de armas, brasões e distintivos públicos", "main/193"),
+                4751: ("Marca com falsa indicação de procedência", "main/194"),
+                4763: ("Concorrência desleal", "main/196"),
+                4774: ("Atentado contra a liberdade de trabalho", "main/197")}
     owners = {key: unit for unit in result["units"] for reading in unit["readings"] for key in reading["evidence_ids"]}
-    for node, literal in captions.items():
+    for node, (literal, locator) in captions.items():
         key = f"text-{node}"
         assert " ".join(texts[key]["text"].split()) == literal
-        assert owners[key]["kind"] == "unclassified"
+        assert owners[key]["kind"] == "article"
+        assert owners[key]["locator"] == locator
         assert owners[key]["legal_validity"] == "unknown"
     assert owners["text-4701"]["locator"] == "main/186"
     assert owners["text-4776"]["locator"] == "main/197"
@@ -279,10 +286,13 @@ def test_census_respects_explicit_boundaries_and_inline_label_fragments(raw):
     b'<p><b>Caption.</b><br>Art. 1 Source.<br><b>Other caption.</b><br>Art. 2 Source.</p>',
     b'<b><p>Caption.<br></b>Art. 1 Source.<br><b>Other caption.<br></b>Art. 2 Source.</p>',
 ])
-def test_bold_standalone_runs_are_unclassified_without_selecting_a_target(raw):
+def test_bold_standalone_runs_join_the_following_article(raw):
     result = document(raw)
-    assert [unit["kind"] for unit in result["units"]] == ["unclassified", "article", "unclassified", "article"]
-    assert [unit["text"].strip() for unit in result["units"]] == ["Caption.", "Art. 1 Source.", "Other caption.", "Art. 2 Source."]
+    assert [unit["kind"] for unit in result["units"]] == ["article", "article"]
+    assert [unit["locator"] for unit in result["units"]] == ["main/1", "main/2"]
+    assert "Caption." in result["units"][0]["text"] and "Art. 1 Source." in result["units"][0]["text"]
+    assert "Other caption." in result["units"][1]["text"] and "Other caption." not in result["units"][0]["text"]
+    assert all(unit["legal_validity"] == "unknown" for unit in result["units"])
     assert validate_document(result)["ok"]
 
 

@@ -64,13 +64,14 @@ def _blocks(source, mapping):
 
 
 def _rubric_boundaries(blocks, mapping):
-    """Isolate closed, wholly bold runs next to an article in a broken block flow.
+    """Find closed, wholly bold runs that precede an article in a broken block flow.
 
-    This recognizes typography only. It assigns no legal role or target to the run.
-    Ordinary paragraph rubrics remain for later review. A flow contains consecutive
-    labels outside DOM blocks or exposed by br splits, plus its closing boundary.
-    A single orphan label is insufficient. Bold emphasis, tables, and open wrappers
-    are not boundaries.
+    Typography only: the run joins the article identified by the following label.
+    It does not create an article number absent from the source, and it does not
+    decide vigência. Ordinary paragraph rubrics remain for later review. A flow
+    contains consecutive labels outside DOM blocks or exposed by br splits, plus
+    its closing boundary. A single orphan label is insufficient. Bold emphasis,
+    tables, and open wrappers are not boundaries.
     """
     bold_texts = {}
     for item in mapping["texts"]:
@@ -140,6 +141,7 @@ def extract_document(source: bytes | str, law: str, observed_at: str, *,
     current = None
     reading = None
     hierarchy = []
+    pending = []
 
     def start(kind, label, locator, path):
         nonlocal current, reading
@@ -156,10 +158,30 @@ def extract_document(source: bytes | str, law: str, observed_at: str, *,
                    "dates": [], "mixed_markings": False}
         current["readings"].append(reading)
 
+    def consume(chunk):
+        for item in chunk:
+            reading["evidence_ids"].append(item["id"])
+            reading["source_text"] += item["text"]
+            # Mentions are literal observations, not conclusions about the container.
+            for marker in re.finditer(r"\b(?:revogad[oa]s?|vetad[oa]s?|suprimid[oa]s?|cancelad[oa]s?)\b", item["text"], re.I):
+                reading["source_statements"].append({"literal": marker[0], "evidence_id": item["id"],
+                    "start": marker.start(), "end": marker.end(), "target": None})
+
+    def release_pending():
+        nonlocal pending
+        if not pending:
+            return
+        captured = pending
+        pending = []
+        start("unclassified", "", "unclassified-" + text_digest(captured[0]["path"])[:16], captured[0]["path"])
+        consume(captured)
+
     for index, (path, items) in enumerate(blocks):
         literal = "".join(item["text"] for item in items)
         normalized = re.sub(r"\s+", " ", literal).strip()
         match = ARTICLE.match(normalized)
+        if pending and not match and (normalized == ADCT or ANNEX.match(normalized) or HEADING.match(normalized)):
+            release_pending()
         if normalized == ADCT:
             component, hierarchy = "adct", []
             start("heading", normalized, "heading-" + text_digest(path)[:16], path)
@@ -171,18 +193,21 @@ def extract_document(source: bytes | str, law: str, observed_at: str, *,
             suffix = match[2] or match[3]
             number = match[1].replace(".", "") + ("-" + suffix if suffix else "")
             start("article", match[0].rstrip(), "art-" + number, path)
+            consume(pending)
+            pending = []
         elif HEADING.match(normalized):
             hierarchy = [{"text": literal, "evidence_ids": [item["id"] for item in items]}]
             start("heading", normalized, "heading-" + text_digest(path)[:16], path)
-        elif index in rubric_boundaries or current is None:
+        elif index in rubric_boundaries:
+            pending.extend(items)
+            continue
+        elif pending:
+            pending.extend(items)
+            continue
+        elif current is None:
             start("unclassified", "", "unclassified-" + text_digest(path)[:16], path)
-        for item in items:
-            reading["evidence_ids"].append(item["id"])
-            reading["source_text"] += item["text"]
-            # Mentions are literal observations, not conclusions about the container.
-            for marker in re.finditer(r"\b(?:revogad[oa]s?|vetad[oa]s?|suprimid[oa]s?|cancelad[oa]s?)\b", item["text"], re.I):
-                reading["source_statements"].append({"literal": marker[0], "evidence_id": item["id"],
-                    "start": marker.start(), "end": marker.end(), "target": None})
+        consume(items)
+    release_pending()
     by_id = {item["id"]: item for item in mapping["texts"]}
     if not any(unit["kind"] == "article" for unit in units.values()):
         raise ValueError("No legislative articles identified; retain raw source for diagnosis")
