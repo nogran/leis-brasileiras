@@ -7,6 +7,13 @@ import requests
 MAX_HTML_BYTES = 16 * 1024 * 1024
 MAX_SECONDS = 90
 ALLOWED_HOSTS = frozenset({"www.planalto.gov.br", "planalto.gov.br"})
+# Bare product tokens are reset by the origin. A compatible token that still names this
+# project is the identification that receives a response. Do not follow redirects;
+# catalog URLs must be the location that returns the HTML.
+USER_AGENT = (
+    "Mozilla/5.0 (compatible; leis-brasileiras/0.2; "
+    "+https://github.com/nogran/leis-brasileiras)"
+)
 
 
 def validate_url(url: str) -> None:
@@ -27,7 +34,7 @@ def fetch_html(url: str) -> bytes:
     deadline = monotonic() + MAX_SECONDS
     with requests.Session() as session:
         session.trust_env = False
-        session.headers["User-Agent"] = "leis-brasileiras/0.1 (legislation research)"
+        session.headers["User-Agent"] = USER_AGENT
         for attempt in range(2):
             try:
                 with session.get(url, timeout=(10, 25), stream=True, allow_redirects=False) as response:

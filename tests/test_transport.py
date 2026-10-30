@@ -47,6 +47,8 @@ def test_retry_is_bounded_and_ambient_credentials_disabled(monkeypatch):
     assert transport.fetch_html(URL)==b'<html>example</html>'
     assert len(session.calls)==2
     assert session.trust_env is False
+    assert session.headers["User-Agent"] == transport.USER_AGENT
+    assert "leis-brasileiras/" in transport.USER_AGENT
     assert all(call['allow_redirects'] is False and call['stream'] for call in session.calls)
 
 
