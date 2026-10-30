@@ -16,7 +16,7 @@ class ArticleCensus(HTMLParser):
 
     def flush(self):
         if self.pending:
-            self.blocks.append("".join(self.pending))
+            self.blocks.append(list(self.pending))
             self.pending = []
 
     def handle_starttag(self, tag, attrs):
@@ -38,6 +38,30 @@ class ArticleCensus(HTMLParser):
             self.pending.append(data)
 
 
+_LABEL_ONLY = re.compile(
+    r"^Art[\s.]*([0-9]+(?:\.[0-9]{3})*)(?:\s*[-–]\s*([A-Z]+)(?![A-Za-z])|([A-Z]+)(?![A-Za-z]))?[.º°o]?$")
+_DIGIT_TAIL = re.compile(r"^([0-9]+)[.º°o]?$")
+_ARTICLE = re.compile(
+    r"Art[\s.]*([0-9]+(?:\.[0-9]{3})*)(?:\s*[-–]\s*([A-Z]+)(?![A-Za-z])|([A-Z]+)(?![A-Za-z]))?(?=[.\sº°o-]|$)")
+
+
+def _census_number(chunks):
+    """Same inline digit join as the segmenter, computed without importing it."""
+    parts = [re.sub(r"\s+", " ", chunk).strip() for chunk in chunks]
+    parts = [part for part in parts if part]
+    if len(parts) < 2:
+        return None
+    head = _LABEL_ONLY.match(parts[0])
+    tail = _DIGIT_TAIL.fullmatch(parts[1])
+    if not head or not tail:
+        return None
+    suffix = head[2] or head[3]
+    number = head[1].replace(".", "") + tail[1]
+    if suffix:
+        number += "-" + suffix
+    return number
+
+
 def source_article_census(raw: bytes, encoding: str | None = None) -> dict:
     text, _ = decode_source(raw, encoding)
     reader = ArticleCensus()
@@ -48,18 +72,20 @@ def source_article_census(raw: bytes, encoding: str | None = None) -> dict:
     identities = set()
     occurrences = []
     for block in reader.blocks:
-        normalized = re.sub(r"\s+", " ", block).strip()
+        normalized = re.sub(r"\s+", " ", "".join(block)).strip()
         if normalized == "ATO DAS DISPOSIÇÕES CONSTITUCIONAIS TRANSITÓRIAS":
             component = "adct"
-        match = re.match(r"Art[\s.]*([0-9]+(?:\.[0-9]{3})*)(?:\s*[-–]\s*([A-Z]+)(?![A-Za-z])|([A-Z]+)(?![A-Za-z]))?(?=[.\sº°o-]|$)", normalized)
-        if match:
-            suffix = match[2] or match[3]
-            number = match[1].replace(".", "") + ("-" + suffix if suffix else "")
+        number = _census_number(block)
+        match = None if number else _ARTICLE.match(normalized)
+        if number or match:
+            if match:
+                suffix = match[2] or match[3]
+                number = match[1].replace(".", "") + ("-" + suffix if suffix else "")
             key = component + "/" + number
             identities.add(key)
             occurrences.append(key)
     return {"identities": sorted(identities), "occurrences": occurrences,
-            "method": "stdlib-htmlparser-block-break-labels@2"}
+            "method": "stdlib-htmlparser-block-break-labels@3"}
 
 
 def reconcile(source_map: dict, units: list[dict], census: dict | None) -> dict:

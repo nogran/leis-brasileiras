@@ -114,7 +114,26 @@ O catálogo passou a guardar o endereço que responde 200. Redirecionamento cont
 SHA-256 da fixture histórica (`351267171aba34dfd6e258573c85d5dff70ce6b08d0ddd3d0b5af9182174b6d8`);
 o HTML bruto não é o mesmo.
 
-Nessa fixture, `art-5` fica `quality=ambiguous` com duas ocorrências. A segunda começa
-por `Art. 5` e `7.` seguidos de `(VETADO)`: o rótulo do artigo 57 foi partido e
-absorvido como outra leitura do artigo 5. Nenhuma das duas leituras é escolhida.
+Nessa fixture o artigo 57 não aparece como string contígua. O número está partido
+em spans no mesmo parágrafo (`Art. 5`, `7.`, `(VETADO).`). Com `observed-legislation@4`
+esses dígitos viram `main/57`, uma leitura, e `main/5` permanece a leitura que
+define dado pessoal. O texto observado de `main/57` ainda inclui o título `Seção II`,
+porque o detector de cabeçalho exige `SEÇÃO`. Nenhuma vigência é escolhida.
+
+## Número partido em spans — 2026-10-30
+
+Windows, Python 3.14.3, dependências do lock. Nenhuma fixture HTML foi regravada.
+
+| Verificação | Resultado |
+|---|---|
+| Suíte completa | 969 passaram, sem falhas ou skips |
+| Cobertura | 89,30%; piso de 86% mantido |
+| Inventário | `--check` aprovado |
+
+Na fixture da LGPD, candidatos e artigos estruturados passam de 79 para 80.
+Ocorrências continuam 80 e as divergências continuam 2. As outras 14 normas
+mantêm candidatos, artigos e ocorrências. O `report_sha256` muda nas normas com
+HTML, porque o método do censo (`stdlib-htmlparser-block-break-labels@3`) entra
+no objeto hasheado. L9099 não tem censo, então o hash de reconciliação dela
+permanece. `complete=false` permanece.
 

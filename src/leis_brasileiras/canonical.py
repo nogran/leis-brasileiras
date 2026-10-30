@@ -11,9 +11,37 @@ from .reconciliation import reconcile, source_article_census
 from .source_map import decode_source, html_map, text_map
 
 ARTICLE = re.compile(r"^Art\s*\.?(?:\s*\.)?\s*(\d+(?:\.\d{3})*)(?:\s*[-–]\s*([A-Z]+)(?![A-Za-z])|([A-Z]+)(?![A-Za-z]))?(?=[.\sº°o-]|$)")
+# A following inline fragment that is only more digits, not a word or an inciso.
+_DIGIT_TAIL = re.compile(r"^(\d+)[.º°o]?$")
 HEADING = re.compile(r"^(?:LIVRO|TÍTULO|TITULO|SUBTÍTULO|CAPÍTULO|CAPITULO|SEÇÃO|SECAO|SUBSEÇÃO)\b")
 ANNEX = re.compile(r"^ANEXO(?:\s+([IVXLCDM]+|\d+))?(?:\s|$)")
 ADCT = "ATO DAS DISPOSIÇÕES CONSTITUCIONAIS TRANSITÓRIAS"
+
+
+def _joined_split_number(items):
+    """Join an article number split across adjacent inline text.
+
+    `Art. 5` and `7.` in successive spans are the digits of Art. 57. The join
+    runs only when the first fragment is the label alone. A fragment that
+    already continues into words stays as written. This does not invent a
+    number or choose vigência.
+    """
+    parts = [re.sub(r"\s+", " ", item["text"]).strip() for item in items]
+    parts = [part for part in parts if part]
+    if len(parts) < 2:
+        return None
+    match = ARTICLE.match(parts[0])
+    tail = _DIGIT_TAIL.fullmatch(parts[1])
+    if not match or not tail or parts[0][match.end():].strip():
+        return None
+    suffix = match[2] or match[3]
+    number = match[1].replace(".", "") + tail[1]
+    if suffix:
+        number += "-" + suffix
+    label = "Art. " + match[1].replace(".", "") + tail[1]
+    if suffix:
+        label += "-" + suffix
+    return label, number
 
 
 def _blocks(source, mapping):
@@ -189,6 +217,11 @@ def extract_document(source: bytes | str, law: str, observed_at: str, *,
             component = "annex-" + text_digest(path)[:16]
             hierarchy = []
             start("annex", normalized, "heading", path)
+        elif (joined := _joined_split_number(items)):
+            label, number = joined
+            start("article", label, "art-" + number, path)
+            consume(pending)
+            pending = []
         elif match:
             suffix = match[2] or match[3]
             number = match[1].replace(".", "") + ("-" + suffix if suffix else "")
