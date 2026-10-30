@@ -1,10 +1,13 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:leis-brasileiras:schema:canonical:1",
+  "$id": "urn:leis-brasileiras:schema:canonical:observed-1",
   "type": "object",
   "properties": {
     "format": {
-      "const": "canonical-v1"
+      "const": "observed-law-v1"
+    },
+    "observation_contract": {
+      "const": "source-observation-v1"
     },
     "law": {
       "type": "object",
@@ -17,35 +20,11 @@
           "items": {
             "type": "string"
           }
-        },
-        "name": {
-          "type": "string"
-        },
-        "designation": {
-          "type": "string"
-        },
-        "jurisdiction": {
-          "const": "BR-federal"
-        },
-        "authority": {
-          "type": "null"
-        },
-        "issued_on": {
-          "type": "null"
-        },
-        "external_identifiers": {
-          "const": []
         }
       },
       "required": [
         "id",
-        "aliases",
-        "name",
-        "designation",
-        "jurisdiction",
-        "authority",
-        "issued_on",
-        "external_identifiers"
+        "aliases"
       ],
       "additionalProperties": false
     },
@@ -55,29 +34,24 @@
         "source_url": {
           "type": "string"
         },
-        "observed_at": {
-          "type": "string"
-        },
-        "observation_precision": {
-          "enum": [
-            "date",
-            "timestamp"
-          ]
-        },
-        "raw_sha256": {
-          "anyOf": [
-            {
-              "type": "string",
-              "pattern": "^[a-f0-9]{64}$"
+        "observation": {
+          "type": "object",
+          "properties": {
+            "value": {
+              "type": "string"
             },
-            {
-              "type": "null"
+            "precision": {
+              "enum": [
+                "day",
+                "instant"
+              ]
             }
-          ]
-        },
-        "clean_sha256": {
-          "type": "string",
-          "pattern": "^[a-f0-9]{64}$"
+          },
+          "required": [
+            "value",
+            "precision"
+          ],
+          "additionalProperties": false
         },
         "basis": {
           "enum": [
@@ -85,28 +59,24 @@
             "historical-clean-text"
           ]
         },
-        "parser_version": {
-          "type": "string"
+        "raw_sha256": {
+          "type": [
+            "string",
+            "null"
+          ]
         },
-        "curation_revision": {
-          "type": "string",
-          "pattern": "^[a-f0-9]{64}$"
+        "parser_version": {
+          "const": "observed-legislation@1"
         }
       },
       "required": [
         "source_url",
-        "observed_at",
-        "observation_precision",
-        "raw_sha256",
-        "clean_sha256",
+        "observation",
         "basis",
-        "parser_version",
-        "curation_revision"
+        "raw_sha256",
+        "parser_version"
       ],
       "additionalProperties": false
-    },
-    "structure_depth": {
-      "const": "article"
     },
     "components": {
       "type": "array",
@@ -142,13 +112,15 @@
           "parent_id": {
             "type": "string"
           },
+          "locator": {
+            "type": "string"
+          },
           "kind": {
             "enum": [
               "article",
+              "heading",
               "annex",
-              "signatories",
-              "preamble_or_summary",
-              "other"
+              "unclassified"
             ]
           },
           "label": {
@@ -158,137 +130,7 @@
             "type": "integer",
             "minimum": 1
           },
-          "quality": {
-            "enum": [
-              "observed",
-              "ambiguous"
-            ]
-          },
-          "text": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "text_sha256": {
-            "anyOf": [
-              {
-                "type": "string",
-                "pattern": "^[a-f0-9]{64}$"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
           "readings": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "text": {
-                  "type": "string",
-                  "minLength": 1
-                },
-                "text_sha256": {
-                  "type": "string",
-                  "pattern": "^[a-f0-9]{64}$"
-                },
-                "source_text": {
-                  "type": "string",
-                  "minLength": 1
-                },
-                "hierarchy": {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "properties": {
-                      "level": {
-                        "enum": [
-                          "book",
-                          "title",
-                          "subtitle",
-                          "chapter",
-                          "section"
-                        ]
-                      },
-                      "number": {
-                        "type": "string"
-                      },
-                      "title": {
-                        "type": "string"
-                      }
-                    },
-                    "required": [
-                      "level",
-                      "number",
-                      "title"
-                    ],
-                    "additionalProperties": false
-                  }
-                },
-                "rubric": {
-                  "type": "string"
-                },
-                "observed_status": {
-                  "enum": [
-                    "vigente",
-                    "revogado",
-                    "vetado_total"
-                  ]
-                },
-                "metadata": {
-                  "type": "object",
-                  "properties": {
-                    "partial_vetoes": {
-                      "type": "array",
-                      "items": {}
-                    },
-                    "amendments": {
-                      "type": "array",
-                      "items": {}
-                    },
-                    "references": {
-                      "type": "object"
-                    },
-                    "source_notes": {
-                      "type": "array",
-                      "items": {}
-                    },
-                    "constitutional_references": {
-                      "type": "array",
-                      "items": {}
-                    }
-                  },
-                  "required": [
-                    "partial_vetoes",
-                    "amendments",
-                    "references",
-                    "source_notes",
-                    "constitutional_references"
-                  ],
-                  "additionalProperties": false
-                }
-              },
-              "required": [
-                "text",
-                "text_sha256",
-                "source_text",
-                "hierarchy",
-                "rubric",
-                "observed_status",
-                "metadata"
-              ],
-              "additionalProperties": false
-            },
-            "minItems": 1,
-            "maxItems": 1000
-          },
-          "legacy_aliases": {
             "type": "array",
             "items": {
               "type": "object",
@@ -296,106 +138,360 @@
                 "id": {
                   "type": "string"
                 },
-                "label": {
+                "source_order": {
                   "type": "string"
+                },
+                "evidence_ids": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "source_text": {
+                  "type": "string"
+                },
+                "text": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "text_sha256": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "hierarchy": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "text": {
+                        "type": "string"
+                      },
+                      "evidence_ids": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "required": [
+                      "text",
+                      "evidence_ids"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "source_statements": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "literal": {
+                        "type": "string"
+                      },
+                      "evidence_id": {
+                        "type": "string"
+                      },
+                      "start": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "end": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "target": {
+                        "type": "null"
+                      }
+                    },
+                    "required": [
+                      "literal",
+                      "evidence_id",
+                      "start",
+                      "end",
+                      "target"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "dates": {
+                  "type": "array",
+                  "maxItems": 0
+                },
+                "mixed_markings": {
+                  "type": "boolean"
                 }
               },
               "required": [
                 "id",
-                "label"
+                "source_order",
+                "evidence_ids",
+                "source_text",
+                "text",
+                "text_sha256",
+                "hierarchy",
+                "source_statements",
+                "dates",
+                "mixed_markings"
               ],
               "additionalProperties": false
             }
           },
           "legal_validity": {
-            "type": "object",
-            "properties": {
-              "status": {
-                "const": "unknown"
-              },
-              "valid_from": {
-                "type": "null"
-              },
-              "valid_to": {
-                "type": "null"
-              },
-              "evidence": {
-                "const": []
-              }
-            },
-            "required": [
-              "status",
-              "valid_from",
-              "valid_to",
-              "evidence"
-            ],
-            "additionalProperties": false
+            "const": "unknown"
+          },
+          "text": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "text_sha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quality": {
+            "enum": [
+              "observed",
+              "ambiguous"
+            ]
           }
         },
         "required": [
           "id",
           "parent_id",
+          "locator",
           "kind",
           "label",
           "order",
-          "quality",
+          "readings",
+          "legal_validity",
           "text",
           "text_sha256",
-          "readings",
-          "legacy_aliases",
-          "legal_validity"
+          "quality"
         ],
         "additionalProperties": false
-      },
-      "minItems": 1,
-      "maxItems": 50000
+      }
     },
-    "editorial_annotations": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "kind": {
-            "type": "string"
-          },
-          "target_label": {
-            "type": "string"
-          },
-          "assertion": {},
-          "origin": {
-            "const": "editorial"
-          },
-          "evidence": {
-            "const": []
-          },
-          "review_status": {
-            "const": "pending"
+    "evidence": {
+      "type": "object",
+      "properties": {
+        "parser_version": {
+          "type": "string"
+        },
+        "raw_sha256": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "undecoded_tail_hex": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "encoding": {
+          "type": "string"
+        },
+        "decoded_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "elements": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string"
+              },
+              "tag": {
+                "type": "string"
+              },
+              "attributes": {
+                "type": "object"
+              }
+            },
+            "required": [
+              "path",
+              "tag",
+              "attributes"
+            ],
+            "additionalProperties": false
           }
         },
-        "required": [
-          "kind",
-          "target_label",
-          "assertion",
-          "origin",
-          "evidence",
-          "review_status"
-        ],
-        "additionalProperties": false
-      }
+        "texts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "path": {
+                "type": "string"
+              },
+              "text": {
+                "type": "string"
+              },
+              "text_sha256": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "kind": {
+                "enum": [
+                  "content",
+                  "active",
+                  "comment",
+                  "page_chrome"
+                ]
+              },
+              "block": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "table": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "struck_by": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "id",
+              "path",
+              "text",
+              "text_sha256",
+              "kind",
+              "block",
+              "table",
+              "struck_by"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "parser_version",
+        "raw_sha256",
+        "undecoded_tail_hex",
+        "encoding",
+        "decoded_sha256",
+        "elements",
+        "texts"
+      ],
+      "additionalProperties": false
     },
-    "prior_redactions": {
-      "type": "array",
-      "items": {
-        "type": "object"
-      }
+    "reconciliation": {
+      "type": "object",
+      "properties": {
+        "source_identities": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "structured_identities": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "missing_identities": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "extra_identities": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "source_occurrences": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "unmapped_evidence_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "unclassified_units": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "discrepancies": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "preservation": {
+          "enum": [
+            "mapped",
+            "incomplete"
+          ]
+        },
+        "structure": {
+          "const": "incomplete"
+        },
+        "complete": {
+          "const": false
+        },
+        "census_method": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "report_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      },
+      "required": [
+        "source_identities",
+        "structured_identities",
+        "missing_identities",
+        "extra_identities",
+        "source_occurrences",
+        "unmapped_evidence_ids",
+        "unclassified_units",
+        "discrepancies",
+        "preservation",
+        "structure",
+        "complete",
+        "census_method",
+        "report_sha256"
+      ],
+      "additionalProperties": false
     },
-    "limitations": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      }
-    },
-    "content_revision": {
+    "structured_sha256": {
       "type": "string",
       "pattern": "^[a-f0-9]{64}$"
     },
@@ -406,15 +502,14 @@
   },
   "required": [
     "format",
+    "observation_contract",
     "law",
     "provenance",
-    "structure_depth",
     "components",
     "units",
-    "editorial_annotations",
-    "prior_redactions",
-    "limitations",
-    "content_revision",
+    "evidence",
+    "reconciliation",
+    "structured_sha256",
     "revision"
   ],
   "additionalProperties": false

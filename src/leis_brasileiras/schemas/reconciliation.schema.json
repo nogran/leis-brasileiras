@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:leis-brasileiras:schema:reconciliation:observed-1",
+  "type": "object",
+  "properties": {
+    "source_identities": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "string"
+      }
+    },
+    "structured_identities": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "missing_identities": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "extra_identities": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "source_occurrences": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "string"
+      }
+    },
+    "unmapped_evidence_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "unclassified_units": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "discrepancies": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "preservation": {
+      "enum": [
+        "mapped",
+        "incomplete"
+      ]
+    },
+    "structure": {
+      "const": "incomplete"
+    },
+    "complete": {
+      "const": false
+    },
+    "census_method": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "report_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    }
+  },
+  "required": [
+    "source_identities",
+    "structured_identities",
+    "missing_identities",
+    "extra_identities",
+    "source_occurrences",
+    "unmapped_evidence_ids",
+    "unclassified_units",
+    "discrepancies",
+    "preservation",
+    "structure",
+    "complete",
+    "census_method",
+    "report_sha256"
+  ],
+  "additionalProperties": false
+}

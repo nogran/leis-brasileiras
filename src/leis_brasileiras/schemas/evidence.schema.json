@@ -1,0 +1,120 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:leis-brasileiras:schema:evidence:observed-1",
+  "type": "object",
+  "properties": {
+    "parser_version": {
+      "type": "string"
+    },
+    "raw_sha256": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "undecoded_tail_hex": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "encoding": {
+      "type": "string"
+    },
+    "decoded_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "elements": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "tag": {
+            "type": "string"
+          },
+          "attributes": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "path",
+          "tag",
+          "attributes"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "texts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "text_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "kind": {
+            "enum": [
+              "content",
+              "active",
+              "comment",
+              "page_chrome"
+            ]
+          },
+          "block": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "table": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "struck_by": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "path",
+          "text",
+          "text_sha256",
+          "kind",
+          "block",
+          "table",
+          "struck_by"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "parser_version",
+    "raw_sha256",
+    "undecoded_tail_hex",
+    "encoding",
+    "decoded_sha256",
+    "elements",
+    "texts"
+  ],
+  "additionalProperties": false
+}

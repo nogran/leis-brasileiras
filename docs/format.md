@@ -1,114 +1,107 @@
-# Data contracts, provenance and limits
+# Source observation contracts
 
-Two explicit representations are available. Use `--format canonical-v1` for the public
-legislative model. Existing Python/CLI calls default to `legacy-blocks-v1` to preserve
-compatibility; the historical format is not the canonical MCP response contract.
-Schemas ship inside `leis_brasileiras/schemas/`.
+The default public formats are `observed-law-v1` and `observed-jurisprudence-v1`.
+Both declare `source-observation-v1`. This is a breaking change from canonical-v1,
+legacy-blocks-v1 and jurisprudence-v1. Historical schemas and fixtures remain evidence;
+public capture APIs reject generation of the historical formats.
 
-## Canonical document (`canonical-v1`)
+## Shared semantics
 
-| Field | Contract |
+| Value | Meaning |
 |---|---|
-| `law.id` | Stable catalog identity, e.g. `br-federal:law:1990:8078`; not a URL, content hash, database key or asserted LexML URN |
-| `law.aliases` | Historical catalog codes, e.g. `CDC` |
-| `law.name`, `designation`, `jurisdiction` | Catalog metadata; unknown authority/issue date remain null; external identifiers remain empty until verified |
-| `components` | Main body, ADCT and recognized annexes; each has the law as parent |
-| `units[].id` | Law + component + normalized label; independent of chapter title, text hash and segmentation |
-| `units[].parent_id`, `order`, `kind`, `label` | Component parent, source order, typed unit and observed label |
-| `units[].readings` | All observed occurrences, each with whole text, SHA-256, source wording, hierarchy, rubric, observed status and source metadata |
-| `units[].text`, `text_sha256` | Single observed reading, or null when ambiguous |
-| `units[].quality` | `observed` or `ambiguous`; does not certify legal completeness |
-| `units[].legacy_aliases` | Historical IDs/labels for correspondence, not a claim of identical text or metadata |
-| `units[].legal_validity` | `unknown`, null effective dates, empty evidence; current implementation does not determine legal validity |
-| `editorial_annotations` | Separate registry assertions, each `origin=editorial`, `review_status=pending`, with no independently verified evidence claimed |
-| `prior_redactions` | HTML/CSS struck text observed in available source HTML; not a complete amendment timeline |
-| `structure_depth`, `limitations` | Article-level extraction and explicit unresolved limitations |
+| Identity | Catalog law/component/article or source collection/official number; never a text hash |
+| Reading | An occurrence in captured evidence, not a legally selected effective version |
+| `source_text` | Exact concatenation of referenced decoded text fragments, CSV thesis field, JSON thesis field or PDF text span |
+| `text_sha256` | SHA-256 of that UTF-8 transcript; not the raw file hash |
+| `raw_sha256` | SHA-256 of captured bytes; null when only historical derived text exists |
+| `structured_sha256` | SHA-256 of sorted compact UTF-8 JSON excluding provenance, reconciliation and revision hashes |
+| `revision` | SHA-256 of the document with provenance and reconciliation, excluding only itself |
+| Observation | Actual capture date/instant with precision; never an invented publication or effective date |
+| Source statements | Literal mentions and offsets; unknown target is null, not an inferred article status |
+| `legal_validity` | Always unknown in this implementation |
+| `complete` | Independent structural acceptance; currently false for all reference sources |
 
-Kinds: `article`, `annex`, `signatories`, `preamble_or_summary`, `other`.
-Hierarchy entries have `level`, `number` and `title`; recognized levels are book,
-title, subtitle, chapter and section. Paragraphs/clauses remain text. The law registry
-fixes public IDs explicitly; changing a catalog alias must not create a new law identity.
-Renumbering a provision is a change of locator requiring an explicit future relation,
-not something inferred from similar wording.
+Raw files, decoded evidence and structured data have different hashes. Hashes and
+replay prove consistency against supplied bytes, not authenticity of a compromised
+publisher. Acquire through a trusted channel and pin hashes.
 
-`source_text` is the normalized source buffer before unit-level cleaning, not byte-exact
-HTML. Only the retained raw source is byte evidence. The canonical cleaned reading is
-captured before historical deduplication, overlap and short-text filters. Repeated
-labels are not silently resolved. Missing provisions do not acquire invented text.
+## Legislation
 
-## Observation, revisions and validity
+`law` contains the fixed catalog ID and alias. Components distinguish main, ADCT and
+observed annexes. Articles use component + normalized number, preserving suffixes.
+Heading, annex and unclassified locators derived from source paths are capture-local;
+they are not stable cross-capture legal identifiers.
 
-`provenance` records source URL, observation time/precision, raw and clean SHA-256,
-parser revision and curation revision. A historical day stays a day; no time is invented.
-`basis=historical-clean-text` means raw source evidence is unavailable.
+Each unit has ordered `readings`, referenced `evidence_ids`, observed hierarchy and
+literal source statements. Repeated labels preserve every occurrence. Mixed struck
+and unstruck fragments have `text=null`; their `source_text` is a source-order
+transcript, never a consolidated current wording. An ambiguous unit also has null
+text. Clients retrieve occurrences and fragments explicitly.
 
-`content_revision` hashes law/components/units/redactions using deterministic JSON;
-`revision` also covers observation/provenance/curation. The content revision includes
-compatibility aliases; it is a version of the structured payload, not only prose.
-Permanent IDs never use either revision hash. Capture manifests separately record
-`recorded_at`, the timestamp of writing that immutable capture. Recording, observation,
-source publication and legal effectiveness are different events.
+`evidence` retains element paths, attributes (including links, row/column spans),
+text paths, exact decoded text, text hashes, strike ancestors, block/table paths and
+classification as content, page chrome, comment or active content. Active material
+is inert evidence. No script, link, stylesheet or embedded action is executed.
+Inline strike recognition is not a CSS rendering engine; external styles are not
+fetched. Undecodable trailing bytes remain recorded and prevent completeness.
 
-Names, status labels and amendment notes extracted from a compiled page cannot establish
-that a provision is legally effective today. Raw HTML/CSS redactions and dedup discards
-are not a complete history of legal validity. Editorial claims require independent review.
+Hierarchy extraction currently records the observed heading context; it does not
+certify all parent levels. Subparagraphs and clauses are not individually identified.
+Tables retain their DOM evidence, without inferring row meanings. Unclassified
+material is preserved and reported. No minimum text length discards short articles.
+No overlap, chunking, tombstone or editorial registry is part of the new export.
 
-## Capture and corpus manifests
+An independent stdlib HTMLParser traversal counts paragraph-start article candidates
+against the BeautifulSoup segmenter. The reconciliation lists missing/extra identities,
+source occurrences, unmapped fragments and unclassified units. Equal article counts
+do not certify boundaries, note targets or table semantics. `complete=false` remains
+mandatory while these reviews are unresolved. L9099's historical clean text cannot
+be promoted to raw evidence with a detached hash.
 
-Canonical captures use `format_version=2`, `format=canonical-v1` and contain exactly
-`canonical.json`, `clean.txt`, `source.html` and `manifest.json`. Verification checks
-bounded files, exact file selection, hashes, provenance and reproduction from source.
-Legacy capture version 1 remains supported without reinterpreting its payload.
+## Jurisprudence
 
-Fresh corpus manifests use version 2, an explicit representation, selected law codes,
-`coverage=full-catalog|selected-laws`, package/parser versions and file hashes.
-`bundle --laws CDC LI` requires exactly those captures; omitting `--laws` still requires
-all catalog laws. Duplicates, absent/unknown selections and mixed formats are rejected.
+Identity is `br:<collection>:<official-number>`. STJ CSV uses `sequencialPrecedente`,
+without inferring a precedent type. Missing numbers use an explicit unclassified
+source locator. Repeated numbers preserve occurrences instead of choosing a winner.
 
-Historical references use `kind=historical-reference`, version 2 and an explicit format.
-Canonical historical archives contain per-law documents, clean text, raw HTML where
-available and `legacy_redactions.json` as compatibility evidence. They are not fresh
-capture directories. L9099 has no historical raw HTML; its canonical prior-redaction
-list cannot claim evidence from HTML, while its original sidecar remains preserved.
-Inventory counts are explicitly `legacy_counts`; `canonical_units` counts canonical nodes.
+CSV retains all headers and row cells; JSON retains all original keys and values;
+HTML retains the full evidence map; PDF retains every extracted page and offsets in
+the page transcript. A missing thesis remains an empty thesis with the original other
+fields, never a generated replacement. The STF with/without-thesis lists are explicit
+source evidence. HTML/PDF thesis presence remains unknown. `situation` is only the
+literal `situacao` field where supplied; it is otherwise null. Cancellation mentions
+and linked STF index evidence remain available without inventing legal dates.
 
-Manifest hashes establish internal consistency, not authenticity against an attacker
-able to replace all files. Obtain distributions through a trusted channel and pin their
-hash. ZIP entries are deterministic. This release creates ZIPs; it does not implement
-an untrusted ZIP importer. Never extract untrusted paths without bounds and traversal checks.
+Date fields are retained literally, with parsed value and precision null when no
+source-specific event parser exists. Observation precision is separate. PDF text is
+a derived extraction, not byte-exact source text, and needs visual/boundary review.
 
-## Historical compatibility (`legacy-blocks-v1`)
+## Captures and archives
 
-The original Portuguese fields remain unchanged: `id`, `lei`, `versao`,
-`versao_consolidada`, `artigo`, hierarchy fields, `epigrafe` where present,
-`path_hierarquico`, `texto_limpo`, `status`, `vetos_parciais`, `alteracoes`,
-`referencias`, `notas_legais`, `controle_constitucionalidade`, `hash_artigo`,
-`url_fonte`, `data_extracao`, `parte_num`, `total_partes`.
+Legislation captures use manifest version 3 and `observed-law-v1`, with exactly
+`canonical.json`, `clean.txt`, `source.html`, `manifest.json`. `clean.txt` is a decoded
+source-order transcript, despite its historical filename. Verification reads bytes
+without newline conversion and replays the parser. Corpus manifests use version 3.
 
-`parse_legacy` is the explicit facade; `parse_law` remains compatible. The historical
-split uses up to 6,000 characters and overlap of 400, with guards against degenerate
-slices. Preserve `(Parte N/M)` and `(ADCT)` labels. Never concatenate parts blindly.
-`hash_artigo` retains its short historical algorithm, including tombstone particulars;
-it must not be substituted with a recomposed-text or artifact hash.
+Jurisprudence captures use `jurisprudence-capture-v2`; archives use
+`jurisprudence-corpus-v2`. Raw files and request descriptors are retained. Every
+archive exposes completeness, selection and hashes. `source_snapshot` describes
+the requested acquisition, not certified exhaustive coverage. Samples require an
+explicit option and remain samples. Packaging an incomplete diagnostic observation
+never makes it a production-ready legal corpus.
 
-Historical `_riscadas.json` contains source redactions AND heuristic discards; it is
-not an article list. Runtime application foreign keys are absent from public payloads.
-Consumer-specific mappings belong to adapters, not this format specification.
+Historical reference archives are distinct from fresh capture directories. They
+preserve original date precision and missing evidence. Files named
+`*-historical.schema.json` describe earlier contracts only. Old validation helpers
+are diagnostic; new public exporters do not call their lossy transformations.
 
-## Reproducible inventory
+## Inventory summary and full audit report
 
-`python tools/build_inventory.py --check` verifies `docs/source-inventory.json` against
-frozen fixtures. `records` counts blocks, not embeddings or unique articles.
-The baseline has 15 laws, 6,276 records and 23 multipart groups in 54 parts:
-21 article groups plus one annex and one signatory group. LI has 92 records:
-91 article records and one introductory block. Counts do not describe production systems.
-
-References: [LexML identities](https://projeto.lexml.gov.br/documentacao/Parte-2-LexML-URN.pdf),
-[JSON Schema 2020-12](https://json-schema.org/draft/2020-12/json-schema-validation).
-
-## Jurisprudence formats
-
-`jurisprudence-v1`, `jurisprudence-capture-v1` and `jurisprudence-corpus-v1` are
-separate contracts with packaged JSON Schemas. They identify court/type/number,
-source text, observation precision, SHA-256 and unmodified source projection.
-Observed situation never establishes current legal validity. [Full contract](jurisprudence.md).
+The versioned `docs/source-inventory.json` is a summary, not a corpus document.
+It keeps counts, source provenance, parser version, all reported differences and
+`report_sha256` of the full reconciliation object (excluding that hash field).
+Exhaustive source/structured identity and occurrence lists remain in the generated
+`dist/source-fidelity-report.json`, available as a CI artifact for 14 days or
+reproducible from the same commit. `--check --report PATH` verifies the committed
+summary/READMEs while exporting the full report even if those files are stale.
+The observation/capture formats and their embedded reconciliation are unchanged.

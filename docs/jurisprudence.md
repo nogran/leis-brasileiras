@@ -1,8 +1,8 @@
 # Jurisprudência: extração, evidência e corpus público
 
 O pacote contém uma biblioteca e comandos de CLI para seis fontes oficiais. O corpus
-de jurisprudência usa `jurisprudence-v1`, separado dos formatos legislativos
-`canonical-v1` e `legacy-blocks-v1`. A integração não exige banco de dados, embeddings,
+de jurisprudência usa `observed-jurisprudence-v1`, com núcleo de observação
+compartilhado com `observed-law-v1`. A integração não exige banco de dados, embeddings,
 OpenAI, credenciais da Justina ou importação de repositórios privados.
 
 ## Cobertura
@@ -37,7 +37,8 @@ leis-brasileiras jurisprudence bundle CAPTURE --sources stj_temas \
   --version 2026-10-27 --output dist/stj-temas.zip
 ```
 
-Cada `extract` coleta uma fonte completa. Os comandos devolvem JSON e código zero
+Cada `extract` captura os endpoints previstos de uma fonte; isso não certifica
+completude estrutural. Os comandos devolvem JSON e código zero
 somente quando a operação termina; falhas devolvem código 1 e diagnóstico sem corpo
 remoto, credenciais ou caminhos internos. `validate` verifica estrutura e consistência;
 `verify-capture` também reproduz o documento a partir dos bytes capturados.
@@ -63,36 +64,28 @@ para desligar a verificação. Proxy, `.netrc` e credenciais ambientais não sã
 
 ## Modelo e limites semânticos
 
-A identidade pública é `br:<tribunal>:<tipo>:<numero>`. Cada registro mantém o texto,
-URL oficial, data de observação e sua precisão, hash SHA-256 do conteúdo e a projeção
-completa do parser em `source_record`. Os nomes portugueses dessa projeção e dos
-parsers portados foram preservados para rastrear a regressão; a interface pública
-canônica usa campos em inglês. Novas capturas usam instante UTC; referências antigas
-conhecidas apenas por dia não recebem um horário inventado.
+O contrato é `observed-jurisprudence-v1`, com `source-observation-v1` compartilhado
+com legislação. A identidade usa coleção + número oficial; no CSV do STJ, usa
+`sequencialPrecedente`. Ausência de identificação mantém um localizador técnico
+explicitamente não classificado. Duplicatas conservam ocorrências separadas.
 
-`has_thesis=false` preserva registros sem tese. `text` pode conter a questão submetida
-em vez de uma tese; consumidores devem observar `has_thesis` e o tipo de registro.
-Quando o CSV do STJ não informa o tipo, ele permanece nulo. O registro usa a
-identidade oficial `sequencialPrecedente` em `br:stj:source-record:<sequencial>`,
-sem presumir que seja tema repetitivo ou outro precedente. Ausência também desse
-identificador interrompe a validação. Duplicidades conflitantes interrompem a validação. O CSV do STJ agrega somente os
-vínculos multivalorados já reconhecidos, sem escolher arbitrariamente um texto.
+Cada ocorrência referencia o registro original e sua localização. CSV preserva
+todas as colunas/células; JSON, todos os campos; HTML, elementos e textos; PDF,
+todas as páginas extraídas e intervalos de texto. Nada é preenchido com explicação
+jurídica nossa. Registro sem tese continua sem tese; questão submetida permanece
+no campo original. Situação não informada é nula, vigência é desconhecida e datas
+sem adaptador próprio permanecem literais, sem interpretação temporal.
 
-`situation` representa a classificação observada ou produzida pelo parser;
-`situation_basis` declara essa origem e `legal_validity` permanece `unknown`.
-Um `em_vigor` herdado do parser não comprova vigência atual. O parser de súmulas
-vinculantes deixou de presumir que todas estão vigentes: ausência de marcador retorna
-situação desconhecida; cancelamento explícito no título ou no link correspondente
-do índice é preservado. Isso não atribui uma data de cancelamento desconhecida.
+As marcações de cancelamento são menções com localização, não status inferido.
+O índice de súmulas vinculantes do STF fica vinculado ao detalhe correspondente.
+Notas oficiais e atributos desconhecidos permanecem na evidência. A seleção de um
+texto vigente não faz parte do parser. Veja [semântica e hashes](format.md).
 
-`status_observation`, quando fornecido, precisa vincular tribunal, tipo, número,
-hash da versão, situação, instante de verificação, fonte e hash da evidência.
-Validação estrutural dessa declaração não autentica o autor nem substitui revisão
-jurídica ou consulta atual à fonte.
-
-Os JSON Schemas empacotados são `jurisprudence.schema.json`,
+Os schemas atuais são `jurisprudence.schema.json`,
 `jurisprudence-capture.schema.json` e `jurisprudence-corpus.schema.json`.
-As invariantes semânticas são verificadas adicionalmente pelo código Python.
+A validação Python acrescenta invariantes e a reprodução da captura é obrigatória.
+`complete=false` identifica as pendências de limites dos registros, campos, tabelas
+e transcrição PDF. As contagens históricas acima não são metas que validam o parser.
 
 ## Capturas e arquivos
 
@@ -107,7 +100,7 @@ Hashes detectam adulteração em relação à evidência fornecida; não são as
 Para reproduzir o acervo histórico com os arquivos originais explicitamente fornecidos:
 
 ```bash
-python tools/build_jurisprudence_reference.py --raw-root /path/to/raw \
+python -m tools.build_jurisprudence_reference --raw-root /path/to/raw \
   --version historical-reference --output dist/jurisprudence-reference.zip
 ```
 
@@ -129,7 +122,7 @@ inferência de precedente vinculante ou inclusão automática nos seis datasets.
 ## Consumidores, MCP e licenciamento
 
 O backend, a ingestão, os embeddings e o banco da Justina não são alterados por esta
-incorporação. Os formatos legislativos e seus artigos multipartes são preservados.
+incorporação. As fixtures antigas permanecem, mas a geração pública de formatos legados foi desativada.
 A migração de consumidores terá seu próprio contrato e validação de compatibilidade.
 
 O contrato do futuro MCP inclui consulta de jurisprudência. O servidor MCP e a busca

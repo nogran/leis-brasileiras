@@ -66,6 +66,23 @@ def frozen_pages(raw, scanner=None):
     raise AssertionError("Unknown PDF fixture")
 
 
+@pytest.mark.parametrize("mutation", [
+    lambda d: d["records"][0].update(number="invented-number"),
+    lambda d: d["records"][0].update(editorial_note="generated legal explanation"),
+    lambda d: d["records"][0]["readings"][0].update(location="/rows/-1"),
+    lambda d: d["records"][0]["readings"][0].update(dates=[{"value": "2026-01-01"}]),
+    lambda d: d["records"][0]["readings"][0].update(source_statements=[{"literal": "Cancelado"}]),
+])
+def test_observed_rejects_unsupported_assertions_even_after_resealing(mutation):
+    from leis_brasileiras.evidence import seal
+    batch = Batch("stj_temas", FixtureClient("stj_temas"))
+    value = parse_batch(batch, "2026-07-20", sample=True)
+    mutation(value)
+    seal(value)
+    with pytest.raises(ValueError):
+        validate_document(value)
+
+
 def sample_capture(tmp_path, monkeypatch, identifier="stj_temas"):
     monkeypatch.setattr(capture_module, "extract_pages", frozen_pages)
     batch = Batch(identifier, FixtureClient(identifier))
@@ -80,7 +97,7 @@ def test_all_six_sources_replay_validate_and_match_json_schemas(tmp_path, monkey
     assert report["records"] == len(value["records"]) > 0
     assert report["coverage"] == "sample"
     assert {r["legal_validity"] for r in value["records"]} == {"unknown"}
-    assert {r["observation_precision"] for r in value["records"]} == {"day"}
+    assert value["observation_precision"] == "day"
     for name, instance in [("jurisprudence", value), ("jurisprudence-capture", load_json(path / "capture.json"))]:
         schema = load_json(SCHEMAS / (name + ".schema.json"))
         Draft202012Validator.check_schema(schema)
@@ -121,9 +138,10 @@ def test_tampering_never_passes_replay(tmp_path, monkeypatch, change):
     elif change == "extra":
         (folder / "unreviewed.txt").write_text("unexpected")
     else:
-        value["records"][0]["source_record"]["tese"] = "Forged holding"
+        value["records"][0]["readings"][0]["source_text"] = "Forged holding"
         if change == "hash_rewrite":
-            value = document(value["source"], [r["source_record"] for r in value["records"]], value["observed_at"], "sample")
+            from leis_brasileiras.evidence import seal
+            seal(value)
             manifest["document_sha256"] = digest(json_bytes(value))
         (folder / "document.json").write_bytes(json_bytes(value))
     (folder / "capture.json").write_bytes(json_bytes(manifest))
@@ -201,7 +219,13 @@ def test_cancellation_in_index_is_bound_to_its_entry():
             return super().fetch(url, kind, form)
     value = parse_batch(Batch("stf_sumulas_vinculantes", CancelledClient("stf_sumulas_vinculantes")),
                         "2026-08-17", sample=True)
-    assert value["records"][0]["situation"] == "cancelada"
+    record = value["records"][0]
+    assert record["legal_validity"] == "unknown"
+    assert record["related_evidence"]
+    link = record["related_evidence"][0]
+    index = next(item for item in value["evidence"] if item["id"] == link["source_id"])
+    assert any("cancelada" in node["text"] for node in index["map"]["texts"]
+               if node["path"].startswith(link["path"] + "/"))
 
 
 def test_stf_wrong_detail_cannot_be_served_under_another_index_identity():
@@ -239,7 +263,7 @@ def test_invalid_documents_fail(tmp_path, monkeypatch, mutation):
         key, replacement = {"type": ("tipo", "sumula"), "court": ("source", "STF"),
                             "boolean": ("has_thesis", "true"), "identity": ("numero", "../secret"),
                             "nul": ("tese", "bad\x00text"), "volume": ("tese", "x" * 200001)}[mutation]
-        record["source_record"][key] = replacement
+        record["readings"][0]["fields"][key] = replacement
     with pytest.raises((ValueError, TypeError)):
         validate_document(value)
 
@@ -273,7 +297,7 @@ def test_missing_stj_type_is_preserved_under_official_source_identity():
     assert value["records"][0]["id"] == "br:stj:source-record:4781"
     assert value["records"][0]["type"] is None
     assert value["records"][0]["source_record"] == unclassified
-    Draft202012Validator(load_json(SCHEMAS / "jurisprudence.schema.json")).validate(value)
+    Draft202012Validator(load_json(SCHEMAS / "jurisprudence-historical.schema.json")).validate(value)
     del unclassified["sequencial_precedente"]
     value["records"][0]["source_record"] = unclassified
     with pytest.raises(ValueError, match="official source identity"):

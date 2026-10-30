@@ -1,161 +1,82 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:leis-brasileiras:schema:corpus:2",
-  "oneOf": [
-    {
-      "type": "object",
-      "properties": {
-        "format_version": {
-          "const": 2
-        },
-        "format": {
-          "enum": [
-            "canonical-v1",
-            "legacy-blocks-v1"
-          ]
-        },
-        "corpus_version": {
-          "type": "string"
-        },
-        "extractor_version": {
-          "type": "string"
-        },
-        "parser_version": {
-          "type": "string"
-        },
-        "laws": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "selection": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "coverage": {
-          "enum": [
-            "full-catalog",
-            "selected-laws"
-          ]
-        },
-        "license_status": {
-          "type": "string"
-        },
-        "files": {
-          "type": "object",
-          "minProperties": 1,
-          "additionalProperties": {
-            "type": "object",
-            "properties": {
-              "sha256": {
-                "type": "string",
-                "pattern": "^[a-f0-9]{64}$"
-              },
-              "bytes": {
-                "type": "integer",
-                "minimum": 0
-              }
-            },
-            "required": [
-              "sha256",
-              "bytes"
-            ],
-            "additionalProperties": false
-          }
-        }
-      },
-      "required": [
-        "format_version",
-        "format",
-        "corpus_version",
-        "extractor_version",
-        "parser_version",
-        "laws",
-        "selection",
-        "coverage",
-        "license_status",
-        "files"
-      ],
-      "additionalProperties": false
+  "$id": "urn:leis-brasileiras:schema:corpus:observed-1",
+  "type": "object",
+  "properties": {
+    "format_version": {
+      "const": 3
     },
-    {
+    "format": {
+      "const": "observed-law-v1"
+    },
+    "corpus_version": {
+      "type": "string"
+    },
+    "extractor_version": {
+      "type": "string"
+    },
+    "parser_version": {
+      "type": "string"
+    },
+    "laws": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "selection": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "coverage": {
+      "enum": [
+        "full-catalog",
+        "selected-laws"
+      ]
+    },
+    "license_status": {
+      "type": "string"
+    },
+    "files": {
       "type": "object",
-      "properties": {
-        "format_version": {
-          "const": 2
-        },
-        "format": {
-          "enum": [
-            "canonical-v1",
-            "legacy-blocks-v1"
-          ]
-        },
-        "corpus_version": {
-          "type": "string"
-        },
-        "kind": {
-          "const": "historical-reference"
-        },
-        "extractor_version": {
-          "type": "string"
-        },
-        "parser_version": {
-          "type": "string"
-        },
-        "license_status": {
-          "type": "string"
-        },
-        "limitations": {
-          "type": "array",
-          "items": {
-            "type": "string"
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "bytes": {
+            "type": "integer",
+            "minimum": 0
           }
         },
-        "laws": {
-          "type": "array",
-          "items": {
-            "type": "object"
-          }
-        },
-        "files": {
-          "type": "object",
-          "minProperties": 1,
-          "additionalProperties": {
-            "type": "object",
-            "properties": {
-              "sha256": {
-                "type": "string",
-                "pattern": "^[a-f0-9]{64}$"
-              },
-              "bytes": {
-                "type": "integer",
-                "minimum": 0
-              }
-            },
-            "required": [
-              "sha256",
-              "bytes"
-            ],
-            "additionalProperties": false
-          }
-        }
-      },
-      "required": [
-        "format_version",
-        "format",
-        "corpus_version",
-        "kind",
-        "extractor_version",
-        "parser_version",
-        "license_status",
-        "limitations",
-        "laws",
-        "files"
-      ],
-      "additionalProperties": false
+        "required": [
+          "sha256",
+          "bytes"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "complete": {
+      "type": "boolean"
     }
-  ]
+  },
+  "required": [
+    "format_version",
+    "format",
+    "corpus_version",
+    "extractor_version",
+    "parser_version",
+    "laws",
+    "selection",
+    "coverage",
+    "license_status",
+    "files",
+    "complete"
+  ],
+  "additionalProperties": false
 }

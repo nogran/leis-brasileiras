@@ -1,0 +1,421 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:leis-brasileiras:schema:canonical:1",
+  "type": "object",
+  "properties": {
+    "format": {
+      "const": "canonical-v1"
+    },
+    "law": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "aliases": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "name": {
+          "type": "string"
+        },
+        "designation": {
+          "type": "string"
+        },
+        "jurisdiction": {
+          "const": "BR-federal"
+        },
+        "authority": {
+          "type": "null"
+        },
+        "issued_on": {
+          "type": "null"
+        },
+        "external_identifiers": {
+          "const": []
+        }
+      },
+      "required": [
+        "id",
+        "aliases",
+        "name",
+        "designation",
+        "jurisdiction",
+        "authority",
+        "issued_on",
+        "external_identifiers"
+      ],
+      "additionalProperties": false
+    },
+    "provenance": {
+      "type": "object",
+      "properties": {
+        "source_url": {
+          "type": "string"
+        },
+        "observed_at": {
+          "type": "string"
+        },
+        "observation_precision": {
+          "enum": [
+            "date",
+            "timestamp"
+          ]
+        },
+        "raw_sha256": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "clean_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "basis": {
+          "enum": [
+            "source-html",
+            "historical-clean-text"
+          ]
+        },
+        "parser_version": {
+          "type": "string"
+        },
+        "curation_revision": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      },
+      "required": [
+        "source_url",
+        "observed_at",
+        "observation_precision",
+        "raw_sha256",
+        "clean_sha256",
+        "basis",
+        "parser_version",
+        "curation_revision"
+      ],
+      "additionalProperties": false
+    },
+    "structure_depth": {
+      "const": "article"
+    },
+    "components": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "parent_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "parent_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "units": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "parent_id": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "article",
+              "annex",
+              "signatories",
+              "preamble_or_summary",
+              "other"
+            ]
+          },
+          "label": {
+            "type": "string"
+          },
+          "order": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "quality": {
+            "enum": [
+              "observed",
+              "ambiguous"
+            ]
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "text_sha256": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "readings": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "text_sha256": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "source_text": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "hierarchy": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "level": {
+                        "enum": [
+                          "book",
+                          "title",
+                          "subtitle",
+                          "chapter",
+                          "section"
+                        ]
+                      },
+                      "number": {
+                        "type": "string"
+                      },
+                      "title": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "level",
+                      "number",
+                      "title"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "rubric": {
+                  "type": "string"
+                },
+                "observed_status": {
+                  "enum": [
+                    "vigente",
+                    "revogado",
+                    "vetado_total"
+                  ]
+                },
+                "metadata": {
+                  "type": "object",
+                  "properties": {
+                    "partial_vetoes": {
+                      "type": "array",
+                      "items": {}
+                    },
+                    "amendments": {
+                      "type": "array",
+                      "items": {}
+                    },
+                    "references": {
+                      "type": "object"
+                    },
+                    "source_notes": {
+                      "type": "array",
+                      "items": {}
+                    },
+                    "constitutional_references": {
+                      "type": "array",
+                      "items": {}
+                    }
+                  },
+                  "required": [
+                    "partial_vetoes",
+                    "amendments",
+                    "references",
+                    "source_notes",
+                    "constitutional_references"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "text",
+                "text_sha256",
+                "source_text",
+                "hierarchy",
+                "rubric",
+                "observed_status",
+                "metadata"
+              ],
+              "additionalProperties": false
+            },
+            "minItems": 1,
+            "maxItems": 1000
+          },
+          "legacy_aliases": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "label"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "legal_validity": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "const": "unknown"
+              },
+              "valid_from": {
+                "type": "null"
+              },
+              "valid_to": {
+                "type": "null"
+              },
+              "evidence": {
+                "const": []
+              }
+            },
+            "required": [
+              "status",
+              "valid_from",
+              "valid_to",
+              "evidence"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "id",
+          "parent_id",
+          "kind",
+          "label",
+          "order",
+          "quality",
+          "text",
+          "text_sha256",
+          "readings",
+          "legacy_aliases",
+          "legal_validity"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 1,
+      "maxItems": 50000
+    },
+    "editorial_annotations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "target_label": {
+            "type": "string"
+          },
+          "assertion": {},
+          "origin": {
+            "const": "editorial"
+          },
+          "evidence": {
+            "const": []
+          },
+          "review_status": {
+            "const": "pending"
+          }
+        },
+        "required": [
+          "kind",
+          "target_label",
+          "assertion",
+          "origin",
+          "evidence",
+          "review_status"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "prior_redactions": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "limitations": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "content_revision": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "revision": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    }
+  },
+  "required": [
+    "format",
+    "law",
+    "provenance",
+    "structure_depth",
+    "components",
+    "units",
+    "editorial_annotations",
+    "prior_redactions",
+    "limitations",
+    "content_revision",
+    "revision"
+  ],
+  "additionalProperties": false
+}

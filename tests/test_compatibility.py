@@ -15,9 +15,10 @@ def test_explicit_legacy_facade_preserves_frozen_records(law):
     payload = clean.with_name(clean.name.replace("_clean.txt", ".json"))
     expected = json.loads(payload.read_text(encoding="utf-8"))
     cfg = LEIS_CONFIG[law["sigla"]]
-    actual, _ = parse_legacy(clean.read_text(encoding="utf-8"), law["sigla"], cfg["versao"],
-                             cfg["url"], expected[0]["data_extracao"], cfg)
-    assert actual == expected
+    with pytest.raises(ValueError, match="Legacy generation disabled"):
+        parse_legacy(clean.read_text(encoding="utf-8"), law["sigla"], cfg["versao"],
+                     cfg["url"], expected[0]["data_extracao"], cfg)
+
 
 
 def test_retrieval_diagnostics_are_opt_in():

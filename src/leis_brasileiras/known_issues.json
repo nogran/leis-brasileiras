@@ -1,5 +1,5 @@
 {
-  "_doc": "Historical compatibility registry. Canonical output exposes editorial assertions separately with review_status=pending; these entries are not independently verified evidence.",
+  "_doc": "Historical diagnostic registry only. New observation exports never load these assertions. Claims below are preserved for audit, not independently verified source evidence.",
   "_updated": "2026-07-07",
   "_expected_suppressions_per_file": {"clt": 1, "codigo_civil": 1, "cpc": 1},
   "_expected_suppressions_detail": "artigo_sem_titulo: 1 INFO suprimido POR SNAPSHOT DATADO de CLT (Art. 1 pré-TÍTULO I), CC (Livro Complementar 2.028-2.046) e CPC (Livro Complementar 1.045-1.072). O validador calcula o esperado dinamicamente (per_file × nº de arquivos datados da base) — o contador fixo antigo quebrava a cada extração nova.",

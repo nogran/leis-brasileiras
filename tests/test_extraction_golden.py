@@ -18,7 +18,16 @@ def test_parser_reproduces_original_contract(law):
     clean=path.with_name(path.stem+"_clean.txt").read_text(encoding="utf-8")
     cfg=LEIS_CONFIG[law["sigla"]]
     result,_=parse_law(clean,law["sigla"],cfg["versao"],cfg["url"],expected[0]["data_extracao"],cfg)
-    assert result == expected
+    # The old snapshots intentionally retain prohibited editorial interventions.
+    # Compare unaffected source fields; the new evidence tests reconcile raw HTML.
+    previous = {record["artigo"]: record for record in expected}
+    assert all("Artigo ausente da versão compilada do Planalto" not in r["texto_limpo"] for r in result)
+    for record in result:
+        old = previous[record["artigo"]]
+        assert record["texto_limpo"] == old["texto_limpo"]
+        assert record["hash_artigo"] == old["hash_artigo"]
+    missing = set(previous) - {r["artigo"] for r in result}
+    assert all("Artigo ausente da versão compilada do Planalto" in previous[key]["texto_limpo"] for key in missing)
 
 
 def test_no_articles_fails():

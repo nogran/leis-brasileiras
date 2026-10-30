@@ -1,287 +1,632 @@
 [
   {
     "law": "CF88",
-    "public_id": "br-federal:constitution:1988",
-    "format": "legacy-blocks-v1",
-    "source_url": "https://www.planalto.gov.br/ccivil_03/constituicao/constituicao.htm",
-    "reference_snapshot": "cf88_2026-07-07.json",
-    "reference_date": "2026-07-07",
-    "observation_precision": "date",
-    "html_fixture": true,
-    "sha256": "f0d38016b09f75ae7cf2e4642728843ea56510f144a2f06f6cae4cdf09493094",
-    "records": 433,
-    "article_records": 430,
-    "other_records": 3,
-    "multipart_records": 31,
-    "multipart_units": 14,
-    "multipart_articles": 13,
-    "multipart_other_units": 1,
-    "prior_redactions": 775
+    "observation": {
+      "value": "2026-07-07",
+      "precision": "day"
+    },
+    "raw_sha256": "0c36e71cbcd35b24c1982b976feffc01a5ac9147f15c544044211274a59680cc",
+    "evidence_basis": "source-html",
+    "evidence_file": "source.html",
+    "parser_version": "observed-legislation@1",
+    "source_article_candidates": 424,
+    "structured_articles": 424,
+    "articles_by_component": {
+      "main": 276,
+      "adct": 148
+    },
+    "observed_occurrences": 514,
+    "source_statement_mentions": 99,
+    "unclassified_units": 1,
+    "tables": 2,
+    "text_fragments": 26811,
+    "blocks_or_parts": null,
+    "complete": false,
+    "reconciliation": {
+      "missing_identities": [],
+      "extra_identities": [],
+      "unmapped_evidence_ids": [],
+      "unclassified_units": [
+        "br-federal:constitution:1988!main/unclassified-c2da528a9838b48a"
+      ],
+      "discrepancies": [
+        "unclassified_content",
+        "structural_boundary_review_required"
+      ],
+      "preservation": "mapped",
+      "structure": "incomplete",
+      "complete": false,
+      "census_method": "stdlib-htmlparser-paragraph-labels@1",
+      "report_sha256": "381d494d0c820d92d9c915a21438d1d59917acae4160c738b940a3bb2c52a10a",
+      "source_occurrence_count": 514
+    }
   },
   {
     "law": "CDC",
-    "public_id": "br-federal:law:1990:8078",
-    "format": "legacy-blocks-v1",
-    "source_url": "https://www.planalto.gov.br/ccivil_03/leis/l8078compilado.htm",
-    "reference_snapshot": "cdc_2026-07-07.json",
-    "reference_date": "2026-07-07",
-    "observation_precision": "date",
-    "html_fixture": true,
-    "sha256": "176e9856d145d0d30e51491f75389062afc61291a8f0e6c4392008df04e15f27",
-    "records": 131,
-    "article_records": 130,
-    "other_records": 1,
-    "multipart_records": 0,
-    "multipart_units": 0,
-    "multipart_articles": 0,
-    "multipart_other_units": 0,
-    "prior_redactions": 0
+    "observation": {
+      "value": "2026-07-07",
+      "precision": "day"
+    },
+    "raw_sha256": "c71711ea5bfcc18cc9017cdde4173c3b5be074395ba8c4ca8c98801ee5d0cc2b",
+    "evidence_basis": "source-html",
+    "evidence_file": "source.html",
+    "parser_version": "observed-legislation@1",
+    "source_article_candidates": 130,
+    "structured_articles": 130,
+    "articles_by_component": {
+      "main": 130
+    },
+    "observed_occurrences": 130,
+    "source_statement_mentions": 42,
+    "unclassified_units": 1,
+    "tables": 2,
+    "text_fragments": 1641,
+    "blocks_or_parts": null,
+    "complete": false,
+    "reconciliation": {
+      "missing_identities": [],
+      "extra_identities": [],
+      "unmapped_evidence_ids": [],
+      "unclassified_units": [
+        "br-federal:law:1990:8078!main/unclassified-c2da528a9838b48a"
+      ],
+      "discrepancies": [
+        "unclassified_content",
+        "structural_boundary_review_required"
+      ],
+      "preservation": "mapped",
+      "structure": "incomplete",
+      "complete": false,
+      "census_method": "stdlib-htmlparser-paragraph-labels@1",
+      "report_sha256": "fe736951e5a801e0146720cce88bd527d13f4584a848049b589ddb43dcb3d5a6",
+      "source_occurrence_count": 130
+    }
   },
   {
     "law": "CLT",
-    "public_id": "br-federal:decree-law:1943:5452",
-    "format": "legacy-blocks-v1",
-    "source_url": "https://www.planalto.gov.br/ccivil_03/decreto-lei/del5452compilado.htm",
-    "reference_snapshot": "clt_2026-07-07.json",
-    "reference_date": "2026-07-07",
-    "observation_precision": "date",
-    "html_fixture": true,
-    "sha256": "f176f8777655f332277726e69f525a9bca051c2bdba1f3749fbf8a4ff13ab83a",
-    "records": 1031,
-    "article_records": 1025,
-    "other_records": 6,
-    "multipart_records": 5,
-    "multipart_units": 1,
-    "multipart_articles": 0,
-    "multipart_other_units": 1,
-    "prior_redactions": 13
+    "observation": {
+      "value": "2026-07-07",
+      "precision": "day"
+    },
+    "raw_sha256": "c5b9b5f1a81af9c6ad47ab151721bc8faa307aeacb77882ee5e9a605e4dd37a3",
+    "evidence_basis": "source-html",
+    "evidence_file": "source.html",
+    "parser_version": "observed-legislation@1",
+    "source_article_candidates": 1022,
+    "structured_articles": 1022,
+    "articles_by_component": {
+      "main": 1022
+    },
+    "observed_occurrences": 1029,
+    "source_statement_mentions": 280,
+    "unclassified_units": 1,
+    "tables": 4,
+    "text_fragments": 17824,
+    "blocks_or_parts": null,
+    "complete": false,
+    "reconciliation": {
+      "missing_identities": [],
+      "extra_identities": [],
+      "unmapped_evidence_ids": [],
+      "unclassified_units": [
+        "br-federal:decree-law:1943:5452!main/unclassified-c2da528a9838b48a"
+      ],
+      "discrepancies": [
+        "unclassified_content",
+        "structural_boundary_review_required"
+      ],
+      "preservation": "mapped",
+      "structure": "incomplete",
+      "complete": false,
+      "census_method": "stdlib-htmlparser-paragraph-labels@1",
+      "report_sha256": "149f44a33ba8d6c4064543706a127a2dfbd71649a6ff91453f781f19058eda42",
+      "source_occurrence_count": 1029
+    }
   },
   {
     "law": "CC",
-    "public_id": "br-federal:law:2002:10406",
-    "format": "legacy-blocks-v1",
-    "source_url": "https://www.planalto.gov.br/ccivil_03/leis/2002/l10406compilada.htm",
-    "reference_snapshot": "codigo_civil_2026-07-07.json",
-    "reference_date": "2026-07-07",
-    "observation_precision": "date",
-    "html_fixture": true,
-    "sha256": "a34e87b91dd540061c75c1f28eef2a48404a0e92b41201cd79b4e7402370e364",
-    "records": 2093,
-    "article_records": 2092,
-    "other_records": 1,
-    "multipart_records": 0,
-    "multipart_units": 0,
-    "multipart_articles": 0,
-    "multipart_other_units": 0,
-    "prior_redactions": 1
+    "observation": {
+      "value": "2026-07-07",
+      "precision": "day"
+    },
+    "raw_sha256": "86bedd452f26b008ff2f876c53ececee1ba8c15e10b4bd0799ec1d7e7e658e6d",
+    "evidence_basis": "source-html",
+    "evidence_file": "source.html",
+    "parser_version": "observed-legislation@1",
+    "source_article_candidates": 2083,
+    "structured_articles": 2083,
+    "articles_by_component": {
+      "main": 2083
+    },
+    "observed_occurrences": 2083,
+    "source_statement_mentions": 113,
+    "unclassified_units": 1,
+    "tables": 11,
+    "text_fragments": 17253,
+    "blocks_or_parts": null,
+    "complete": false,
+    "reconciliation": {
+      "missing_identities": [],
+      "extra_identities": [],
+      "unmapped_evidence_ids": [],
+      "unclassified_units": [
+        "br-federal:law:2002:10406!main/unclassified-c2da528a9838b48a"
+      ],
+      "discrepancies": [
+        "unclassified_content",
+        "structural_boundary_review_required"
+      ],
+      "preservation": "mapped",
+      "structure": "incomplete",
+      "complete": false,
+      "census_method": "stdlib-htmlparser-paragraph-labels@1",
+      "report_sha256": "cec7b4475bd31d662c33a2444def2cbeba15e6da3b8544363e1cc2057a08b2a8",
+      "source_occurrence_count": 2083
+    }
   },
   {
     "law": "CPC",
-    "public_id": "br-federal:law:2015:13105",
-    "format": "legacy-blocks-v1",
-    "source_url": "https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2015/lei/L13105compilada.htm",
-    "reference_snapshot": "cpc_2026-07-07.json",
-    "reference_date": "2026-07-07",
-    "observation_precision": "date",
-    "html_fixture": true,
-    "sha256": "5bc44b3bee6b0b42e4f4c685107eade1eee3791073cce18a12589e1a5ac03389",
-    "records": 1074,
-    "article_records": 1073,
-    "other_records": 1,
-    "multipart_records": 0,
-    "multipart_units": 0,
-    "multipart_articles": 0,
-    "multipart_other_units": 0,
-    "prior_redactions": 2
+    "observation": {
+      "value": "2026-07-07",
+      "precision": "day"
+    },
+    "raw_sha256": "147c7cfff8bd00b8ef489667471a9983ecd85eb9b5096db3527c683583e926e1",
+    "evidence_basis": "source-html",
+    "evidence_file": "source.html",
+    "parser_version": "observed-legislation@1",
+    "source_article_candidates": 1073,
+    "structured_articles": 1073,
+    "articles_by_component": {
+      "main": 1073
+    },
+    "observed_occurrences": 1073,
+    "source_statement_mentions": 41,
+    "unclassified_units": 1,
+    "tables": 2,
+    "text_fragments": 42827,
+    "blocks_or_parts": null,
+    "complete": false,
+    "reconciliation": {
+      "missing_identities": [],
+      "extra_identities": [],
+      "unmapped_evidence_ids": [],
+      "unclassified_units": [
+        "br-federal:law:2015:13105!main/unclassified-c2da528a9838b48a"
+      ],
+      "discrepancies": [
+        "unclassified_content",
+        "structural_boundary_review_required"
+      ],
+      "preservation": "mapped",
+      "structure": "incomplete",
+      "complete": false,
+      "census_method": "stdlib-htmlparser-paragraph-labels@1",
+      "report_sha256": "32f23d9410473f6e01f91b482f46a09c1bcad3f1aa20793f28f74cace9cddcb2",
+      "source_occurrence_count": 1073
+    }
   },
   {
     "law": "CP",
-    "public_id": "br-federal:decree-law:1940:2848",
-    "format": "legacy-blocks-v1",
-    "source_url": "https://www.planalto.gov.br/ccivil_03/decreto-lei/del2848compilado.htm",
-    "reference_snapshot": "cp_2026-07-07.json",
-    "reference_date": "2026-07-07",
-    "observation_precision": "date",
-    "html_fixture": true,
-    "sha256": "7f7235260a908c83cb9532c22a36924d3b9686b9be85e0f3873c06166c7d0ef2",
-    "records": 435,
-    "article_records": 434,
-    "other_records": 1,
-    "multipart_records": 0,
-    "multipart_units": 0,
-    "multipart_articles": 0,
-    "multipart_other_units": 0,
-    "prior_redactions": 0
+    "observation": {
+      "value": "2026-07-07",
+      "precision": "day"
+    },
+    "raw_sha256": "5ec15272038b6552a08fe6c3444a3a557033de52dea8a53f0b150b138085c282",
+    "evidence_basis": "source-html",
+    "evidence_file": "source.html",
+    "parser_version": "observed-legislation@1",
+    "source_article_candidates": 422,
+    "structured_articles": 432,
+    "articles_by_component": {
+      "main": 432
+    },
+    "observed_occurrences": 434,
+    "source_statement_mentions": 67,
+    "unclassified_units": 1,
+    "tables": 2,
+    "text_fragments": 8562,
+    "blocks_or_parts": null,
+    "complete": false,
+    "reconciliation": {
+      "missing_identities": [],
+      "extra_identities": [
+        "main/187",
+        "main/188",
+        "main/189",
+        "main/190",
+        "main/191",
+        "main/192",
+        "main/193",
+        "main/194",
+        "main/195",
+        "main/196"
+      ],
+      "unmapped_evidence_ids": [],
+      "unclassified_units": [
+        "br-federal:decree-law:1940:2848!main/unclassified-c2da528a9838b48a"
+      ],
+      "discrepancies": [
+        "independent_article_census_mismatch",
+        "unclassified_content",
+        "structural_boundary_review_required"
+      ],
+      "preservation": "mapped",
+      "structure": "incomplete",
+      "complete": false,
+      "census_method": "stdlib-htmlparser-paragraph-labels@1",
+      "report_sha256": "8213c0d934bb0eb8b3ffd43decbcddd27950214eae3c8e3ee3fb3a1fc494620c",
+      "source_occurrence_count": 424
+    }
   },
   {
     "law": "LGPD",
-    "public_id": "br-federal:law:2018:13709",
-    "format": "legacy-blocks-v1",
-    "source_url": "https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2018/lei/L13709compilado.htm",
-    "reference_snapshot": "lgpd_2026-07-07.json",
-    "reference_date": "2026-07-07",
-    "observation_precision": "date",
-    "html_fixture": true,
-    "sha256": "b4d6f2359119cc9b4883aa2f145a3f5bb747f7d49a30013848186dabc8fc4a79",
-    "records": 82,
-    "article_records": 81,
-    "other_records": 1,
-    "multipart_records": 2,
-    "multipart_units": 1,
-    "multipart_articles": 1,
-    "multipart_other_units": 0,
-    "prior_redactions": 0
+    "observation": {
+      "value": "2026-07-07",
+      "precision": "day"
+    },
+    "raw_sha256": "6d5255bbb932fe0a9566e0bcfb4000cc8b7ed6e739ec1cf0053c4c3fa507f2af",
+    "evidence_basis": "source-html",
+    "evidence_file": "source.html",
+    "parser_version": "observed-legislation@1",
+    "source_article_candidates": 79,
+    "structured_articles": 79,
+    "articles_by_component": {
+      "main": 79
+    },
+    "observed_occurrences": 80,
+    "source_statement_mentions": 24,
+    "unclassified_units": 1,
+    "tables": 2,
+    "text_fragments": 2869,
+    "blocks_or_parts": null,
+    "complete": false,
+    "reconciliation": {
+      "missing_identities": [],
+      "extra_identities": [],
+      "unmapped_evidence_ids": [],
+      "unclassified_units": [
+        "br-federal:law:2018:13709!main/unclassified-c2da528a9838b48a"
+      ],
+      "discrepancies": [
+        "unclassified_content",
+        "structural_boundary_review_required"
+      ],
+      "preservation": "mapped",
+      "structure": "incomplete",
+      "complete": false,
+      "census_method": "stdlib-htmlparser-paragraph-labels@1",
+      "report_sha256": "163fa14c3f16a0707794d87a63e61b191a26c066afaf5293f89704b66c545080",
+      "source_occurrence_count": 80
+    }
   },
   {
     "law": "ECA",
-    "public_id": "br-federal:law:1990:8069",
-    "format": "legacy-blocks-v1",
-    "source_url": "https://www.planalto.gov.br/ccivil_03/leis/L8069Compilado.htm",
-    "reference_snapshot": "eca_2026-07-07.json",
-    "reference_date": "2026-07-07",
-    "observation_precision": "date",
-    "html_fixture": true,
-    "sha256": "62094987ae61d5ff2ad6c9182cca4ee2038c36d13c56a57218578e070aae2730",
-    "records": 327,
-    "article_records": 326,
-    "other_records": 1,
-    "multipart_records": 2,
-    "multipart_units": 1,
-    "multipart_articles": 1,
-    "multipart_other_units": 0,
-    "prior_redactions": 21
+    "observation": {
+      "value": "2026-07-07",
+      "precision": "day"
+    },
+    "raw_sha256": "4675cbc3661313eac04a7389f6a9795a1a3d59af3c2df1f2163b87d9b432f304",
+    "evidence_basis": "source-html",
+    "evidence_file": "source.html",
+    "parser_version": "observed-legislation@1",
+    "source_article_candidates": 324,
+    "structured_articles": 324,
+    "articles_by_component": {
+      "main": 324
+    },
+    "observed_occurrences": 325,
+    "source_statement_mentions": 15,
+    "unclassified_units": 1,
+    "tables": 2,
+    "text_fragments": 10577,
+    "blocks_or_parts": null,
+    "complete": false,
+    "reconciliation": {
+      "missing_identities": [],
+      "extra_identities": [],
+      "unmapped_evidence_ids": [],
+      "unclassified_units": [
+        "br-federal:law:1990:8069!main/unclassified-c2da528a9838b48a"
+      ],
+      "discrepancies": [
+        "unclassified_content",
+        "structural_boundary_review_required"
+      ],
+      "preservation": "mapped",
+      "structure": "incomplete",
+      "complete": false,
+      "census_method": "stdlib-htmlparser-paragraph-labels@1",
+      "report_sha256": "30c3256ae34cc7bd98a7a7cc587cf0cf32201858d5e404ec74c68c13615b9f66",
+      "source_occurrence_count": 325
+    }
   },
   {
     "law": "LI",
-    "public_id": "br-federal:law:1991:8245",
-    "format": "legacy-blocks-v1",
-    "source_url": "https://www.planalto.gov.br/ccivil_03/leis/L8245compilado.htm",
-    "reference_snapshot": "lei_inquilinato_2026-07-07.json",
-    "reference_date": "2026-07-07",
-    "observation_precision": "date",
-    "html_fixture": true,
-    "sha256": "25eabe592a7c169c8e6ad37db7bfa8e48e2bd3cbda3a9f3d2e13fc30fb4dc675",
-    "records": 92,
-    "article_records": 91,
-    "other_records": 1,
-    "multipart_records": 0,
-    "multipart_units": 0,
-    "multipart_articles": 0,
-    "multipart_other_units": 0,
-    "prior_redactions": 0
+    "observation": {
+      "value": "2026-07-07",
+      "precision": "day"
+    },
+    "raw_sha256": "86a53975b97629e9ad891127067d3bf84b9eb90ce834b3f9e9df7dec64e49838",
+    "evidence_basis": "source-html",
+    "evidence_file": "source.html",
+    "parser_version": "observed-legislation@1",
+    "source_article_candidates": 91,
+    "structured_articles": 91,
+    "articles_by_component": {
+      "main": 91
+    },
+    "observed_occurrences": 91,
+    "source_statement_mentions": 7,
+    "unclassified_units": 1,
+    "tables": 2,
+    "text_fragments": 1174,
+    "blocks_or_parts": null,
+    "complete": false,
+    "reconciliation": {
+      "missing_identities": [],
+      "extra_identities": [],
+      "unmapped_evidence_ids": [],
+      "unclassified_units": [
+        "br-federal:law:1991:8245!main/unclassified-c2da528a9838b48a"
+      ],
+      "discrepancies": [
+        "unclassified_content",
+        "structural_boundary_review_required"
+      ],
+      "preservation": "mapped",
+      "structure": "incomplete",
+      "complete": false,
+      "census_method": "stdlib-htmlparser-paragraph-labels@1",
+      "report_sha256": "7de9192c967b45ac5c2711d634118156cf7734b60402d7c2d6d7dd3b73e9a5c2",
+      "source_occurrence_count": 91
+    }
   },
   {
     "law": "LMP",
-    "public_id": "br-federal:law:2006:11340",
-    "format": "legacy-blocks-v1",
-    "source_url": "https://www.planalto.gov.br/ccivil_03/_ato2004-2006/2006/lei/l11340.htm",
-    "reference_snapshot": "lei_maria_penha_2026-07-07.json",
-    "reference_date": "2026-07-07",
-    "observation_precision": "date",
-    "html_fixture": true,
-    "sha256": "467ea532736c651f1baa7ec24866feab19419621df320109f7e96cf77d27ce93",
-    "records": 58,
-    "article_records": 57,
-    "other_records": 1,
-    "multipart_records": 0,
-    "multipart_units": 0,
-    "multipart_articles": 0,
-    "multipart_other_units": 0,
-    "prior_redactions": 11
+    "observation": {
+      "value": "2026-07-07",
+      "precision": "day"
+    },
+    "raw_sha256": "5d713f6a40b2819627fb4a6e357dad87ee4df0e2f5fcf0bfb5f329476c19a560",
+    "evidence_basis": "source-html",
+    "evidence_file": "source.html",
+    "parser_version": "observed-legislation@1",
+    "source_article_candidates": 57,
+    "structured_articles": 57,
+    "articles_by_component": {
+      "main": 57
+    },
+    "observed_occurrences": 60,
+    "source_statement_mentions": 4,
+    "unclassified_units": 1,
+    "tables": 2,
+    "text_fragments": 1998,
+    "blocks_or_parts": null,
+    "complete": false,
+    "reconciliation": {
+      "missing_identities": [],
+      "extra_identities": [],
+      "unmapped_evidence_ids": [],
+      "unclassified_units": [
+        "br-federal:law:2006:11340!main/unclassified-7fe9c61d31414ce3"
+      ],
+      "discrepancies": [
+        "unclassified_content",
+        "undecodable_source_bytes",
+        "structural_boundary_review_required"
+      ],
+      "preservation": "mapped",
+      "structure": "incomplete",
+      "complete": false,
+      "census_method": "stdlib-htmlparser-paragraph-labels@1",
+      "report_sha256": "6bc4128cb8442608d1a878f0ea5c00b20b8006eb8e7b8f4531e2829309d4d3b0",
+      "source_occurrence_count": 60
+    }
   },
   {
     "law": "LC123",
-    "public_id": "br-federal:complementary-law:2006:123",
-    "format": "legacy-blocks-v1",
-    "source_url": "https://www.planalto.gov.br/ccivil_03/leis/lcp/lcp123.htm",
-    "reference_snapshot": "lc123_2026-07-07.json",
-    "reference_date": "2026-07-07",
-    "observation_precision": "date",
-    "html_fixture": true,
-    "sha256": "387027293f7d2009ea7bb6c4b163aa772f1a4ee9179b20ce34331cb4c56ca03e",
-    "records": 148,
-    "article_records": 142,
-    "other_records": 6,
-    "multipart_records": 14,
-    "multipart_units": 6,
-    "multipart_articles": 6,
-    "multipart_other_units": 0,
-    "prior_redactions": 1159
+    "observation": {
+      "value": "2026-07-07",
+      "precision": "day"
+    },
+    "raw_sha256": "9504bb42e29c6a0f320975dd0334851319a72e3e6817aa2321cb63ba0b11bce4",
+    "evidence_basis": "source-html",
+    "evidence_file": "source.html",
+    "parser_version": "observed-legislation@1",
+    "source_article_candidates": 132,
+    "structured_articles": 132,
+    "articles_by_component": {
+      "main": 132
+    },
+    "observed_occurrences": 158,
+    "source_statement_mentions": 136,
+    "unclassified_units": 1,
+    "tables": 20,
+    "text_fragments": 25488,
+    "blocks_or_parts": null,
+    "complete": false,
+    "reconciliation": {
+      "missing_identities": [],
+      "extra_identities": [],
+      "unmapped_evidence_ids": [],
+      "unclassified_units": [
+        "br-federal:complementary-law:2006:123!main/unclassified-c2da528a9838b48a"
+      ],
+      "discrepancies": [
+        "unclassified_content",
+        "structural_boundary_review_required"
+      ],
+      "preservation": "mapped",
+      "structure": "incomplete",
+      "complete": false,
+      "census_method": "stdlib-htmlparser-paragraph-labels@1",
+      "report_sha256": "f793e13285047766efa2c3f1f789986b4ddc60f9f2bf4232be156307f0328635",
+      "source_occurrence_count": 158
+    }
   },
   {
     "law": "LT",
-    "public_id": "br-federal:law:1974:6019",
-    "format": "legacy-blocks-v1",
-    "source_url": "https://www.planalto.gov.br/ccivil_03/leis/l6019compilado.htm",
-    "reference_snapshot": "lei_terceirizacao_2026-07-07.json",
-    "reference_date": "2026-07-07",
-    "observation_precision": "date",
-    "html_fixture": true,
-    "sha256": "0acccde536bb1488068691ffc9045fcbd9bcef38e257fb840593931568395575",
-    "records": 31,
-    "article_records": 30,
-    "other_records": 1,
-    "multipart_records": 0,
-    "multipart_units": 0,
-    "multipart_articles": 0,
-    "multipart_other_units": 0,
-    "prior_redactions": 0
+    "observation": {
+      "value": "2026-07-07",
+      "precision": "day"
+    },
+    "raw_sha256": "fdaf040c76d3f6dd9c795d52dbb88f7cd8f9b7f328e1b5a3156395046f540b2e",
+    "evidence_basis": "source-html",
+    "evidence_file": "source.html",
+    "parser_version": "observed-legislation@1",
+    "source_article_candidates": 23,
+    "structured_articles": 23,
+    "articles_by_component": {
+      "main": 23
+    },
+    "observed_occurrences": 30,
+    "source_statement_mentions": 9,
+    "unclassified_units": 1,
+    "tables": 2,
+    "text_fragments": 550,
+    "blocks_or_parts": null,
+    "complete": false,
+    "reconciliation": {
+      "missing_identities": [],
+      "extra_identities": [],
+      "unmapped_evidence_ids": [],
+      "unclassified_units": [
+        "br-federal:law:1974:6019!main/unclassified-c2da528a9838b48a"
+      ],
+      "discrepancies": [
+        "unclassified_content",
+        "structural_boundary_review_required"
+      ],
+      "preservation": "mapped",
+      "structure": "incomplete",
+      "complete": false,
+      "census_method": "stdlib-htmlparser-paragraph-labels@1",
+      "report_sha256": "fd60554cc4292eef69d7824239e7c548f218eaf4b0d4b8a1d2cac570f697c1ec",
+      "source_occurrence_count": 30
+    }
   },
   {
     "law": "CADPOS",
-    "public_id": "br-federal:law:2011:12414",
-    "format": "legacy-blocks-v1",
-    "source_url": "https://www.planalto.gov.br/ccivil_03/_ato2011-2014/2011/lei/l12414.htm",
-    "reference_snapshot": "cadastro_positivo_2026-07-07.json",
-    "reference_date": "2026-07-07",
-    "observation_precision": "date",
-    "html_fixture": true,
-    "sha256": "0229077f05709c898605363e464f84195196896b3e02a360a36b9a48ab05b93b",
-    "records": 21,
-    "article_records": 20,
-    "other_records": 1,
-    "multipart_records": 0,
-    "multipart_units": 0,
-    "multipart_articles": 0,
-    "multipart_other_units": 0,
-    "prior_redactions": 31
+    "observation": {
+      "value": "2026-07-07",
+      "precision": "day"
+    },
+    "raw_sha256": "7b462e55dc6a711c4058ecc9e1f27206f3d186fa92d9602cf5877b4b5d2bbb56",
+    "evidence_basis": "source-html",
+    "evidence_file": "source.html",
+    "parser_version": "observed-legislation@1",
+    "source_article_candidates": 19,
+    "structured_articles": 19,
+    "articles_by_component": {
+      "main": 19
+    },
+    "observed_occurrences": 25,
+    "source_statement_mentions": 13,
+    "unclassified_units": 1,
+    "tables": 1,
+    "text_fragments": 1382,
+    "blocks_or_parts": null,
+    "complete": false,
+    "reconciliation": {
+      "missing_identities": [],
+      "extra_identities": [],
+      "unmapped_evidence_ids": [],
+      "unclassified_units": [
+        "br-federal:law:2011:12414!main/unclassified-c2da528a9838b48a"
+      ],
+      "discrepancies": [
+        "unclassified_content",
+        "structural_boundary_review_required"
+      ],
+      "preservation": "mapped",
+      "structure": "incomplete",
+      "complete": false,
+      "census_method": "stdlib-htmlparser-paragraph-labels@1",
+      "report_sha256": "6a7eab8eea27ed1feffb2882bff4a208912bbd6b3f12244a88e80a7b1449bfd9",
+      "source_occurrence_count": 25
+    }
   },
   {
     "law": "L9099",
-    "public_id": "br-federal:law:1995:9099",
-    "format": "legacy-blocks-v1",
-    "source_url": "https://www.planalto.gov.br/ccivil_03/leis/l9099.htm",
-    "reference_snapshot": "lei_juizados_especiais_2026-07-13.json",
-    "reference_date": "2026-07-13",
-    "observation_precision": "date",
-    "html_fixture": false,
-    "sha256": "501503bb5cb5806b199a123169c98edd9ffe28cfbc197bee76c14fc5ff57d0d4",
-    "records": 100,
-    "article_records": 99,
-    "other_records": 1,
-    "multipart_records": 0,
-    "multipart_units": 0,
-    "multipart_articles": 0,
-    "multipart_other_units": 0,
-    "prior_redactions": 13
+    "observation": {
+      "value": "2026-07-13",
+      "precision": "day"
+    },
+    "raw_sha256": null,
+    "evidence_basis": "historical-clean-text",
+    "evidence_file": "historical-clean.txt",
+    "parser_version": "observed-legislation@1",
+    "source_article_candidates": null,
+    "structured_articles": 99,
+    "articles_by_component": {
+      "main": 99
+    },
+    "observed_occurrences": 99,
+    "source_statement_mentions": 4,
+    "unclassified_units": 1,
+    "tables": 0,
+    "text_fragments": 286,
+    "blocks_or_parts": null,
+    "complete": false,
+    "reconciliation": {
+      "missing_identities": [],
+      "extra_identities": [],
+      "unmapped_evidence_ids": [],
+      "unclassified_units": [
+        "br-federal:law:1995:9099!main/unclassified-fbf91218e1a7cf4a"
+      ],
+      "discrepancies": [
+        "raw_source_unavailable",
+        "unclassified_content",
+        "structural_boundary_review_required"
+      ],
+      "preservation": "mapped",
+      "structure": "incomplete",
+      "complete": false,
+      "census_method": null,
+      "report_sha256": "6f5bb971c803db9a7df7ae9c30edf984da5a1c9e64646442a7c3c0c76afdfe55",
+      "source_occurrence_count": null
+    }
   },
   {
     "law": "LEP",
-    "public_id": "br-federal:law:1984:7210",
-    "format": "legacy-blocks-v1",
-    "source_url": "https://www.planalto.gov.br/ccivil_03/leis/l7210compilado.htm",
-    "reference_snapshot": "lei_execucao_penal_2026-08-18.json",
-    "reference_date": "2026-08-18",
-    "observation_precision": "date",
-    "html_fixture": true,
-    "sha256": "385bc03646d925e11d0765f69d663c93bbbd4bd45d14113fd36260fbf483fae1",
-    "records": 220,
-    "article_records": 219,
-    "other_records": 1,
-    "multipart_records": 0,
-    "multipart_units": 0,
-    "multipart_articles": 0,
-    "multipart_other_units": 0,
-    "prior_redactions": 0
+    "observation": {
+      "value": "2026-08-18",
+      "precision": "day"
+    },
+    "raw_sha256": "5b444d49490bfbbefe3dd35d2248ab2f53493f1fa70cbc846d9b4305537a5fa0",
+    "evidence_basis": "source-html",
+    "evidence_file": "source.html",
+    "parser_version": "observed-legislation@1",
+    "source_article_candidates": 218,
+    "structured_articles": 218,
+    "articles_by_component": {
+      "main": 218
+    },
+    "observed_occurrences": 219,
+    "source_statement_mentions": 27,
+    "unclassified_units": 1,
+    "tables": 2,
+    "text_fragments": 2876,
+    "blocks_or_parts": null,
+    "complete": false,
+    "reconciliation": {
+      "missing_identities": [],
+      "extra_identities": [],
+      "unmapped_evidence_ids": [],
+      "unclassified_units": [
+        "br-federal:law:1984:7210!main/unclassified-c2da528a9838b48a"
+      ],
+      "discrepancies": [
+        "unclassified_content",
+        "structural_boundary_review_required"
+      ],
+      "preservation": "mapped",
+      "structure": "incomplete",
+      "complete": false,
+      "census_method": "stdlib-htmlparser-paragraph-labels@1",
+      "report_sha256": "a21b317549f71484f444bbde0a14fe85a0957e2f1ce5bb40e36d948869a284a7",
+      "source_occurrence_count": 219
+    }
   }
 ]

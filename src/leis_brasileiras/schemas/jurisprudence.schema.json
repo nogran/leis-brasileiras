@@ -1,36 +1,22 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:leis-brasileiras:schema:jurisprudence:observed-1",
   "type": "object",
-  "required": [
-    "format",
-    "parser_version",
-    "source",
-    "observed_at",
-    "observation_precision",
-    "coverage",
-    "records"
-  ],
-  "additionalProperties": false,
   "properties": {
     "format": {
-      "const": "jurisprudence-v1"
+      "const": "observed-jurisprudence-v1"
+    },
+    "observation_contract": {
+      "const": "source-observation-v1"
     },
     "parser_version": {
-      "const": "jurisprudence@1"
+      "const": "observed-jurisprudence@1"
     },
     "source": {
-      "enum": [
-        "stj_temas",
-        "stj_sumulas",
-        "stf_teses_rg",
-        "stf_sumulas_vinculantes",
-        "tjpe_sumulas",
-        "tjmg_sumulas"
-      ]
+      "type": "string"
     },
     "observed_at": {
-      "type": "string",
-      "maxLength": 200000
+      "type": "string"
     },
     "observation_precision": {
       "enum": [
@@ -40,116 +26,259 @@
     },
     "coverage": {
       "enum": [
-        "source_snapshot",
-        "sample"
+        "sample",
+        "source_snapshot"
       ]
     },
     "records": {
       "type": "array",
-      "minItems": 1,
-      "maxItems": 20000,
       "items": {
         "type": "object",
-        "required": [
-          "id",
-          "court",
-          "type",
-          "number",
-          "text",
-          "has_thesis",
-          "source_url",
-          "observed_at",
-          "observation_precision",
-          "situation",
-          "situation_basis",
-          "legal_validity",
-          "content_sha256",
-          "source_record"
-        ],
-        "additionalProperties": false,
         "properties": {
           "id": {
-            "type": "string",
-            "maxLength": 200000
-          },
-          "court": {
-            "enum": [
-              "STJ",
-              "STF",
-              "TJPE",
-              "TJMG"
-            ]
-          },
-          "type": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "maxLength": 200000
+            "type": "string"
           },
           "number": {
-            "type": "string",
-            "pattern": "^[0-9]{1,6}$"
-          },
-          "text": {
             "type": [
               "string",
               "null"
-            ],
-            "maxLength": 200000
-          },
-          "has_thesis": {
-            "type": "boolean"
-          },
-          "source_url": {
-            "type": "string",
-            "maxLength": 200000
-          },
-          "observed_at": {
-            "type": "string",
-            "maxLength": 200000
-          },
-          "observation_precision": {
-            "enum": [
-              "day",
-              "instant"
             ]
           },
-          "situation": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "maxLength": 200000
+          "court": {
+            "type": "string"
           },
-          "situation_basis": {
-            "enum": [
-              "unknown",
-              "parser_classification",
-              "dated_source_observation"
-            ]
+          "collection": {
+            "type": "string"
           },
           "legal_validity": {
             "const": "unknown"
           },
-          "content_sha256": {
-            "type": "string",
-            "pattern": "^[0-9a-f]{64}$"
+          "readings": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "source_id": {
+                  "type": "string"
+                },
+                "location": {
+                  "type": "string"
+                },
+                "source_record": {},
+                "source_text": {
+                  "type": "string"
+                },
+                "text_sha256": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "fields": {
+                  "type": "object"
+                },
+                "thesis_presence": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "situation": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "dates": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "source_field": {
+                        "type": "string"
+                      },
+                      "literal": {},
+                      "value": {
+                        "type": "null"
+                      },
+                      "precision": {
+                        "type": "null"
+                      }
+                    },
+                    "required": [
+                      "source_field",
+                      "literal",
+                      "value",
+                      "precision"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "source_statements": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "literal": {
+                        "type": "string"
+                      },
+                      "start": {
+                        "type": "integer"
+                      },
+                      "end": {
+                        "type": "integer"
+                      },
+                      "target": {
+                        "type": "null"
+                      }
+                    },
+                    "required": [
+                      "literal",
+                      "start",
+                      "end",
+                      "target"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": [
+                "id",
+                "source_id",
+                "location",
+                "source_record",
+                "source_text",
+                "text_sha256",
+                "fields",
+                "thesis_presence",
+                "situation",
+                "dates",
+                "source_statements"
+              ],
+              "additionalProperties": false
+            }
           },
-          "source_record": {
-            "type": "object",
-            "required": [
-              "source",
-              "tipo",
-              "numero",
-              "has_thesis",
-              "url_fonte",
-              "hash",
-              "extracted_at"
-            ]
+          "related_evidence": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "source_id": {
+                  "type": "string"
+                },
+                "path": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "source_id",
+                "path"
+              ],
+              "additionalProperties": false
+            }
           }
-        }
+        },
+        "required": [
+          "id",
+          "number",
+          "court",
+          "collection",
+          "legal_validity",
+          "readings",
+          "related_evidence"
+        ],
+        "additionalProperties": false
       }
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "properties": {
+        "observation": {
+          "type": "object",
+          "properties": {
+            "value": {
+              "type": "string"
+            },
+            "precision": {
+              "enum": [
+                "day",
+                "instant"
+              ]
+            }
+          },
+          "required": [
+            "value",
+            "precision"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "observation"
+      ],
+      "additionalProperties": false
+    },
+    "reconciliation": {
+      "type": "object",
+      "properties": {
+        "complete": {
+          "const": false
+        },
+        "structure": {
+          "const": "incomplete"
+        },
+        "discrepancies": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "source_records": {
+          "type": "integer"
+        },
+        "structured_identities": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "complete",
+        "structure",
+        "discrepancies",
+        "source_records",
+        "structured_identities"
+      ],
+      "additionalProperties": false
+    },
+    "structured_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "revision": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
     }
-  }
+  },
+  "required": [
+    "format",
+    "observation_contract",
+    "parser_version",
+    "source",
+    "observed_at",
+    "observation_precision",
+    "coverage",
+    "records",
+    "evidence",
+    "provenance",
+    "reconciliation",
+    "structured_sha256",
+    "revision"
+  ],
+  "additionalProperties": false
 }

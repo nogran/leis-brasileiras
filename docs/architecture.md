@@ -1,79 +1,53 @@
-# Public legislative corpus architecture
+# Evidence-first corpus architecture
 
-Leis Brasileiras is a public Brazilian legal data project covering legislation and
-jurisprudence, with planned MCP access.
-The Python library and CLI currently extract, validate and package official-source
-observations. No MCP server, hosted API, search index or package release is delivered.
-Consumers choose their own retrieval, storage and application policies.
+Official bytes -> bounded inert decoding/evidence map -> source-bound occurrences ->
+independent reconciliation -> immutable capture/replay -> local diagnostic archive.
 
-## Data flow
+`source_map.py` records text and markup before any cleanup. `canonical.py` identifies
+legislative units from that evidence. `reconciliation.py` independently enumerates
+article candidates with stdlib HTMLParser; it does not import the segmenter.
+`canonical_validation.py` checks bounded relationships, projections, seals and reports.
+`capture.py` and `corpus.py` bind documents back to raw bytes through replay.
 
-Official HTML → bounded transport → shared HTML normalization and structural parser →
-complete observed occurrences → canonical units OR historical compatibility export.
+`jurisprudence/observed.py` projects original CSV/JSON/HTML/PDF evidence without the
+historical parsers' default status, field filtering or deduplication. Acquisition
+remains in `jurisprudence/capture.py`; its existing bounded source-policy helpers
+only discover approved endpoints and records. PDF quarantine, antimalware and
+isolated page extraction remain mandatory. Unknown fields and duplicate occurrences
+are retained. The common `evidence.py` defines hashes and observation precision.
 
-`extraction.py` emits complete occurrences before the historical size filter,
-redaction deduplication, overlap and per-label winner selection. `canonical.py`
-uses these occurrences; `compatibility.py` retains segmentation and the legacy facade.
-There is one structural parser. Canonical parsing never reconstructs text by joining
-historical parts. The historical export is not a conversion of the canonical JSON:
-it is another projection of the shared parser and its preserved compatibility rules.
+Historical extraction and validation modules remain for regression diagnostics.
+They are not an alternate public export path. New captures never load editorial
+curation, create tombstones, choose a current reading or join RAG parts.
 
-The canonical representation keeps source wording, cleaned text, observed metadata,
-components, hierarchy and all duplicate readings. It does not silently choose the
-longest reading. Curated corrections and assertions from `known_issues.json` appear
-separately as editorial annotations pending evidence review. Synthetic tombstones
-remain in the historical export only. HTML/CSS struck text is separately available;
-heuristic dedup removals are not automatically classified as historical legal text.
+## Boundaries and incomplete structure
 
-## Boundaries
+Preservation of all decoded fragments is measurable independently of article counts.
+A complete evidence map does not prove correct attachment of a footer, note or table
+to a legal unit. Reconciliation therefore keeps structure incomplete and lists the
+unresolved reviews. Article labels are candidates, not assertions of legal effect.
 
-- Canonical corpus: law and unit identities, observed text, provenance and revisions.
-- Compatibility export: historical Portuguese fields, IDs, labels, hashes and parts.
-- Optional future search derivatives: segments/indexes linked to canonical revisions.
-- Future MCP: bounded read-only projection over a validated corpus release.
-- Consumer integrations: persistence, embeddings, ranking and business rules.
+Consumers must distinguish source transcript, ambiguous reading, explicit source
+statement and legal validity. The package does not determine validity. Capture-local
+heading/annex paths are not guaranteed stable across page revisions. Full hierarchy,
+subparagraph identity, CSS rendering and effective-date reasoning are not implemented.
 
-The 6,000/400 segmentation is a frozen compatibility profile, not a legal data model.
-Canonical validation has no embedding-size threshold, token estimate or minimum
-proportion of provisions classified as current. Historical retrieval diagnostics
-remain an opt-in library function, outside capture/release acceptance.
+The corpus has no database, embeddings, LLM, hosted API or MCP server dependency.
+Retrieval/chunking and production migrations belong to consumers. See
+[transition](transition.md) for concrete compatibility risks.
 
-## Implemented granularity and limitations
+## Dependency and failure policy
 
-Articles and existing non-article units are addressable. Paragraphs, clauses,
-subsections and tables are not universally parsed as nodes. Hierarchy is an ordered
-path on each reading; the addressable parent is the main/ADCT/annex component.
-Subsection text may remain embedded in a heading. `EMENTA` is conservatively typed
-`preamble_or_summary`; the existing parser does not reliably distinguish every kind.
+No external dependency was added. Requests, BeautifulSoup4, PyYAML and pypdf remain
+pinned through lock files. JSON Schema is a development check; runtime consistency
+checks do not fetch schemas. Transport bounds, deadlines, TLS, allowlisted hosts,
+PDF scanning and failure behavior are documented in
+[security-and-resilience.md](security-and-resilience.md). Failed decoding, malformed
+records, missing scanner or failed replay stop capture; no invented fallback text
+is substituted. Reports retain incomplete evidence as incomplete.
 
-A repeated label within a component is an ambiguous unit with multiple readings,
-not a merged text. This includes source structures the parser cannot yet distinguish
-(e.g. enactment versus consolidated-text occurrences). Clients must not present
-an ambiguous unit as a single authoritative text. Addressing finer components needs
-source-specific evidence and tests; it is not inferred from text length.
-
-Source metadata is observed, not legal advice or an effective-date determination.
-Unresolved editorial assertions do not block publication of the observation as data,
-but they cannot establish legal validity. `quality=ambiguous` explicitly limits use.
-
-## Dependency resilience
-
-Runtime dependencies remain Requests, BeautifulSoup4 and PyYAML. See
-[security-and-resilience.md](security-and-resilience.md) for network limits and failures.
-The standard-library canonical model has no database, LLM or remote-schema dependency.
-JSON Schema validation uses jsonschema 4.26 in development/CI only, with locked
-transitives; packaged schemas contain no remote references requiring network access.
-If development dependencies cannot install, schema/build checks stay failed or pending;
-no runtime fallback disables checks. They can be replaced without changing the corpus.
-
-The planned MCP SDK will be introduced only with its own interoperability tests,
-timeouts, concurrency bounds, observability and upgrade/rollback plan.
-
-## Jurisprudence boundary
-
-The `jurisprudence` subpackage owns six official-source adapters, pure parsers,
-source-bound identities, provenance, standalone validation, captures and local archives.
-It shares no persistence or retrieval policy with a consumer. Raw observations can
-be replayed to verify the derived document; PDF adapters scan and isolate extraction.
-The legislative parser and multipart compatibility format are unchanged.
-See [jurisprudence](jurisprudence.md) for schema and source boundaries.
+References: [BeautifulSoup](https://www.crummy.com/software/BeautifulSoup/bs4/doc/),
+[pypdf extraction](https://pypdf.readthedocs.io/en/stable/user/extract-text.html),
+[PROV-DM](https://www.w3.org/TR/prov-dm/) and
+[Akoma Ntoso vocabulary](https://docs.oasis-open.org/legaldocml/akn-core/v1.0/akn-core-v1.0-part1-vocabulary.html).
+These inform separation of source and interpretation; no compliance certification is claimed.

@@ -32,11 +32,12 @@ def build_release(captures: list[Path], output: Path, version: str, *, selected_
         for name in names:
             raw = (folder / name).read_bytes()
             payload[f"{identifier}/{name}"] = raw
-        index.append({"source": identifier, "coverage": report["coverage"],
+        index.append({"source": identifier, "coverage": report["coverage"], "complete": report["complete"],
                       "document_sha256": report["document_sha256"], "observed_at": capture_manifest["observed_at"]})
     if seen != selected:
         raise ValueError("Corpus coverage does not match explicit selection")
-    manifest = {"format": "jurisprudence-corpus-v1", "version": version,
+    manifest = {"format": "jurisprudence-corpus-v2", "version": version,
+                "complete": all(entry["complete"] for entry in index),
                 "sources": sorted(index, key=lambda entry: entry["source"]),
                 "files": {name: digest(raw) for name, raw in sorted(payload.items())}}
     payload["manifest.json"] = json_bytes(manifest)

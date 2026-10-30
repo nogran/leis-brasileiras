@@ -17,9 +17,16 @@ jobs:
         run: python -m pytest -q --cov=leis_brasileiras --cov-report=term
       - name: Validate all reference laws and prepare local corpus
         run: |
-          python tools/build_inventory.py --check
-          python tools/build_reference.py --output dist/reference.zip --version ci-reference
-          python tools/build_reference.py --format canonical-v1 --output dist/canonical-reference.zip --version ci-reference
+          python -m tools.build_inventory --check --report dist/source-fidelity-report.json
+          python -m tools.build_reference --output dist/observed-reference.zip --version ci-reference
+      - name: Upload full source fidelity report
+        if: ${{ always() && hashFiles('dist/source-fidelity-report.json') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: source-fidelity-report
+          path: dist/source-fidelity-report.json
+          if-no-files-found: error
+          retention-days: 14
       - name: Build wheel and source distribution
         run: python -m build
       - name: Install wheel into a clean environment outside source tree
