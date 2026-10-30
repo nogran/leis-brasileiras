@@ -48,6 +48,8 @@ a fixture comprimida não foi regravada. São 432 identidades e 434 ocorrências
 conferidas por rótulo, nota e ordem, sem certificação de completude. A revisão
 geral das demais rubricas, limites, hierarquia e tabelas continua pendente.
 
+Na LGPD, a fixture de 07/07/2026 não contém a sequência contígua `Art. 57`. Entre os artigos 56 e 58 o número está em spans do mesmo parágrafo (`Art. 5`, `7.`, `(VETADO).`). `observed-legislation@4` junta esses dígitos quando o primeiro fragmento é só o rótulo. O artigo 5 real permanece uma leitura. O censo independente aplica o mesmo critério (`stdlib-htmlparser-block-break-labels@3`) sem importar o segmentador. O título seguinte `Seção II` continua dentro dessa leitura, porque o detector de cabeçalho exige `SEÇÃO`. Nenhuma vigência é escolhida.
+
 LMP preserva o byte UTF-16 terminal incompleto. L9099 conserva
 apenas o derivado histórico com ausência de fonte explícita. Notas, preâmbulos,
 anexos e tabelas ficam preservados, mas a revisão de delimitação segue pendente em

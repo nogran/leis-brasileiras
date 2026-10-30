@@ -66,7 +66,7 @@
           ]
         },
         "parser_version": {
-          "const": "observed-legislation@3"
+          "const": "observed-legislation@4"
         }
       },
       "required": [

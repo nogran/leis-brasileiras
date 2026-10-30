@@ -67,8 +67,14 @@ label does not receive an invented number. A single orphan label, ordinary bold
 paragraphs, inline emphasis, open bold wrappers, and table cells do not trigger
 this join. Multi-line named headings keep their context. `legal_validity` stays
 `unknown`.
-The evidence map remains `html-evidence@1`, unchanged; only segmentation and the
-independent census (`stdlib-htmlparser-block-break-labels@2`) have new revisions.
+`observed-legislation@4` keeps that behavior and joins an article number split
+across adjacent inline text in the same block. A fragment that is only the label
+(`Art. 5`) followed by a fragment that is only further digits (`7.`) is Art. 57.
+The join does not cross a later paragraph, does not run when the first fragment
+already continues into words, and does not invent a number or choose vigência.
+The evidence map remains `html-evidence@1`, unchanged. Segmentation and the
+independent census (`stdlib-htmlparser-block-break-labels@3`) share that digit
+join; the census does not import the segmenter.
 Reprocessing produces a new document revision; it never overwrites old captures.
 
 ## Jurisprudence
