@@ -100,3 +100,21 @@ não usa APIs pagas nem conecta a bancos de produção.
 
 O diagnóstico operacional e o plano de correção do corpus privado estão preservados
 no repositório de dados. Nenhum deploy, ingestão ou alteração de banco foi executado.
+
+## Captura ao vivo — 2026-10-30
+
+O Planalto fecha a conexão para o token `leis-brasileiras/0.1 (legislation research)`.
+Responde ao token compatível `Mozilla/5.0 (compatible; leis-brasileiras/0.2; +https://github.com/nogran/leis-brasileiras)`.
+A URL catalogada da LGPD com `L13709` devolve 301 para a mesma URL com `l13709`.
+O catálogo passou a guardar o endereço que responde 200. Redirecionamento continua recusado.
+
+`extract LGPD` em 2026-10-30 gravou HTML de 230.913 bytes, SHA-256
+`d3e5975ae30a0919e0fffb3d673c4919b289ff74bfd81dd0517b19596c0fe9c9`,
+`verify-capture` aprovado, `complete=false`. O transcript de conteúdo tem o mesmo
+SHA-256 da fixture histórica (`351267171aba34dfd6e258573c85d5dff70ce6b08d0ddd3d0b5af9182174b6d8`);
+o HTML bruto não é o mesmo.
+
+Nessa fixture, `art-5` fica `quality=ambiguous` com duas ocorrências. A segunda começa
+por `Art. 5` e `7.` seguidos de `(VETADO)`: o rótulo do artigo 57 foi partido e
+absorvido como outra leitura do artigo 5. Nenhuma das duas leituras é escolhida.
+
