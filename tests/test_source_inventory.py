@@ -5,7 +5,9 @@ from pathlib import Path
 import pytest
 
 from tools import build_inventory
-from tools.build_inventory import inventory, readme_inventory, replace_readme_inventory, summarize_inventory
+from tools import check_article_text
+from tools.build_inventory import (article_text_sha256, inventory, readme_inventory,
+                                   replace_readme_inventory, summarize_inventory, unit_text_manifest)
 from leis_brasileiras.evidence import structured_digest
 
 ROOT = Path(__file__).parents[1]
@@ -38,6 +40,7 @@ def test_source_counts_do_not_hide_missing_evidence_or_divergences(measured):
     assert "independent_article_census_mismatch" not in cp["reconciliation"]["discrepancies"]
     assert "structural_boundary_review_required" in cp["reconciliation"]["discrepancies"]
     l9099 = by_law["L9099"]
+    assert len(l9099["article_text_sha256"]) == 64
     assert l9099["evidence_basis"] == "source-html"
     assert l9099["evidence_file"] == "source.html"
     assert l9099["observation"]["value"] == "2026-10-30"
@@ -81,6 +84,39 @@ def test_check_exports_full_report_even_when_summary_is_stale(tmp_path, monkeypa
     assert report.read_bytes() == full
     with pytest.raises(SystemExit):
         build_inventory.main(["--report", str(summary)])
+
+
+def test_unit_text_manifest_keeps_every_reading_hash():
+    document = {"units": [
+        {"locator": "main/23", "kind": "article", "text": None, "readings": [
+            {"text_sha256": "aaa", "text": "former"}, {"text_sha256": "bbb", "text": "later"}]},
+        {"locator": "main/heading-1", "kind": "heading", "text": "CAPÍTULO I", "readings": [
+            {"text_sha256": "ccc", "text": "CAPÍTULO I"}]},
+    ]}
+    manifest = [
+        {"locator": "main/23", "kind": "article", "readings": ["aaa", "bbb"]},
+        {"locator": "main/heading-1", "kind": "heading", "readings": ["ccc"]},
+    ]
+    assert unit_text_manifest(document) == manifest
+    assert article_text_sha256(document) == structured_digest(manifest)
+
+
+def test_check_article_text_reports_a_reading_hash_change(tmp_path, monkeypatch, capsys):
+    document = {"units": [{"locator": "main/1", "kind": "article", "readings": [{"text_sha256": "abc"}]}]}
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "docs" / "source-inventory.json").write_text(json.dumps([
+        {"law": "L9099", "article_text_sha256": article_text_sha256(document)}
+    ]), encoding="utf-8")
+    monkeypatch.setattr(check_article_text, "ROOT", tmp_path)
+    monkeypatch.setattr(check_article_text, "reference", lambda law: (document, "source.html", b""))
+    assert check_article_text.main(["L9099"]) == 0
+    assert json.loads(capsys.readouterr().out)["changed"] is False
+    changed = {"units": [{"locator": "main/1", "kind": "article", "readings": [{"text_sha256": "zzz"}]}]}
+    monkeypatch.setattr(check_article_text, "reference", lambda law: (changed, "source.html", b""))
+    assert check_article_text.main(["L9099"]) == 1
+    assert json.loads(capsys.readouterr().out)["changed"] is True
+    assert check_article_text.main([]) == 2
+    assert check_article_text.main(["NOT_A_LAW"]) == 2
 
 
 @pytest.mark.parametrize("text", ["", "<!-- article-inventory:end --><!-- article-inventory:start -->",
