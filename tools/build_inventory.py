@@ -4,11 +4,23 @@ import json
 from pathlib import Path
 
 from leis_brasileiras.catalog import LAWS
+from leis_brasileiras.evidence import structured_digest
 from tools.build_reference import reference
 
 ROOT = Path(__file__).resolve().parents[1]
 START = "<!-- article-inventory:start -->"
 END = "<!-- article-inventory:end -->"
+
+
+def unit_text_manifest(document):
+    """Reading hashes in source order. Ambiguous units stay unselected."""
+    return [{"locator": unit["locator"], "kind": unit["kind"],
+             "readings": [reading["text_sha256"] for reading in unit["readings"]]}
+            for unit in document["units"]]
+
+
+def article_text_sha256(document):
+    return structured_digest(unit_text_manifest(document))
 
 
 def inventory():
@@ -25,6 +37,7 @@ def inventory():
             "raw_sha256": document["provenance"]["raw_sha256"],
             "evidence_basis": document["provenance"]["basis"],
             "evidence_file": filename, "parser_version": document["provenance"]["parser_version"],
+            "article_text_sha256": article_text_sha256(document),
             "source_article_candidates": len(report["source_identities"]) if report["source_identities"] is not None else None,
             "structured_articles": len(articles), "articles_by_component": components,
             "observed_occurrences": sum(len(u["readings"]) for u in articles),
