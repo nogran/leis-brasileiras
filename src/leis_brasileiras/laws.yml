@@ -67,7 +67,7 @@ laws:
     nome_base: cpc
     nome: "Código de Processo Civil"
     numero: "Lei 13.105/2015"
-    url: https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2015/lei/L13105compilada.htm
+    url: https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2015/lei/l13105compilada.htm
     parse:
       dedup_redacoes: true
 
@@ -92,7 +92,7 @@ laws:
     nome_base: eca
     nome: "Estatuto da Criança e do Adolescente"
     numero: "Lei 8.069/1990"
-    url: https://www.planalto.gov.br/ccivil_03/leis/L8069Compilado.htm
+    url: https://www.planalto.gov.br/ccivil_03/leis/l8069compilado.htm
     parse:
       dedup_redacoes: true
 
@@ -101,7 +101,7 @@ laws:
     nome_base: lei_inquilinato
     nome: "Lei do Inquilinato"
     numero: "Lei 8.245/1991"
-    url: https://www.planalto.gov.br/ccivil_03/leis/L8245compilado.htm
+    url: https://www.planalto.gov.br/ccivil_03/leis/l8245compilado.htm
 
   - sigla: LMP
     public_id: br-federal:law:2006:11340
